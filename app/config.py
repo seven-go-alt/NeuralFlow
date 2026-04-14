@@ -21,11 +21,13 @@ class Settings(BaseSettings):
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-
     mcp_base_url: str = "http://localhost:9000"
 
-    celery_broker_url: str = "redis://localhost:6379/0"
-    celery_result_backend: str = "redis://localhost:6379/1"
+    celery_broker_url_override: str | None = Field(default=None, alias="CELERY_BROKER_URL")
+    celery_result_backend_override: str | None = Field(
+        default=None,
+        alias="CELERY_RESULT_BACKEND",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,6 +35,24 @@ class Settings(BaseSettings):
         extra="ignore",
         populate_by_name=True,
     )
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def celery_broker_url(self) -> str:
+        return self.celery_broker_url_override or self.redis_url
+
+    @property
+    def celery_result_backend(self) -> str:
+        if self.celery_result_backend_override:
+            return self.celery_result_backend_override
+        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db + 1}"
+
+    @property
+    def chroma_api_url(self) -> str:
+        return f"http://{self.chroma_host}:{self.chroma_port}"
 
 
 @lru_cache(maxsize=1)

@@ -29,3 +29,8 @@ services:
     image: chromadb/chroma:1.0.20
     ports:
       - "8001:8000"
+    volumes:
+      - chroma_data:/data
+
+volumes:
+  chroma_data:
