@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.example
+    depends_on:
+      - redis
+      - chroma
+
+  worker:
+    build: .
+    command: uv run celery -A worker.celery_app worker --loglevel=info
+    env_file:
+      - .env.example
+    depends_on:
+      - redis
+      - chroma
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  chroma:
+    image: chromadb/chroma:1.0.20
+    ports:
+      - "8001:8000"
