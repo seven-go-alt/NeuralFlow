@@ -1,16 +1,18 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY app ./app
 COPY src ./src
 COPY worker.py ./
 COPY tests ./tests
 
-RUN pip install --no-cache-dir uv     && uv sync --frozen
+RUN pip install --no-cache-dir uv \
+    && uv sync --frozen
 
 EXPOSE 8000
 
