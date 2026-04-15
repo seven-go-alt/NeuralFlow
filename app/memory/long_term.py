@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.config import get_settings
@@ -16,9 +17,14 @@ class LongTermMemory:
 
     def save_summary(self, summary: str, metadata: dict) -> str:
         item_id = str(uuid4())
+        payload_metadata = {
+            **metadata,
+            "created_at": metadata.get("created_at")
+            or datetime.now(UTC).isoformat(timespec="seconds"),
+        }
         self.collection.add(
             documents=[summary],
-            metadatas=[metadata],
+            metadatas=[payload_metadata],
             ids=[item_id],
         )
         return item_id

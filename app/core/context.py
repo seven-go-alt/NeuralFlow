@@ -14,13 +14,29 @@ class ContextBuilder:
         self.working_mem = working_mem or WorkingMemory(session_id=session_id)
         self.long_mem = long_mem or LongTermMemory()
 
-    async def build_prompt(self, user_query: str, intent: str) -> str:
+    async def build_prompt(
+        self,
+        user_query: str,
+        intent: str,
+        memory_strategy: str | None = None,
+        skill_whitelist: list[str] | None = None,
+    ) -> str:
         context_parts: list[str] = ["你是一个智能助手。"]
 
-        if intent == "coding":
-            context_parts.append("当前可用技能: Python代码解释器, 文件读写工具。")
+        effective_skill_whitelist = skill_whitelist
+        if effective_skill_whitelist is None and intent == "coding":
+            effective_skill_whitelist = ["Python代码解释器", "文件读写工具"]
 
-        if intent in {"query_history", "personal_preference"}:
+        if effective_skill_whitelist:
+            context_parts.append("当前可用技能: " + ", ".join(effective_skill_whitelist))
+
+        effective_memory_strategy = memory_strategy
+        if effective_memory_strategy is None:
+            effective_memory_strategy = (
+                "long_term" if intent in {"query_history", "personal_preference"} else "working_only"
+            )
+
+        if effective_memory_strategy == "long_term":
             memories = await self.long_mem.search(user_query, top_k=3)
             if memories:
                 context_parts.append("相关历史记忆:\n" + "\n".join(memories))
