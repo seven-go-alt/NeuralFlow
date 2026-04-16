@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
+from app.middleware.telemetry import TelemetryMiddleware
+from app.utils.observability import configure_structured_logging, create_observability
 from app.core.context import ContextBuilder
 from app.core.intent_router import IntentDetectionResult, IntentPolicy, IntentRouter
 from app.core.llm import LLMClient
@@ -15,7 +18,11 @@ from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 
 settings = get_settings()
+audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
+observability = create_observability()
 app = FastAPI(title=settings.app_name)
+app.add_middleware(TelemetryMiddleware, observability=observability)
+configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
 intent_router = IntentRouter()
 llm_client = LLMClient()
 mcp_client = MCPClient()
@@ -71,6 +78,11 @@ async def healthz() -> dict[str, str]:
     return {"status": "ok", "app": settings.app_name}
 
 
+@app.get("/metrics")
+async def metrics():
+    return observability.metrics_response()
+
+
 @app.get("/api/skills", response_model=SkillsListResponse)
 async def list_skills() -> SkillsListResponse:
     return SkillsListResponse(
@@ -79,14 +91,17 @@ async def list_skills() -> SkillsListResponse:
 
 
 @app.post("/api/intent/detect", response_model=IntentDetectResponse)
-async def detect_intent(request: IntentDetectRequest) -> IntentDetectResponse:
+async def detect_intent(http_request: Request, request: IntentDetectRequest) -> IntentDetectResponse:
     result = await intent_router.detect(request.message)
+    http_request.state.intent = result.primary_intent
     return _serialize_intent_result(result)
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
+    http_request.state.session_id = request.session_id
     payload = await _prepare_chat(request)
+    http_request.state.intent = payload["intent"]
     reply = await llm_client.generate(payload["prompt"])
     payload["working_memory"].add_message("assistant", reply)
     return ChatResponse(
@@ -100,8 +115,10 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: ChatRequest, include_thinking: bool | None = None):
+async def chat_stream(http_request: Request, request: ChatRequest, include_thinking: bool | None = None):
+    http_request.state.session_id = request.session_id
     payload = await _prepare_chat(request)
+    http_request.state.intent = payload["intent"]
     include_reasoning = settings.stream_thinking_enabled if include_thinking is None else include_thinking
 
     async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
