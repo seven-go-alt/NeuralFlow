@@ -81,14 +81,24 @@ docker compose up --build
 ## 基本接口
 
 - `GET /healthz`：健康检查
+- `GET /metrics`：导出 Prometheus 指标（请求耗时、错误数、活跃会话数）
+- `GET /admin/config`：读取当前运行时配置快照，需要 `X-Admin-Secret`
+- `PATCH /admin/config`：热更新运行时配置并写入审计日志，需要 `X-Admin-Secret`
 - `GET /api/skills`：列出当前注册并可暴露给策略层的技能
 - `POST /api/intent/detect`：返回意图识别结果、是否使用 fallback，以及每个意图对应的记忆/技能策略
 - `POST /chat`：写入短期记忆，按意图构造上下文，按白名单调用 MCP 技能，并通过 LiteLLM 生成回复
+- `POST /chat/stream`：输出 SSE 流式响应，并按运行时配置决定是否透出 thinking/reasoning 片段
 
 `POST /chat` 当前会额外返回：
 
 - `used_skills`：本轮实际执行的技能名列表
 - `skill_results`：每个技能的执行结果，便于调试 MCP 调用链路
+
+## 最近补充能力
+
+- 可观测性：新增结构化请求日志、`TelemetryMiddleware` 与 `/metrics` 指标导出
+- 运行时配置：新增 `ConfigManager`，支持通过管理接口热更新开关类配置并记录审计日志
+- 流式响应：`/chat/stream` 支持 SSE 输出，并兼容 thinking 开关与中断注册表
 
 ## 开发路线调整
 
@@ -104,8 +114,12 @@ Phase 3：上下文优化
 - 实现按意图查询长期记忆的 `ContextBuilder`
 - 将短期记忆、长期记忆和 LLM 调用串起来
 
-Phase 4：异步归档
+Phase 4：异步归档与技能调用
 - 用 Celery 将历史对话压缩为摘要后异步写入 ChromaDB
-- 再接入 MCP/技能调用能力
+- 接入 MCP/技能调用能力
 
-当前代码已完成 Phase 4 的两项主线能力，并补上了对应测试。
+Phase 5：运行时治理
+- 增加请求链路可观测性与 Prometheus 指标
+- 提供运行时配置热更新与审计能力
+
+当前代码已完成 Phase 5 的主线能力，并补上了对应测试。
