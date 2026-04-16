@@ -140,6 +140,35 @@ def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypat
 
 
 
+def test_chat_endpoint_passes_tenant_context_to_mcp_payload(monkeypatch) -> None:
+    registry = SkillRegistry()
+    registry.register("planner", "规划任务")
+
+    llm = StubLLMClient()
+    mcp = StubMCPClient()
+
+    monkeypatch.setattr("app.main.intent_router", StubRouter())
+    monkeypatch.setattr("app.main.skill_registry", registry)
+    monkeypatch.setattr("app.main.mcp_client", mcp)
+    monkeypatch.setattr("app.main.llm_client", llm)
+    monkeypatch.setattr("app.main.WorkingMemory", StubWorkingMemory)
+    monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
+
+    client = TestClient(app)
+    response = client.post(
+        "/chat",
+        headers={"X-Tenant-ID": "tenant-alpha", "X-Tenant-Roles": "reader"},
+        json={"session_id": "s1", "message": "帮我规划并顺手查一下历史"},
+    )
+
+    assert response.status_code == 200
+    assert len(mcp.calls) == 1
+    assert mcp.calls[0][1]["tenant_id"] == "tenant-alpha"
+    assert mcp.calls[0][1]["tenant_roles"] == ["reader"]
+    assert mcp.calls[0][1]["tenant_scope"] == ["tenant-alpha"]
+
+
+
 def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch) -> None:
     registry = SkillRegistry()
     llm = StubLLMClient()

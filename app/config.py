@@ -51,7 +51,14 @@ class Settings(BaseSettings):
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+
     mcp_base_url: str = "http://localhost:9000"
+    mcp_timeout_seconds: float = 15.0
+    mcp_retry_attempts: int = 3
+    mcp_retry_backoff_seconds: float = 0.5
+
+    tenant_default_id: str = "public"
+
     token_budget_encoding: str = "cl100k_base"
     max_context_tokens_soft: int = 6000
     max_context_tokens: int = 8000
@@ -72,10 +79,7 @@ class Settings(BaseSettings):
     )
 
     celery_broker_url_override: str | None = Field(default=None, alias="CELERY_BROKER_URL")
-    celery_result_backend_override: str | None = Field(
-        default=None,
-        alias="CELERY_RESULT_BACKEND",
-    )
+    celery_result_backend_override: str | None = Field(default=None, alias="CELERY_RESULT_BACKEND")
 
     model_config = SettingsConfigDict(
         env_file=".env",

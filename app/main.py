@@ -10,19 +10,22 @@ from pydantic import BaseModel, ValidationError
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
 from app.config_manager import ConfigManager
-from app.middleware.telemetry import TelemetryMiddleware
-from app.utils.observability import configure_structured_logging, create_observability
 from app.core.context import ContextBuilder
-from app.core.intent_router import IntentDetectionResult, IntentPolicy, IntentRouter
+from app.core.intent_router import IntentDetectionResult, IntentRouter
 from app.core.llm import LLMClient
 from app.memory.working import WorkingMemory
+from app.middleware.telemetry import TelemetryMiddleware
+from app.middleware.tenant_isolation import TenantIsolationMiddleware
+from app.models import TenantContext
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
+from app.utils.observability import configure_structured_logging, create_observability
 
 settings = get_settings()
 audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
 observability = create_observability()
 app = FastAPI(title=settings.app_name)
+app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
 intent_router = IntentRouter()
@@ -128,7 +131,7 @@ async def detect_intent(http_request: Request, request: IntentDetectRequest) -> 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     http_request.state.session_id = request.session_id
-    payload = await _prepare_chat(request)
+    payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
     http_request.state.intent = payload["intent"]
     reply = await llm_client.generate(payload["prompt"])
     payload["working_memory"].add_message("assistant", reply)
@@ -145,7 +148,7 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
 @app.post("/chat/stream")
 async def chat_stream(http_request: Request, request: ChatRequest, include_thinking: bool | None = None):
     http_request.state.session_id = request.session_id
-    payload = await _prepare_chat(request)
+    payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
     http_request.state.intent = payload["intent"]
     runtime_config = await config_manager.get_snapshot()
     include_reasoning = runtime_config.stream_thinking_enabled if include_thinking is None else include_thinking
@@ -161,7 +164,7 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
     return await create_sse_response(request.session_id, event_source, stream_registry)
 
 
-async def _prepare_chat(request: ChatRequest) -> dict:
+async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | None = None) -> dict:
     working_memory = WorkingMemory(session_id=request.session_id)
     working_memory.add_message("user", request.message)
 
@@ -173,6 +176,7 @@ async def _prepare_chat(request: ChatRequest) -> dict:
         session_id=request.session_id,
         intent=routed.primary_intent,
         user_query=request.message,
+        tenant_context=tenant_context,
     )
 
     context_builder = ContextBuilder(session_id=request.session_id, working_mem=working_memory)
@@ -196,6 +200,7 @@ async def _run_skills(
     session_id: str,
     intent: str,
     user_query: str,
+    tenant_context: TenantContext | None = None,
 ) -> list[dict[str, dict]]:
     results: list[dict[str, dict]] = []
     for skill in skills:
@@ -204,7 +209,20 @@ async def _run_skills(
             "intent": intent,
             "input": user_query,
         }
-        result = await mcp_client.call_tool(skill.tool_name, payload)
+        if tenant_context is not None:
+            payload.update(
+                {
+                    "tenant_id": tenant_context.tenant_id,
+                    "tenant_roles": tenant_context.roles,
+                    "tenant_scope": tenant_context.scope,
+                }
+            )
+        try:
+            result = await mcp_client.call_tool(skill.tool_name, payload, read_only=skill.read_only)
+        except TypeError as exc:
+            if "unexpected keyword argument 'read_only'" not in str(exc):
+                raise
+            result = await mcp_client.call_tool(skill.tool_name, payload)
         results.append({"skill": skill.name, "result": result})
     return results
 
@@ -229,7 +247,6 @@ def _verify_admin_secret(request: Request) -> None:
     provided = _extract_admin_secret(request)
     if not expected or provided != expected:
         raise HTTPException(status_code=401, detail="Unauthorized")
-
 
 
 def _extract_admin_secret(request: Request) -> str | None:
