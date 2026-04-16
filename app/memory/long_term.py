@@ -10,9 +10,16 @@ from app.utils.vector_client import get_vector_client
 
 
 class LongTermMemory:
-    def __init__(self, client=None, collection_name: str | None = None, retriever: VectorRetriever | None = None) -> None:
+    def __init__(
+        self,
+        client=None,
+        collection_name: str | None = None,
+        retriever: VectorRetriever | None = None,
+        tenant_id: str = "public",
+    ) -> None:
         settings = get_settings()
         self.client = client or get_vector_client()
+        self.tenant_id = tenant_id or "public"
         self.collection = self.client.get_or_create_collection(
             name=collection_name or settings.chroma_collection
         )
@@ -20,6 +27,7 @@ class LongTermMemory:
             collection=self.collection,
             cache_client=get_redis_client(),
             cache_ttl_seconds=settings.vector_search_cache_ttl_seconds,
+            tenant_id=self.tenant_id,
         )
         self.default_top_k = settings.vector_search_default_top_k
 
@@ -27,6 +35,7 @@ class LongTermMemory:
         item_id = str(uuid4())
         payload_metadata = {
             **metadata,
+            "tenant_id": metadata.get("tenant_id", self.tenant_id),
             "type": metadata.get("type", "summary"),
             "created_at": metadata.get("created_at")
             or datetime.now(UTC).isoformat(timespec="seconds"),

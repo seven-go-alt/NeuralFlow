@@ -18,11 +18,14 @@ class WorkingMemory(MemoryStore):
         max_turns: int | None = None,
         archive_batch_size: int = 4,
         client: redis.Redis | None = None,
+        tenant_id: str = "public",
     ) -> None:
         settings = get_settings()
         self.client = client or get_redis_client()
-        self.key = f"session:{session_id}:history"
-        self.archive_key = f"session:{session_id}:archive"
+        self.tenant_id = tenant_id or "public"
+        key_prefix = f"tenant:{self.tenant_id}:session:{session_id}"
+        self.key = f"{key_prefix}:history"
+        self.archive_key = f"{key_prefix}:archive"
         self.max_turns = max_turns or settings.working_memory_max_turns
         self.archive_batch_size = archive_batch_size
         self._fallback_enabled = False

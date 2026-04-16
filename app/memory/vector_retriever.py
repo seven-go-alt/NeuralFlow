@@ -24,10 +24,12 @@ class VectorRetriever:
         collection: Any,
         cache_client: Any | None = None,
         cache_ttl_seconds: int = 300,
+        tenant_id: str = "public",
     ) -> None:
         self.collection = collection
         self.cache_client = cache_client
         self.cache_ttl_seconds = cache_ttl_seconds
+        self.tenant_id = tenant_id or "public"
         self.last_cache_hit = False
 
     async def search(
@@ -59,7 +61,7 @@ class VectorRetriever:
         return results
 
     def _build_where(self, session_id: str | None, memory_type: str) -> dict[str, Any]:
-        where: dict[str, Any] = {"type": memory_type}
+        where: dict[str, Any] = {"type": memory_type, "tenant_id": self.tenant_id}
         if session_id:
             where["session_id"] = session_id
         return where

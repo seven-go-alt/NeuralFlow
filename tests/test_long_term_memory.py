@@ -33,3 +33,18 @@ def test_long_term_memory_search_returns_relevant_documents() -> None:
     results = asyncio.run(memory.search("ChromaDB", top_k=2))
 
     assert results == ["用户上次在讨论 ChromaDB 部署方案。"]
+
+
+def test_long_term_memory_search_isolated_by_tenant() -> None:
+    client = InMemoryVectorClient()
+    tenant_a = LongTermMemory(client=client, collection_name="memory_search_tenant", tenant_id="tenant-a")
+    tenant_b = LongTermMemory(client=client, collection_name="memory_search_tenant", tenant_id="tenant-b")
+
+    tenant_a.save_summary("tenant-a 的 ChromaDB 记录。", {"session_id": "s1"})
+    tenant_b.save_summary("tenant-b 的 ChromaDB 记录。", {"session_id": "s1"})
+
+    results_a = asyncio.run(tenant_a.search("ChromaDB", top_k=2, session_id="s1"))
+    results_b = asyncio.run(tenant_b.search("ChromaDB", top_k=2, session_id="s1"))
+
+    assert results_a == ["tenant-a 的 ChromaDB 记录。"]
+    assert results_b == ["tenant-b 的 ChromaDB 记录。"]

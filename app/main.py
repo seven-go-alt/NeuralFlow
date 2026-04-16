@@ -165,7 +165,13 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
 
 
 async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | None = None) -> dict:
-    working_memory = WorkingMemory(session_id=request.session_id)
+    tenant_id = tenant_context.tenant_id if tenant_context is not None else settings.tenant_default_id
+    try:
+        working_memory = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
+    except TypeError as exc:
+        if "unexpected keyword argument 'tenant_id'" not in str(exc):
+            raise
+        working_memory = WorkingMemory(session_id=request.session_id)
     working_memory.add_message("user", request.message)
 
     routed = await intent_router.detect(request.message)
@@ -179,7 +185,16 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         tenant_context=tenant_context,
     )
 
-    context_builder = ContextBuilder(session_id=request.session_id, working_mem=working_memory)
+    try:
+        context_builder = ContextBuilder(
+            session_id=request.session_id,
+            working_mem=working_memory,
+            tenant_id=tenant_id,
+        )
+    except TypeError as exc:
+        if "unexpected keyword argument 'tenant_id'" not in str(exc):
+            raise
+        context_builder = ContextBuilder(session_id=request.session_id, working_mem=working_memory)
     prompt = await context_builder.build_prompt(
         request.message,
         routed.primary_intent,

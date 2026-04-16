@@ -19,12 +19,14 @@ class ContextBuilder:
         working_mem: WorkingMemory | None = None,
         long_mem: LongTermMemory | None = None,
         token_budget_manager: TokenBudgetManager | None = None,
+        tenant_id: str = "public",
     ) -> None:
         settings = get_settings()
         self.session_id = session_id
         self.settings = settings
-        self.working_mem = working_mem or WorkingMemory(session_id=session_id)
-        self.long_mem = long_mem or LongTermMemory()
+        self.tenant_id = tenant_id or "public"
+        self.working_mem = working_mem or WorkingMemory(session_id=session_id, tenant_id=self.tenant_id)
+        self.long_mem = long_mem or LongTermMemory(tenant_id=self.tenant_id)
         self.token_budget_manager = token_budget_manager or TokenBudgetManager(
             encoding_name=settings.token_budget_encoding,
             soft_limit_tokens=settings.max_context_tokens_soft,

@@ -27,13 +27,21 @@ class SpyCollection:
         self.get_calls: list[dict] = []
         self.query_result = {
             "documents": [["summary one"]],
-            "metadatas": [[{"session_id": "s1", "type": "summary"}]],
+            "metadatas": [[{"session_id": "s1", "type": "summary", "tenant_id": "public"}]],
             "distances": [[0.12]],
             "ids": [["doc-1"]],
         }
         self.documents = [
-            {"id": "doc-1", "document": "redis cache summary", "metadata": {"session_id": "s1", "type": "summary"}},
-            {"id": "doc-2", "document": "python traceback fix", "metadata": {"session_id": "s1", "type": "summary"}},
+            {
+                "id": "doc-1",
+                "document": "redis cache summary",
+                "metadata": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+            },
+            {
+                "id": "doc-2",
+                "document": "python traceback fix",
+                "metadata": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+            },
         ]
 
     def query(self, query_texts, n_results=3, where=None):
@@ -60,12 +68,16 @@ async def test_vector_retriever_uses_metadata_filter_and_returns_structured_resu
     results = await retriever.search("summary", session_id="s1", memory_type="summary", top_k=2)
 
     assert collection.query_calls == [
-        {"query_texts": ["summary"], "n_results": 2, "where": {"session_id": "s1", "type": "summary"}}
+        {
+            "query_texts": ["summary"],
+            "n_results": 2,
+            "where": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+        }
     ]
     assert results == [
         {
             "content": "summary one",
-            "metadata": {"session_id": "s1", "type": "summary"},
+            "metadata": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
             "score": pytest.approx(0.88),
             "source": "vector",
         }
@@ -99,7 +111,10 @@ async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_f
     results = await retriever.search("python fix", session_id="s1", memory_type="summary", top_k=2)
 
     assert collection.get_calls == [
-        {"where": {"session_id": "s1", "type": "summary"}, "include": ["documents", "metadatas"]}
+        {
+            "where": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+            "include": ["documents", "metadatas"],
+        }
     ]
     assert results[0]["content"] == "python traceback fix"
     assert results[0]["source"] == "keyword"
