@@ -94,6 +94,106 @@ docker compose up --build
 - `used_skills`：本轮实际执行的技能名列表
 - `skill_results`：每个技能的执行结果，便于调试 MCP 调用链路
 
+## 管理接口示例
+
+先设置管理密钥：
+
+```bash
+export ADMIN_SECRET_KEY=test-admin-key
+```
+
+读取当前运行时配置：
+
+```bash
+curl -s http://localhost:8000/admin/config \
+  -H "X-Admin-Secret: $ADMIN_SECRET_KEY" | jq
+```
+
+示例响应：
+
+```json
+{
+  "config": {
+    "working_memory_max_turns": 10,
+    "max_context_tokens_soft": 6000,
+    "max_context_tokens": 8000,
+    "token_budget_recent_messages": 4,
+    "vector_search_cache_ttl_seconds": 300,
+    "vector_search_default_top_k": 3,
+    "stream_thinking_enabled": false,
+    "intent_llm_fallback_enabled": true,
+    "litellm_model": "gpt-4o-mini",
+    "model_routing_strategy": "primary"
+  },
+  "audit_entry": null
+}
+```
+
+热更新配置：
+
+```bash
+curl -s http://localhost:8000/admin/config \
+  -X PATCH \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Secret: $ADMIN_SECRET_KEY" \
+  -d '{
+    "max_context_tokens": 4096,
+    "stream_thinking_enabled": true
+  }' | jq
+```
+
+示例响应：
+
+```json
+{
+  "config": {
+    "working_memory_max_turns": 10,
+    "max_context_tokens_soft": 4096,
+    "max_context_tokens": 4096,
+    "token_budget_recent_messages": 4,
+    "vector_search_cache_ttl_seconds": 300,
+    "vector_search_default_top_k": 3,
+    "stream_thinking_enabled": true,
+    "intent_llm_fallback_enabled": true,
+    "litellm_model": "gpt-4o-mini",
+    "model_routing_strategy": "primary"
+  },
+  "audit_entry": {
+    "timestamp": "2026-04-17T02:00:00Z",
+    "actor": "admin_api",
+    "source_ip": "127.0.0.1",
+    "changes": {
+      "max_context_tokens_soft": {"old": 6000, "new": 4096},
+      "max_context_tokens": {"old": 8000, "new": 4096},
+      "stream_thinking_enabled": {"old": false, "new": true}
+    }
+  }
+}
+```
+
+说明：当你只下调 `max_context_tokens` 而未显式传入 `max_context_tokens_soft` 时，服务会自动把 soft limit 一并收缩，避免配置进入非法状态。
+
+## Metrics 指标说明
+
+默认通过 `GET /metrics` 暴露 Prometheus 文本格式指标，当前重点包括：
+
+- `neuralflow_request_duration_seconds{endpoint, intent}`：请求耗时直方图
+- `neuralflow_errors_total{endpoint, intent}`：未处理异常计数
+- `neuralflow_active_sessions`：当前 in-flight 会话数
+- `neuralflow_llm_token_usage_total{model, type}`：LLM 输入/输出 token 计数
+- `neuralflow_memory_cache_hit_total{layer}`：记忆缓存命中计数
+
+抓取示例：
+
+```bash
+curl -s http://localhost:8000/metrics | grep neuralflow_
+```
+
+如果以多进程方式部署 Prometheus client，可额外设置：
+
+- `PROMETHEUS_MULTIPROC_DIR`：启用 multiprocess collector
+- `NEURALFLOW_AUDIT_LOG_PATH`：指定结构化审计日志文件路径
+
 ## 最近补充能力
 
 - 可观测性：新增结构化请求日志、`TelemetryMiddleware` 与 `/metrics` 指标导出
