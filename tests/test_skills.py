@@ -1,8 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.core.intent_router import IntentDetectionResult, IntentPolicy
 from app.main import app
+from app.memory.working import WorkingMemory
 from app.skills.registry import SkillRegistry
 
 
@@ -59,6 +61,20 @@ class StubMCPClient:
     async def call_tool(self, tool_name: str, payload: dict) -> dict:
         self.calls.append((tool_name, payload))
         return {"result": f"{tool_name} handled {payload['input']}"}
+
+
+class BrokenRedisClient:
+    def lpush(self, *args, **kwargs):
+        raise RedisConnectionError("redis unavailable")
+
+    def lrange(self, *args, **kwargs):
+        raise RedisConnectionError("redis unavailable")
+
+    def ltrim(self, *args, **kwargs):
+        raise RedisConnectionError("redis unavailable")
+
+    def delete(self, *args, **kwargs):
+        raise RedisConnectionError("redis unavailable")
 
 
 class StubRouter:
@@ -121,6 +137,31 @@ def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypat
     assert "planner handled" in body["prompt"]
     assert "memory handled" in body["prompt"]
     assert llm.prompts and llm.prompts[0] == body["prompt"]
+
+
+
+def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch) -> None:
+    registry = SkillRegistry()
+    llm = StubLLMClient()
+
+    monkeypatch.setattr("app.main.intent_router", StubRouter())
+    monkeypatch.setattr("app.main.skill_registry", registry)
+    monkeypatch.setattr("app.main.mcp_client", StubMCPClient())
+    monkeypatch.setattr("app.main.llm_client", llm)
+    monkeypatch.setattr(
+        "app.main.WorkingMemory",
+        lambda session_id: WorkingMemory(session_id=session_id, client=BrokenRedisClient()),
+    )
+    monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
+
+    client = TestClient(app)
+    response = client.post("/chat", json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] == "ok"
+    assert body["used_skills"] == []
+    assert llm.prompts and "query=帮我规划并顺手查一下历史" in llm.prompts[0]
 
 
 

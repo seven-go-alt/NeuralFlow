@@ -226,9 +226,25 @@ def _serialize_intent_result(result: IntentDetectionResult) -> IntentDetectRespo
 
 def _verify_admin_secret(request: Request) -> None:
     expected = os.getenv("ADMIN_SECRET_KEY")
-    provided = request.headers.get("X-Admin-Secret")
+    provided = _extract_admin_secret(request)
     if not expected or provided != expected:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+
+def _extract_admin_secret(request: Request) -> str | None:
+    explicit_secret = request.headers.get("X-Admin-Secret")
+    if explicit_secret:
+        return explicit_secret
+
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        return None
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
 
 
 def _get_client_ip(request: Request) -> str:

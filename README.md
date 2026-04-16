@@ -82,8 +82,8 @@ docker compose up --build
 
 - `GET /healthz`：健康检查
 - `GET /metrics`：导出 Prometheus 指标（请求耗时、错误数、活跃会话数）
-- `GET /admin/config`：读取当前运行时配置快照，需要 `X-Admin-Secret`
-- `PATCH /admin/config`：热更新运行时配置并写入审计日志，需要 `X-Admin-Secret`
+- `GET /admin/config`：读取当前运行时配置快照，需要管理密钥（兼容 `X-Admin-Secret` 或 `Authorization: Bearer <token>`）
+- `PATCH /admin/config`：热更新运行时配置并写入审计日志，需要管理密钥（兼容 `X-Admin-Secret` 或 `Authorization: Bearer <token>`）
 - `GET /api/skills`：列出当前注册并可暴露给策略层的技能
 - `POST /api/intent/detect`：返回意图识别结果、是否使用 fallback，以及每个意图对应的记忆/技能策略
 - `POST /chat`：写入短期记忆，按意图构造上下文，按白名单调用 MCP 技能，并通过 LiteLLM 生成回复
@@ -107,6 +107,13 @@ export ADMIN_SECRET_KEY=test-admin-key
 ```bash
 curl -s http://localhost:8000/admin/config \
   -H "X-Admin-Secret: $ADMIN_SECRET_KEY" | jq
+```
+
+等价写法（Bearer 认证）:
+
+```bash
+curl -s http://localhost:8000/admin/config \
+  -H "Authorization: Bearer $ADMIN_SECRET_KEY" | jq
 ```
 
 示例响应：
@@ -193,6 +200,35 @@ curl -s http://localhost:8000/metrics | grep neuralflow_
 
 - `PROMETHEUS_MULTIPROC_DIR`：启用 multiprocess collector
 - `NEURALFLOW_AUDIT_LOG_PATH`：指定结构化审计日志文件路径
+
+## 测试与压测
+
+安装开发依赖后，可以直接运行：
+
+```bash
+uv sync --group dev
+uv run pytest tests/ -v --cov=app
+```
+
+如果你使用项目已有 `.venv`，也可执行：
+
+```bash
+source .venv/bin/activate
+pytest tests/ -v --cov=app
+```
+
+项目根目录已提供 `load_test.py`，支持 `healthz`、`metrics`、`/admin/config` 以及可选的 `/chat` 压测：
+
+```bash
+export ADMIN_SECRET_KEY=***
+locust -f load_test.py --host http://localhost:8000
+```
+
+说明：
+- 默认压测 `GET /healthz`、`GET /metrics`、`GET/PATCH /admin/config`
+- 默认使用 `Authorization: Bearer $ADMIN_SECRET_KEY` 调用管理接口
+- 如需把 `/chat` 也加入压测，启动前设置 `NEURALFLOW_LOAD_ENABLE_CHAT=1`
+- 若本地未配置外部 LLM 凭证，建议先只压 `healthz/metrics/admin` 链路
 
 ## 最近补充能力
 

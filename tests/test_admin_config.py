@@ -38,6 +38,21 @@ async def test_admin_config_patch_updates_runtime_config() -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_config_accepts_bearer_authorization_header() -> None:
+    await config_manager.reset()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.patch(
+            "/admin/config",
+            headers={"Authorization": "Bearer test-admin-key"},
+            json={"max_context_tokens": 4096},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["config"]["max_context_tokens"] == 4096
+
+
+@pytest.mark.asyncio
 async def test_admin_config_patch_rejects_invalid_values_without_mutating_state() -> None:
     await config_manager.reset()
     transport = ASGITransport(app=app)
