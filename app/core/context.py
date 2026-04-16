@@ -20,6 +20,7 @@ class ContextBuilder:
         intent: str,
         memory_strategy: str | None = None,
         skill_whitelist: list[str] | None = None,
+        skill_results: list[dict[str, object]] | None = None,
     ) -> str:
         context_parts: list[str] = ["你是一个智能助手。"]
 
@@ -29,6 +30,14 @@ class ContextBuilder:
 
         if effective_skill_whitelist:
             context_parts.append("当前可用技能: " + ", ".join(effective_skill_whitelist))
+
+        if skill_results:
+            rendered_results = []
+            for item in skill_results:
+                skill_name = str(item.get("skill", "unknown"))
+                result = item.get("result")
+                rendered_results.append(f"- {skill_name}: {result}")
+            context_parts.append("技能执行结果:\n" + "\n".join(rendered_results))
 
         effective_memory_strategy = memory_strategy
         if effective_memory_strategy is None:
