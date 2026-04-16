@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+import inspect
+import logging
+from typing import Any
+
+from app.config import get_settings
+from app.core.token_budget import ContextSegment, TokenBudgetManager
 from app.memory.long_term import LongTermMemory
 from app.memory.working import WorkingMemory
+
+logger = logging.getLogger(__name__)
 
 
 class ContextBuilder:
@@ -10,9 +18,25 @@ class ContextBuilder:
         session_id: str,
         working_mem: WorkingMemory | None = None,
         long_mem: LongTermMemory | None = None,
+        token_budget_manager: TokenBudgetManager | None = None,
     ) -> None:
+        settings = get_settings()
+        self.session_id = session_id
+        self.settings = settings
         self.working_mem = working_mem or WorkingMemory(session_id=session_id)
         self.long_mem = long_mem or LongTermMemory()
+        self.token_budget_manager = token_budget_manager or TokenBudgetManager(
+            encoding_name=settings.token_budget_encoding,
+            soft_limit_tokens=settings.max_context_tokens_soft,
+            hard_limit_tokens=settings.max_context_tokens,
+        )
+        self.last_trim_metadata = {
+            "token_before_trim": 0,
+            "token_after_trim": 0,
+            "soft_limit_exceeded": False,
+            "hard_limit_exceeded": False,
+            "dropped_segment_names": [],
+        }
 
     async def build_prompt(
         self,
@@ -22,22 +46,34 @@ class ContextBuilder:
         skill_whitelist: list[str] | None = None,
         skill_results: list[dict[str, object]] | None = None,
     ) -> str:
-        context_parts: list[str] = ["你是一个智能助手。"]
+        segments: list[ContextSegment] = [
+            ContextSegment(name="system_prompt", text="你是一个智能助手。", priority=0, required=True)
+        ]
 
         effective_skill_whitelist = skill_whitelist
         if effective_skill_whitelist is None and intent == "coding":
             effective_skill_whitelist = ["python", "filesystem"]
-
         if effective_skill_whitelist:
-            context_parts.append("当前可用技能: " + ", ".join(effective_skill_whitelist))
+            segments.append(
+                ContextSegment(
+                    name="available_skills",
+                    text="当前可用技能: " + ", ".join(effective_skill_whitelist),
+                    priority=1,
+                )
+            )
 
         if skill_results:
             rendered_results = []
             for item in skill_results:
                 skill_name = str(item.get("skill", "unknown"))
-                result = item.get("result")
-                rendered_results.append(f"- {skill_name}: {result}")
-            context_parts.append("技能执行结果:\n" + "\n".join(rendered_results))
+                rendered_results.append(f"- {skill_name}: {item.get('result')}")
+            segments.append(
+                ContextSegment(
+                    name="skill_results",
+                    text="技能执行结果:\n" + "\n".join(rendered_results),
+                    priority=1,
+                )
+            )
 
         effective_memory_strategy = memory_strategy
         if effective_memory_strategy is None:
@@ -46,12 +82,46 @@ class ContextBuilder:
             )
 
         if effective_memory_strategy == "long_term":
-            memories = await self.long_mem.search(user_query, top_k=3)
+            memories = await self._search_long_term_memories(user_query)
             if memories:
-                context_parts.append("相关历史记忆:\n" + "\n".join(memories))
+                segments.append(
+                    ContextSegment(
+                        name="retrieved_memory",
+                        text="相关历史记忆:\n" + "\n".join(memories),
+                        priority=2,
+                    )
+                )
 
-        recent_chat = self.working_mem.get_messages()
-        context_parts.append(f"当前对话:\n{recent_chat}")
-        context_parts.append(f"用户问题:\n{user_query}")
+        early_chat, recent_chat = self._split_working_memory(self.working_mem.get_messages())
+        if early_chat:
+            segments.append(ContextSegment(name="early_chat", text=f"较早对话:\n{early_chat}", priority=3))
+        segments.append(ContextSegment(name="recent_chat", text=f"当前对话:\n{recent_chat}", priority=1))
+        segments.append(ContextSegment(name="user_query", text=f"用户问题:\n{user_query}", priority=0, required=True))
 
-        return "\n---\n".join(context_parts)
+        trim_result = self.token_budget_manager.trim_context(segments)
+        self.last_trim_metadata = {
+            "token_before_trim": trim_result.token_before_trim,
+            "token_after_trim": trim_result.token_after_trim,
+            "soft_limit_exceeded": trim_result.soft_limit_exceeded,
+            "hard_limit_exceeded": trim_result.hard_limit_exceeded,
+            "dropped_segment_names": trim_result.dropped_segment_names,
+        }
+        logger.info("context trimmed", extra=self.last_trim_metadata)
+        return trim_result.trimmed_text
+
+    async def _search_long_term_memories(self, user_query: str) -> list[str]:
+        search_method = self.long_mem.search
+        search_kwargs = {"top_k": self.settings.vector_search_default_top_k}
+
+        signature = inspect.signature(search_method)
+        if "session_id" in signature.parameters:
+            search_kwargs["session_id"] = self.session_id
+
+        return await search_method(user_query, **search_kwargs)
+
+    def _split_working_memory(self, messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        if len(messages) <= 1:
+            return [], messages
+        configured_limit = max(1, self.settings.token_budget_recent_messages)
+        recent_limit = min(configured_limit, len(messages) - 1)
+        return messages[:-recent_limit], messages[-recent_limit:]

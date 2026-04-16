@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     mcp_base_url: str = "http://localhost:9000"
+    token_budget_encoding: str = "cl100k_base"
+    max_context_tokens_soft: int = 6000
+    max_context_tokens: int = 8000
+    token_budget_recent_messages: int = 4
+    vector_search_cache_ttl_seconds: int = 300
+    vector_search_default_top_k: int = 3
+    stream_thinking_enabled: bool = False
 
     intent_default: str = "general"
     intent_llm_fallback_enabled: bool = True

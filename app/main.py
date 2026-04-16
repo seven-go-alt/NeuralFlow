@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
 from app.core.context import ContextBuilder
 from app.core.intent_router import IntentDetectionResult, IntentPolicy, IntentRouter
@@ -16,6 +19,7 @@ app = FastAPI(title=settings.app_name)
 intent_router = IntentRouter()
 llm_client = LLMClient()
 mcp_client = MCPClient()
+stream_registry = StreamTaskRegistry()
 
 
 class ChatRequest(BaseModel):
@@ -82,6 +86,36 @@ async def detect_intent(request: IntentDetectRequest) -> IntentDetectResponse:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
+    payload = await _prepare_chat(request)
+    reply = await llm_client.generate(payload["prompt"])
+    payload["working_memory"].add_message("assistant", reply)
+    return ChatResponse(
+        session_id=request.session_id,
+        intent=payload["intent"],
+        prompt=payload["prompt"],
+        reply=reply,
+        used_skills=[item["skill"] for item in payload["skill_results"]],
+        skill_results=[SkillExecutionResponse(**item) for item in payload["skill_results"]],
+    )
+
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest, include_thinking: bool | None = None):
+    payload = await _prepare_chat(request)
+    include_reasoning = settings.stream_thinking_enabled if include_thinking is None else include_thinking
+
+    async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
+        reply_parts: list[str] = []
+        async for chunk in llm_client.stream_generate(payload["prompt"], include_thinking=include_reasoning):
+            if chunk["event"] == "message":
+                reply_parts.append(chunk["data"])
+            yield {"event": chunk["event"], "data": {"delta": chunk["data"]}}
+        payload["working_memory"].add_message("assistant", "".join(reply_parts))
+
+    return await create_sse_response(request.session_id, event_source, stream_registry)
+
+
+async def _prepare_chat(request: ChatRequest) -> dict:
     working_memory = WorkingMemory(session_id=request.session_id)
     working_memory.add_message("user", request.message)
 
@@ -103,18 +137,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
         skill_whitelist=primary_policy.skill_whitelist,
         skill_results=skill_results,
     )
-    reply = await llm_client.generate(prompt)
-
-    working_memory.add_message("assistant", reply)
-
-    return ChatResponse(
-        session_id=request.session_id,
-        intent=routed.primary_intent,
-        prompt=prompt,
-        reply=reply,
-        used_skills=[item["skill"] for item in skill_results],
-        skill_results=[SkillExecutionResponse(**item) for item in skill_results],
-    )
+    return {
+        "working_memory": working_memory,
+        "intent": routed.primary_intent,
+        "prompt": prompt,
+        "skill_results": skill_results,
+    }
 
 
 async def _run_skills(
