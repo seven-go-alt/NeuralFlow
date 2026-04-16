@@ -81,7 +81,14 @@ docker compose up --build
 ## 基本接口
 
 - `GET /healthz`：健康检查
-- `POST /chat`：写入短期记忆，按意图构造上下文，并通过 LiteLLM 生成回复
+- `GET /api/skills`：列出当前注册并可暴露给策略层的技能
+- `POST /api/intent/detect`：返回意图识别结果、是否使用 fallback，以及每个意图对应的记忆/技能策略
+- `POST /chat`：写入短期记忆，按意图构造上下文，按白名单调用 MCP 技能，并通过 LiteLLM 生成回复
+
+`POST /chat` 当前会额外返回：
+
+- `used_skills`：本轮实际执行的技能名列表
+- `skill_results`：每个技能的执行结果，便于调试 MCP 调用链路
 
 ## 开发路线调整
 
@@ -100,3 +107,5 @@ Phase 3：上下文优化
 Phase 4：异步归档
 - 用 Celery 将历史对话压缩为摘要后异步写入 ChromaDB
 - 再接入 MCP/技能调用能力
+
+当前代码已完成 Phase 4 的两项主线能力，并补上了对应测试。

@@ -49,3 +49,16 @@ async def test_context_builder_loads_long_term_lookup_for_history_intent() -> No
 
     assert "相关历史记忆" in prompt
     assert long_mem.queries == [("我之前喜欢什么风格？", 3)]
+
+
+@pytest.mark.asyncio
+async def test_context_builder_uses_registered_default_skill_names_for_coding_intent() -> None:
+    builder = ContextBuilder(
+        session_id="demo",
+        working_mem=FakeWorkingMemory(),
+        long_mem=FakeLongTermMemory(),
+    )
+
+    prompt = await builder.build_prompt(user_query="帮我看一下这个 Python 报错", intent="coding")
+
+    assert "当前可用技能: python, filesystem" in prompt

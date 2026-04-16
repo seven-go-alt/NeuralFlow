@@ -26,7 +26,7 @@ class ContextBuilder:
 
         effective_skill_whitelist = skill_whitelist
         if effective_skill_whitelist is None and intent == "coding":
-            effective_skill_whitelist = ["Python代码解释器", "文件读写工具"]
+            effective_skill_whitelist = ["python", "filesystem"]
 
         if effective_skill_whitelist:
             context_parts.append("当前可用技能: " + ", ".join(effective_skill_whitelist))
