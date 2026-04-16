@@ -3,11 +3,13 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel, ValidationError
 
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
+from app.config_manager import ConfigManager
 from app.middleware.telemetry import TelemetryMiddleware
 from app.utils.observability import configure_structured_logging, create_observability
 from app.core.context import ContextBuilder
@@ -25,6 +27,7 @@ app.add_middleware(TelemetryMiddleware, observability=observability)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
 intent_router = IntentRouter()
 llm_client = LLMClient()
+config_manager = ConfigManager()
 mcp_client = MCPClient()
 stream_registry = StreamTaskRegistry()
 
@@ -73,6 +76,11 @@ class IntentDetectResponse(BaseModel):
     policies: dict[str, IntentPolicyResponse]
 
 
+class AdminConfigResponse(BaseModel):
+    config: dict
+    audit_entry: dict | None = None
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok", "app": settings.app_name}
@@ -81,6 +89,26 @@ async def healthz() -> dict[str, str]:
 @app.get("/metrics")
 async def metrics():
     return observability.metrics_response()
+
+
+@app.get("/admin/config", response_model=AdminConfigResponse)
+async def get_runtime_config(http_request: Request) -> AdminConfigResponse:
+    _verify_admin_secret(http_request)
+    snapshot = await config_manager.get_snapshot()
+    return AdminConfigResponse(config=snapshot.model_dump())
+
+
+@app.patch("/admin/config", response_model=AdminConfigResponse)
+async def patch_runtime_config(http_request: Request, patch: dict) -> AdminConfigResponse:
+    _verify_admin_secret(http_request)
+    source_ip = _get_client_ip(http_request)
+    try:
+        updated = await config_manager.update(patch, source_ip=source_ip, actor="admin_api")
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=jsonable_encoder(exc.errors())) from exc
+    audit_entries = await config_manager.list_audit_entries()
+    latest_audit = audit_entries[-1].model_dump(mode="json") if audit_entries else None
+    return AdminConfigResponse(config=updated.model_dump(), audit_entry=latest_audit)
 
 
 @app.get("/api/skills", response_model=SkillsListResponse)
@@ -119,7 +147,8 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
     http_request.state.session_id = request.session_id
     payload = await _prepare_chat(request)
     http_request.state.intent = payload["intent"]
-    include_reasoning = settings.stream_thinking_enabled if include_thinking is None else include_thinking
+    runtime_config = await config_manager.get_snapshot()
+    include_reasoning = runtime_config.stream_thinking_enabled if include_thinking is None else include_thinking
 
     async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
         reply_parts: list[str] = []
@@ -193,3 +222,16 @@ def _serialize_intent_result(result: IntentDetectionResult) -> IntentDetectRespo
             for name, policy in result.policies.items()
         },
     )
+
+
+def _verify_admin_secret(request: Request) -> None:
+    expected = os.getenv("ADMIN_SECRET_KEY")
+    provided = request.headers.get("X-Admin-Secret")
+    if not expected or provided != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _get_client_ip(request: Request) -> str:
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
