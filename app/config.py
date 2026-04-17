@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    offline_fallback_enabled: bool = True
+    ollama_fallback_model: str | None = "ollama/qwen2.5:7b"
 
     mcp_base_url: str = "http://localhost:9000"
     mcp_timeout_seconds: float = 15.0

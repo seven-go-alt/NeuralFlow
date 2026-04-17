@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.config_manager import ConfigManager
 from app.core.context import ContextBuilder
 from app.core.intent_router import IntentDetectionResult, IntentRouter
-from app.core.llm import LLMClient
+from app.core.llm import LLMClient, build_rule_based_fallback_reply
 from app.memory.working import WorkingMemory
 from app.middleware.telemetry import TelemetryMiddleware
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
@@ -133,7 +133,7 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     http_request.state.session_id = request.session_id
     payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
     http_request.state.intent = payload["intent"]
-    reply = await llm_client.generate(payload["prompt"])
+    reply = await _generate_reply_with_fallback(payload["prompt"])
     payload["working_memory"].add_message("assistant", reply)
     return ChatResponse(
         session_id=request.session_id,
@@ -155,7 +155,7 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
 
     async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
         reply_parts: list[str] = []
-        async for chunk in llm_client.stream_generate(payload["prompt"], include_thinking=include_reasoning):
+        async for chunk in _stream_reply_with_fallback(payload["prompt"], include_thinking=include_reasoning):
             if chunk["event"] == "message":
                 reply_parts.append(chunk["data"])
             yield {"event": chunk["event"], "data": {"delta": chunk["data"]}}
@@ -208,6 +208,21 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         "prompt": prompt,
         "skill_results": skill_results,
     }
+
+
+async def _generate_reply_with_fallback(prompt: str) -> str:
+    try:
+        return await llm_client.generate(prompt)
+    except Exception as exc:
+        return build_rule_based_fallback_reply(prompt, error=exc)
+
+
+async def _stream_reply_with_fallback(prompt: str, include_thinking: bool = False) -> AsyncIterator[dict[str, str]]:
+    try:
+        async for chunk in llm_client.stream_generate(prompt, include_thinking=include_thinking):
+            yield chunk
+    except Exception as exc:
+        yield {"event": "message", "data": build_rule_based_fallback_reply(prompt, error=exc)}
 
 
 async def _run_skills(
