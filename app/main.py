@@ -22,6 +22,7 @@ from app.models import TenantContext
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
+from app.agents.react import ReActAgent
 
 settings = get_settings()
 audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
@@ -183,6 +184,64 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
         payload["working_memory"].add_message("assistant", final_reply)
 
     return await create_sse_response(request.session_id, event_source, stream_registry)
+
+
+@app.post("/chat/react")
+async def chat_react(http_request: Request, request: ChatRequest):
+    """
+    自主 Agent 接口：支持多步思考与工具调用循环 (ReAct 范式)
+    """
+    http_request.state.session_id = request.session_id
+    tenant_context = getattr(http_request.state, "tenant", None)
+    tenant_id = tenant_context.tenant_id if tenant_context else settings.tenant_default_id
+    
+    # 1. 识别意图
+    routed = await intent_router.detect(request.message)
+    http_request.state.intent = routed.primary_intent
+    primary_policy = routed.policies[routed.primary_intent]
+    
+    # 2. 获取允许使用的工具
+    selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
+    
+    # 3. 初始化并运行 ReAct Agent
+    # 这里复用全局的 llm_client 和 mcp_client
+    agent = ReActAgent(llm_client=llm_client, mcp_client=mcp_client)
+    
+    # 执行循环
+    result = await agent.execute(
+        query=request.message,
+        skills=selected_skills,
+        session_id=request.session_id,
+        tenant_context=tenant_context
+    )
+    
+    # 4. 记录结果并更新记忆（将最终回答存入短期记忆）
+    if result["final_answer"]:
+        try:
+            from app.memory.working import WorkingMemory
+            working_memory = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
+            working_memory.add_message("user", request.message)
+            working_memory.add_message("assistant", result["final_answer"])
+        except Exception as e:
+            logger.warning(f"Failed to update memory in react mode: {e}")
+
+    # 5. 触发插件 Hook
+    _emit_response_generated_hook(
+        reply=result["final_answer"],
+        request=request,
+        intent=routed.primary_intent,
+        prompt="ReAct Loop (Multi-step)",
+        skill_results=[{"skill": s["action"], "result": s["observation"]} for s in result["steps"] if s.get("action")],
+        tenant_context=tenant_context,
+    )
+
+    return {
+        "session_id": request.session_id,
+        "intent": routed.primary_intent,
+        "final_answer": result["final_answer"],
+        "steps": result["steps"],
+        "total_iterations": result["iterations"]
+    }
 
 
 async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | None = None) -> dict:

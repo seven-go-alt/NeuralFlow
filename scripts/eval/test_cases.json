@@ -1,0 +1,20 @@
+[
+  {
+    "id": "case_001",
+    "query": "请统计一下目前注册的所有技能名称。",
+    "expected_tools": ["skill_list"],
+    "category": "introspection"
+  },
+  {
+    "id": "case_002",
+    "query": "查询 tenant-A 的历史对话，寻找关于 'database' 的讨论。",
+    "expected_tools": ["memory"],
+    "category": "multi-tenant-retrieval"
+  },
+  {
+    "id": "case_003",
+    "query": "先帮我列出项目根目录的文件列表，然后读取 README.md 的前 10 行。",
+    "expected_tools": ["filesystem", "filesystem"],
+    "category": "multi-step"
+  }
+]

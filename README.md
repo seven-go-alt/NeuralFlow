@@ -116,6 +116,32 @@ docker compose up --build
 - MCP 工具发现会输出 `tool_discovered`
 - MCP 工具调用会输出 `tool_called`，并携带 `duration_ms`
 
+## 自主智能体 (Autonomous Agents)
+
+### ReAct Agent
+
+项目在 `app/agents/react.py` 实现了标准的 **Reason-Act (ReAct)** 循环。与传统的单次工具调用不同，ReAct Agent 会：
+1. **Thought**: 思考当前任务状态。
+2. **Action**: 从 whitelisted skills 中选择最合适的工具。
+3. **Observation**: 执行工具并观察结果。
+4. **Loop**: 重复上述过程，直到得出 **Final Answer**。
+
+这极大增强了 Agent 处理复杂、多步骤任务（如“先查询数据库，再根据结果生成代码，最后保存文件”）的能力。
+
+## 模型微调 (Fine-tuning)
+
+在 `scripts/finetune/lora_train.py` 中提供了基于 **QLoRA (PEFT)** 的微调模版：
+- 支持 4-bit 量化训练（节省显存）。
+- 适配 Llama/Qwen 等主流开源架构。
+- 演示了如何针对特定 Agent 任务（如 Intent Detection 优化或特定工具参数注入）进行 SFT。
+
+## Agent 评测体系 (Evaluation)
+
+在 `scripts/eval/evaluator.py` 中实现了 **LLM-as-a-judge** 评测方案：
+- 自动化运行基准测试集。
+- 从工具调用准确性、逻辑严密性、回答质量三个维度进行量化评分（0-10分）。
+- 为 Agent 的持续优化提供客观的数据反馈。
+
 ## 插件 Hook
 
 服务启动时会从 `NEURALFLOW_PLUGIN_DIR` 指向的目录加载所有 `.py` 插件文件（忽略以下划线开头的文件）。
