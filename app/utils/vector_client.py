@@ -35,11 +35,13 @@ class InMemoryCollection:
     def _filter(self, where=None):
         if not where:
             return list(self.documents)
-        return [
-            item
-            for item in self.documents
-            if all(item["metadata"].get(key) == value for key, value in where.items())
-        ]
+        if "$and" in where:
+            return [item for item in self.documents if all(self._filter_clause(item["metadata"], clause) for clause in where["$and"])]
+        return [item for item in self.documents if self._filter_clause(item["metadata"], where)]
+
+    @staticmethod
+    def _filter_clause(metadata, clause):
+        return all(metadata.get(key) == value for key, value in clause.items())
 
 
 class InMemoryVectorClient:

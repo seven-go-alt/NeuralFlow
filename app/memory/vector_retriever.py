@@ -61,10 +61,12 @@ class VectorRetriever:
         return results
 
     def _build_where(self, session_id: str | None, memory_type: str) -> dict[str, Any]:
-        where: dict[str, Any] = {"type": memory_type, "tenant_id": self.tenant_id}
+        clauses: list[dict[str, Any]] = [{"type": memory_type}, {"tenant_id": self.tenant_id}]
         if session_id:
-            where["session_id"] = session_id
-        return where
+            clauses.append({"session_id": session_id})
+        if len(clauses) == 1:
+            return clauses[0]
+        return {"$and": clauses}
 
     def _build_cache_key(self, query: str, where: dict[str, Any], top_k: int) -> str:
         payload = json.dumps({"query": query, "where": where, "top_k": top_k}, sort_keys=True, ensure_ascii=False)

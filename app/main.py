@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncIterator
+from time import perf_counter
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -15,6 +16,7 @@ from app.core.intent_router import IntentDetectionResult, IntentRouter
 from app.core.llm import LLMClient, build_rule_based_fallback_reply
 from app.memory.working import WorkingMemory
 from app.middleware.telemetry import TelemetryMiddleware
+from app.plugins.manager import PluginManager
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
 from app.skills.mcp_client import MCPClient
@@ -32,7 +34,9 @@ intent_router = IntentRouter()
 llm_client = LLMClient()
 config_manager = ConfigManager()
 mcp_client = MCPClient()
+plugin_manager = PluginManager.from_env()
 stream_registry = StreamTaskRegistry()
+mcp_logger = configure_structured_logging(logger_name="neuralflow.mcp", audit_log_path=audit_log_path)
 
 
 class ChatRequest(BaseModel):
@@ -134,6 +138,14 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
     http_request.state.intent = payload["intent"]
     reply = await _generate_reply_with_fallback(payload["prompt"])
+    _emit_response_generated_hook(
+        reply=reply,
+        request=request,
+        intent=payload["intent"],
+        prompt=payload["prompt"],
+        skill_results=payload["skill_results"],
+        tenant_context=getattr(http_request.state, "tenant", None),
+    )
     payload["working_memory"].add_message("assistant", reply)
     return ChatResponse(
         session_id=request.session_id,
@@ -159,7 +171,16 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
             if chunk["event"] == "message":
                 reply_parts.append(chunk["data"])
             yield {"event": chunk["event"], "data": {"delta": chunk["data"]}}
-        payload["working_memory"].add_message("assistant", "".join(reply_parts))
+        final_reply = "".join(reply_parts)
+        _emit_response_generated_hook(
+            reply=final_reply,
+            request=request,
+            intent=payload["intent"],
+            prompt=payload["prompt"],
+            skill_results=payload["skill_results"],
+            tenant_context=getattr(http_request.state, "tenant", None),
+        )
+        payload["working_memory"].add_message("assistant", final_reply)
 
     return await create_sse_response(request.session_id, event_source, stream_registry)
 
@@ -177,6 +198,7 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
     routed = await intent_router.detect(request.message)
     primary_policy = routed.policies[routed.primary_intent]
     selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
+    await _discover_remote_tools(session_id=request.session_id, intent=routed.primary_intent)
     skill_results = await _run_skills(
         skills=selected_skills,
         session_id=request.session_id,
@@ -247,14 +269,77 @@ async def _run_skills(
                     "tenant_scope": tenant_context.scope,
                 }
             )
+        started_at = perf_counter()
         try:
             result = await mcp_client.call_tool(skill.tool_name, payload, read_only=skill.read_only)
         except TypeError as exc:
             if "unexpected keyword argument 'read_only'" not in str(exc):
                 raise
             result = await mcp_client.call_tool(skill.tool_name, payload)
+        duration_ms = round((perf_counter() - started_at) * 1000, 3)
+        mcp_logger.info(
+            "tool_called",
+            extra={
+                "session_id": session_id,
+                "intent": intent,
+                "tool_name": skill.tool_name,
+                "skill_name": skill.name,
+                "duration_ms": duration_ms,
+                "read_only": skill.read_only,
+            },
+        )
         results.append({"skill": skill.name, "result": result})
     return results
+
+
+async def _discover_remote_tools(session_id: str, intent: str) -> None:
+    try:
+        tools = await mcp_client.list_tools()
+    except Exception as exc:
+        mcp_logger.warning(
+            "tool_discovery_failed",
+            extra={"session_id": session_id, "intent": intent, "error": str(exc)},
+        )
+        return
+
+    for tool in tools:
+        mcp_logger.info(
+            "tool_discovered",
+            extra={
+                "session_id": session_id,
+                "intent": intent,
+                "tool_name": tool.name,
+                "description": tool.description,
+                "read_only": tool.read_only,
+            },
+        )
+
+
+
+def _emit_response_generated_hook(
+    *,
+    reply: str,
+    request: ChatRequest,
+    intent: str,
+    prompt: str,
+    skill_results: list[dict[str, dict]],
+    tenant_context: TenantContext | None,
+) -> None:
+    plugin_manager.emit(
+        "on_response_generated",
+        {
+            "session_id": request.session_id,
+            "message": request.message,
+            "reply": reply,
+            "intent": intent,
+            "prompt": prompt,
+            "skill_results": skill_results,
+            "tenant_id": tenant_context.tenant_id if tenant_context is not None else settings.tenant_default_id,
+            "tenant_roles": tenant_context.roles if tenant_context is not None else [],
+            "tenant_scope": tenant_context.scope if tenant_context is not None else [settings.tenant_default_id],
+        },
+    )
+
 
 
 def _serialize_intent_result(result: IntentDetectionResult) -> IntentDetectResponse:

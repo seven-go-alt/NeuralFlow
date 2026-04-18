@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -57,6 +59,12 @@ class StubLLMClient:
 class StubMCPClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict]] = []
+
+    async def list_tools(self):
+        return [
+            type("Tool", (), {"name": "planner", "description": "规划任务", "read_only": True})(),
+            type("Tool", (), {"name": "memory", "description": "查询历史", "read_only": True})(),
+        ]
 
     async def call_tool(self, tool_name: str, payload: dict) -> dict:
         self.calls.append((tool_name, payload))
@@ -166,6 +174,38 @@ def test_chat_endpoint_passes_tenant_context_to_mcp_payload(monkeypatch) -> None
     assert mcp.calls[0][1]["tenant_id"] == "tenant-alpha"
     assert mcp.calls[0][1]["tenant_roles"] == ["reader"]
     assert mcp.calls[0][1]["tenant_scope"] == ["tenant-alpha"]
+
+
+
+def test_chat_endpoint_emits_mcp_discovery_and_call_duration_logs(monkeypatch) -> None:
+    registry = SkillRegistry()
+    registry.register("planner", "规划任务")
+    registry.register("memory", "查询历史")
+
+    llm = StubLLMClient()
+    mcp = StubMCPClient()
+    emitted_logs: list[tuple[str, dict]] = []
+
+    def capture_log(message: str, *, extra: dict | None = None) -> None:
+        emitted_logs.append((message, extra or {}))
+
+    monkeypatch.setattr("app.main.intent_router", StubRouter())
+    monkeypatch.setattr("app.main.skill_registry", registry)
+    monkeypatch.setattr("app.main.mcp_client", mcp)
+    monkeypatch.setattr("app.main.llm_client", llm)
+    monkeypatch.setattr("app.main.WorkingMemory", StubWorkingMemory)
+    monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
+    monkeypatch.setattr("app.main.mcp_logger.info", capture_log)
+
+    client = TestClient(app)
+    response = client.post("/chat", json={"session_id": "s-log", "message": "帮我规划并顺手查一下历史"})
+
+    assert response.status_code == 200
+    discovery_logs = [extra for message, extra in emitted_logs if message == "tool_discovered"]
+    assert [entry["tool_name"] for entry in discovery_logs] == ["planner", "memory"]
+    call_logs = [extra for message, extra in emitted_logs if message == "tool_called"]
+    assert [entry["tool_name"] for entry in call_logs] == ["planner", "memory"]
+    assert all(entry["duration_ms"] >= 0 for entry in call_logs)
 
 
 

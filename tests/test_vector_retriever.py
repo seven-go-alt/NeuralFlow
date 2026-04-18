@@ -50,14 +50,20 @@ class SpyCollection:
 
     def get(self, where=None, include=None):
         self.get_calls.append({"where": where, "include": include})
-        matched = [
-            item for item in self.documents if all(item["metadata"].get(k) == v for k, v in (where or {}).items())
-        ]
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
         return {
             "documents": [item["document"] for item in matched],
             "metadatas": [item["metadata"] for item in matched],
             "ids": [item["id"] for item in matched],
         }
+
+    @staticmethod
+    def _matches_where(metadata: dict, where: dict | None) -> bool:
+        if not where:
+            return True
+        if "$and" in where:
+            return all(SpyCollection._matches_where(metadata, clause) for clause in where["$and"])
+        return all(metadata.get(k) == v for k, v in where.items())
 
 
 @pytest.mark.asyncio
@@ -71,7 +77,7 @@ async def test_vector_retriever_uses_metadata_filter_and_returns_structured_resu
         {
             "query_texts": ["summary"],
             "n_results": 2,
-            "where": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+            "where": {"$and": [{"type": "summary"}, {"tenant_id": "public"}, {"session_id": "s1"}]},
         }
     ]
     assert results == [
@@ -98,6 +104,60 @@ async def test_vector_retriever_uses_cache_on_repeated_queries() -> None:
     assert len(cache.set_calls) == 1
 
 
+class StrictChromaCollection(SpyCollection):
+    @staticmethod
+    def _matches_where(metadata: dict, where: dict | None) -> bool:
+        if not where:
+            return True
+        if "$and" in where:
+            return all(StrictChromaCollection._matches_where(metadata, clause) for clause in where["$and"])
+        if len(where) != 1:
+            raise ValueError(f"Expected where to have exactly one operator, got {where}")
+        key, value = next(iter(where.items()))
+        return metadata.get(key) == value
+
+    def query(self, query_texts, n_results=3, where=None):
+        if where and "$and" not in where and len(where) > 1:
+            raise ValueError(f"Expected where to have exactly one operator, got {where}")
+        self.query_calls.append({"query_texts": query_texts, "n_results": n_results, "where": where})
+        return self.query_result
+
+    def get(self, where=None, include=None):
+        if where and "$and" not in where and len(where) > 1:
+            raise ValueError(f"Expected where to have exactly one operator, got {where}")
+        self.get_calls.append({"where": where, "include": include})
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
+        return {
+            "documents": [item["document"] for item in matched],
+            "metadatas": [item["metadata"] for item in matched],
+            "ids": [item["id"] for item in matched],
+        }
+
+
+@pytest.mark.asyncio
+async def test_vector_retriever_builds_chroma_compatible_where_filter_for_multi_field_queries() -> None:
+    collection = StrictChromaCollection()
+    retriever = VectorRetriever(collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300)
+
+    results = await retriever.search("summary", session_id="s1", memory_type="summary", top_k=2)
+
+    expected_where = {
+        "$and": [
+            {"type": "summary"},
+            {"tenant_id": "public"},
+            {"session_id": "s1"},
+        ]
+    }
+    assert collection.query_calls == [
+        {
+            "query_texts": ["summary"],
+            "n_results": 2,
+            "where": expected_where,
+        }
+    ]
+    assert results[0]["content"] == "summary one"
+
+
 @pytest.mark.asyncio
 async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_fails() -> None:
     collection = SpyCollection()
@@ -112,7 +172,7 @@ async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_f
 
     assert collection.get_calls == [
         {
-            "where": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
+            "where": {"$and": [{"type": "summary"}, {"tenant_id": "public"}, {"session_id": "s1"}]},
             "include": ["documents", "metadatas"],
         }
     ]
