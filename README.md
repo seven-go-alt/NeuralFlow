@@ -16,19 +16,33 @@ NeuralFlow/
 ├── app/
 │   ├── main.py
 │   ├── config.py
+│   ├── config_manager.py
+│   ├── api/
+│   │   └── streaming.py
 │   ├── core/
 │   │   ├── context.py
 │   │   ├── llm.py
-│   │   └── router.py
+│   │   ├── intent_router.py
+│   │   ├── router.py
+│   │   └── token_budget.py
 │   ├── memory/
 │   │   ├── base.py
 │   │   ├── long_term.py
 │   │   ├── summarizer.py
+│   │   ├── vector_retriever.py
 │   │   └── working.py
+│   ├── middleware/
+│   │   ├── telemetry.py
+│   │   └── tenant_isolation.py
+│   ├── models/
+│   │   └── tenant.py
+│   ├── plugins/
+│   │   └── manager.py
 │   ├── skills/
 │   │   ├── mcp_client.py
 │   │   └── registry.py
 │   └── utils/
+│       ├── observability.py
 │       ├── redis_client.py
 │       └── vector_client.py
 ├── src/neuralflow/__init__.py
@@ -58,6 +72,9 @@ uv run uvicorn app.main:app --reload
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB`
 - `CHROMA_HOST` / `CHROMA_PORT` / `CHROMA_COLLECTION`
 - `OPENAI_API_KEY` 或其他兼容 LiteLLM 的凭证
+- `MCP_BASE_URL`：MCP Server 地址，默认通过 HTTP 拉取 `/tools` 并调用远端工具
+- `NEURALFLOW_PLUGIN_DIR`：插件目录，默认值为 `plugins`
+- `NEURALFLOW_AUDIT_LOG_PATH`：结构化审计/观测日志落盘位置
 
 Celery 默认直接复用 Redis：
 
@@ -93,6 +110,65 @@ docker compose up --build
 
 - `used_skills`：本轮实际执行的技能名列表
 - `skill_results`：每个技能的执行结果，便于调试 MCP 调用链路
+
+运行时还有两条与联调很相关的观测链路：
+
+- MCP 工具发现会输出 `tool_discovered`
+- MCP 工具调用会输出 `tool_called`，并携带 `duration_ms`
+
+## 插件 Hook
+
+服务启动时会从 `NEURALFLOW_PLUGIN_DIR` 指向的目录加载所有 `.py` 插件文件（忽略以下划线开头的文件）。
+
+当前内置的 Hook 触发点：
+
+- `on_response_generated(payload)`：`/chat` 与 `/chat/stream` 产出回复后触发
+
+`payload` 里会带上这些字段：
+
+- `session_id`
+- `message`
+- `reply`
+- `intent`
+- `prompt`
+- `skill_results`
+- `tenant_id`
+- `tenant_roles`
+- `tenant_scope`
+
+最小插件示例：
+
+```python
+def on_response_generated(payload):
+    print(
+        f"PLUGIN_HOOK session={payload['session_id']} "
+        f"tenant={payload['tenant_id']} intent={payload['intent']}"
+    )
+```
+
+例如：
+
+```bash
+mkdir -p plugins
+cat > plugins/test_logger.py <<'PY'
+def on_response_generated(payload):
+    print(
+        f"PLUGIN_HOOK session={payload['session_id']} "
+        f"tenant={payload['tenant_id']} intent={payload['intent']}"
+    )
+PY
+
+NEURALFLOW_PLUGIN_DIR=plugins uv run uvicorn app.main:app --reload
+```
+
+## 离线降级
+
+当外部 LLM 不可用（例如 API Key 错误、上游超时、Ollama 未启动）时，`/chat` 与 `/chat/stream` 不会直接返回 500，而会进入离线兜底路径：
+
+- 优先尝试已配置的本地/备用模型链路
+- 若备用链路也不可用，则返回规则兜底摘要
+
+这意味着在联调和压测时，即使故意把 `OPENAI_API_KEY` 配错，也应该看到非 500 的 HTTP 响应。
 
 ## 管理接口示例
 
@@ -200,6 +276,33 @@ curl -s http://localhost:8000/metrics | grep neuralflow_
 
 - `PROMETHEUS_MULTIPROC_DIR`：启用 multiprocess collector
 - `NEURALFLOW_AUDIT_LOG_PATH`：指定结构化审计日志文件路径
+
+## 阶段四本地验收参考
+
+下面这组命令对应阶段四的四类真实本地验收：
+
+1. MCP 集成：启动 MCP Server，发送 `/chat` 请求，检查日志中是否出现 `tool_discovered` 与 `tool_called` / `duration_ms`
+2. 租户隔离：对同一 `session_id` 分别带 `X-Tenant-ID: A` 与 `X-Tenant-ID: B` 请求，确认 Redis key 前缀不同、返回上下文不串租户
+3. 离线降级：故意配置错误的 `OPENAI_API_KEY`，验证 `/chat` 返回非 500，且进入兜底回复
+4. 插件 Hook：在 `plugins/test_logger.py` 注册 `on_response_generated`，发送请求后观察控制台是否打印 `PLUGIN_HOOK ...`
+
+最小验证命令示例：
+
+```bash
+curl -s http://localhost:8000/healthz
+
+curl -s http://localhost:8000/chat \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -H 'X-Tenant-ID: tenant-A' \
+  -d '{"session_id":"shared-session","message":"请查询历史 stage4 history"}' | jq
+
+curl -s http://localhost:8000/chat \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -H 'X-Tenant-ID: tenant-B' \
+  -d '{"session_id":"shared-session","message":"请查询历史 stage4 history"}' | jq
+```
 
 ## 测试与压测
 
