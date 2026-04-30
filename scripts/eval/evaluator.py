@@ -74,3 +74,31 @@ class AgentEvaluator:
             return 10.0
         hits = sum(1 for kw in expected_keywords if kw.lower() in answer.lower())
         return round(hits / len(expected_keywords) * 10, 1)
+
+    @staticmethod
+    def rouge_l_score(answer: str, expected: str) -> float:
+        """ROUGE-L F1 基于最长公共子序列（0-10）。"""
+        if not expected:
+            return 10.0
+        answer_tokens = list(answer.lower().strip())
+        expected_tokens = list(expected.lower().strip())
+        if not answer_tokens or not expected_tokens:
+            return 0.0
+
+        # LCS
+        m, n = len(answer_tokens), len(expected_tokens)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if answer_tokens[i - 1] == expected_tokens[j - 1]:
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                else:
+                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+        lcs_len = dp[m][n]
+
+        precision = lcs_len / m if m else 0
+        recall = lcs_len / n if n else 0
+        if precision + recall == 0:
+            return 0.0
+        f1 = 2 * precision * recall / (precision + recall)
+        return round(f1 * 10, 1)

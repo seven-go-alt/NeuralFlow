@@ -28,6 +28,7 @@ async def run_single_case(
     query = case["query"]
     expected_keywords = case.get("expected_answer_keywords", [])
     expected_tools = case.get("expected_tools", [])
+    expected_answer = case.get("expected_answer", "")
 
     # 意图识别
     routed = await intent_router.detect(query)
@@ -64,6 +65,9 @@ async def run_single_case(
     # 关键词评分
     kw_score = AgentEvaluator.keyword_score(run_result["final_answer"], expected_keywords)
 
+    # Ground Truth 评分（ROUGE-L）
+    gt_score = AgentEvaluator.rouge_l_score(run_result["final_answer"], expected_answer)
+
     # 工具使用检查
     used_tools = [s.get("tool", "") for s in run_result.get("steps", []) if s.get("type") == "tool_call"]
     tool_match = True
@@ -89,6 +93,7 @@ async def run_single_case(
         "expected_tools": expected_tools,
         "tool_match": tool_match,
         "keyword_score": kw_score,
+        "ground_truth_score": gt_score,
         "llm_eval": llm_eval,
     }
 
@@ -113,7 +118,8 @@ async def main() -> None:
         results.append(result)
         kw = result["keyword_score"]
         tool = "OK" if result["tool_match"] else "MISS"
-        print(f"kw={kw} tool={tool} {result['latency_s']}s")
+        gt = result["ground_truth_score"]
+        print(f"kw={kw} gt={gt} tool={tool} {result['latency_s']}s")
 
     # 汇总
     print("\n" + "=" * 60)
@@ -122,6 +128,7 @@ async def main() -> None:
 
     total = len(results)
     avg_kw = sum(r["keyword_score"] for r in results) / total if total else 0
+    avg_gt = sum(r["ground_truth_score"] for r in results) / total if total else 0
     tool_hits = sum(1 for r in results if r["tool_match"])
     avg_latency = sum(r["latency_s"] for r in results) / total if total else 0
     avg_iter = sum(r["iterations"] for r in results) / total if total else 0
@@ -133,6 +140,7 @@ async def main() -> None:
 
     print(f"\nTotal cases: {total}")
     print(f"Avg keyword score: {avg_kw:.1f}/10")
+    print(f"Avg ground truth (ROUGE-L): {avg_gt:.1f}/10")
     print(f"Tool match rate: {tool_hits}/{total}")
     print(f"Avg latency: {avg_latency:.2f}s")
     print(f"Avg iterations: {avg_iter:.1f}")
@@ -140,8 +148,9 @@ async def main() -> None:
     print("\n--- By Category ---")
     for cat, items in categories.items():
         cat_kw = sum(r["keyword_score"] for r in items) / len(items)
+        cat_gt = sum(r["ground_truth_score"] for r in items) / len(items)
         cat_tool = sum(1 for r in items if r["tool_match"])
-        print(f"  {cat:20s}  cases={len(items)}  kw_score={cat_kw:.1f}  tool_match={cat_tool}/{len(items)}")
+        print(f"  {cat:20s}  cases={len(items)}  kw={cat_kw:.1f}  gt={cat_gt:.1f}  tool={cat_tool}/{len(items)}")
 
     # 保存报告
     report_path = Path(__file__).parent / "benchmark_report.json"
@@ -151,6 +160,7 @@ async def main() -> None:
                 "summary": {
                     "total_cases": total,
                     "avg_keyword_score": round(avg_kw, 2),
+                    "avg_ground_truth_score": round(avg_gt, 2),
                     "tool_match_rate": f"{tool_hits}/{total}",
                     "avg_latency_s": round(avg_latency, 2),
                     "avg_iterations": round(avg_iter, 1),
