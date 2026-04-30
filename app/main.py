@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import AsyncIterator
-from typing import Any
 from time import perf_counter
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
