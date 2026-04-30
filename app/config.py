@@ -7,7 +7,6 @@ from typing import Any
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 DEFAULT_INTENT_KEYWORD_RULES = {
     "query_history": ["之前", "历史", "偏好", "记得", "上次"],
     "coding": ["代码", "bug", "接口", "函数", "部署"],

@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from locust import HttpUser, between, task
 
-
 ADMIN_SECRET = os.getenv("ADMIN_SECRET_KEY", "")
 ENABLE_CHAT = os.getenv("NEURALFLOW_LOAD_ENABLE_CHAT", "0").lower() in {"1", "true", "yes", "on"}
 CHAT_MESSAGE = os.getenv("NEURALFLOW_LOAD_CHAT_MESSAGE", "你好，请简要总结当前会话。")

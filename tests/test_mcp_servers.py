@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-
-import pytest
 from fastapi.testclient import TestClient
 
 from scripts.mcp_servers.code_server import app as code_app
-from scripts.mcp_servers.filesystem_server import app as fs_app, SANDBOX_ROOT
-
+from scripts.mcp_servers.filesystem_server import SANDBOX_ROOT
+from scripts.mcp_servers.filesystem_server import app as fs_app
 
 # ── Code Server Tests ──
 

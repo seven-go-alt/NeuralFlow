@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 
-from httpx import ASGITransport, AsyncClient
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("ADMIN_SECRET_KEY", "test-admin-key")
 

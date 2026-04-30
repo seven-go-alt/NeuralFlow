@@ -12,7 +12,15 @@ from threading import Lock
 from typing import Any, cast
 
 from fastapi import Response
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, REGISTRY, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 try:
     from prometheus_client import multiprocess

@@ -5,13 +5,15 @@ import os
 from collections.abc import AsyncIterator
 from time import perf_counter
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
-import httpx
 
+from app.agents.orchestrator import AgentOrchestrator
+from app.agents.react import ReActAgent
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
 from app.config_manager import ConfigManager
@@ -20,14 +22,12 @@ from app.core.intent_router import IntentDetectionResult, IntentRouter
 from app.core.llm import LLMClient, build_rule_based_fallback_reply
 from app.memory.working import WorkingMemory
 from app.middleware.telemetry import TelemetryMiddleware
-from app.plugins.manager import PluginManager
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
+from app.plugins.manager import PluginManager
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
-from app.agents.react import ReActAgent
-from app.agents.orchestrator import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
 

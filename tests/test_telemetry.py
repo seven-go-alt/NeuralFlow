@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 from prometheus_client import CollectorRegistry
-import pytest
 
 from app.middleware.telemetry import TelemetryMiddleware
 from app.utils.observability import create_observability

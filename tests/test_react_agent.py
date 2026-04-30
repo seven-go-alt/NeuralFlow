@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.agents.react import ReActAgent, _parse_reflection
-from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition
 
 

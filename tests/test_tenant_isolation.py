@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
-import pytest
 
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 

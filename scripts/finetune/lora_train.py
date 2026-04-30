@@ -5,22 +5,19 @@ NeuralFlow Fine-tuning Module (LoRA/QLoRA)
 """
 
 import os
+
 import torch
 from datasets import load_dataset
-from peft import (
-    LoraConfig,
-    get_peft_model,
-    prepare_model_for_kbit_training,
-    TaskType
-)
+from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
-    TrainingArguments,
+    DataCollatorForSeq2Seq,
     Trainer,
-    DataCollatorForSeq2Seq
+    TrainingArguments,
 )
+
 
 def train_lora(
     model_name_or_path: str = "Qwen/Qwen2-7B-Instruct",

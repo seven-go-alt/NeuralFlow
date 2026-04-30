@@ -9,7 +9,12 @@ from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from app.utils.observability import Observability, configure_structured_logging, create_observability, set_log_context
+from app.utils.observability import (
+    Observability,
+    configure_structured_logging,
+    create_observability,
+    set_log_context,
+)
 
 logger = configure_structured_logging(
     logger_name="neuralflow.request",

@@ -62,7 +62,6 @@ class EmbeddingIntentClassifier:
         self._example_embeddings: dict[str, list[list[float]] | None] = {}
 
     async def classify(self, text: str) -> list[str]:
-        from litellm import aembedding
 
         # 获取用户输入的 embedding
         user_emb = await self._get_embedding(text)

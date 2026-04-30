@@ -2,7 +2,6 @@ import pytest
 
 from app.core.context import ContextBuilder
 from app.memory.working import WorkingMemory
-from app.utils.vector_client import InMemoryVectorClient
 
 
 class FakeRedis:

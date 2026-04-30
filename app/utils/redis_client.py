@@ -4,7 +4,6 @@ import redis
 
 from app.config import get_settings
 
-
 RedisFactory = Callable[[], redis.Redis]
 
 
