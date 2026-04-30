@@ -32,6 +32,8 @@ class VectorRetriever:
         self.tenant_id = tenant_id or "public"
         self.last_cache_hit = False
 
+    RRF_K = 60  # Reciprocal Rank Fusion constant
+
     async def search(
         self,
         query: str,
@@ -49,14 +51,33 @@ class VectorRetriever:
             return cached
 
         self.last_cache_hit = False
-        results = await self._vector_search(query=query, where=where, top_k=top_k)
-        if not results:
-            results = await self._keyword_fallback(query=query, where=where, top_k=top_k)
+
+        # Hybrid Search: run vector and BM25 in parallel, fuse with RRF
+        candidate_k = top_k * 2
+        vector_results, bm25_results = await asyncio.gather(
+            self._vector_search(query=query, where=where, top_k=candidate_k),
+            self._bm25_search(query=query, where=where, top_k=candidate_k),
+        )
+
+        if vector_results and bm25_results:
+            results = self._rrf_fuse(vector_results, bm25_results, top_k=top_k)
+        elif vector_results:
+            results = vector_results[:top_k]
+        elif bm25_results:
+            results = bm25_results[:top_k]
+        else:
+            results = []
 
         await self._cache_set(cache_key, results)
         logger.info(
-            "vector retrieval completed",
-            extra={"cache_hit": False, "query": query, "result_count": len(results)},
+            "hybrid retrieval completed",
+            extra={
+                "cache_hit": False,
+                "query": query,
+                "vector_count": len(vector_results),
+                "bm25_count": len(bm25_results),
+                "result_count": len(results),
+            },
         )
         return results
 
@@ -109,32 +130,90 @@ class VectorRetriever:
             return []
         return self._normalize_vector_results(response)
 
-    async def _keyword_fallback(self, query: str, where: dict[str, Any], top_k: int) -> list[dict[str, Any]]:
-        response = await asyncio.to_thread(
-            self.collection.get,
-            where=where,
-            include=["documents", "metadatas"],
-        )
+    async def _bm25_search(self, query: str, where: dict[str, Any], top_k: int) -> list[dict[str, Any]]:
+        """BM25-style retrieval using TF-IDF scoring."""
+        try:
+            response = await asyncio.to_thread(
+                self.collection.get,
+                where=where,
+                include=["documents", "metadatas"],
+            )
+        except Exception:
+            logger.warning("BM25 search failed", exc_info=True)
+            return []
+
         documents = response.get("documents", []) or []
         metadatas = response.get("metadatas", []) or []
-        query_terms = [term for term in query.lower().split() if term]
+        if not documents:
+            return []
+
+        query_terms = [t for t in query.lower().split() if t]
+        if not query_terms:
+            return []
+
+        # Compute document frequency for each query term
+        doc_count = len(documents)
+        df: dict[str, int] = {}
+        for term in query_terms:
+            df[term] = sum(1 for doc in documents if term in doc.lower())
+
+        # BM25 scoring (simplified: k1=1.5, b=0.75, avgdl approximation)
+        avg_dl = max(1, sum(len(d) for d in documents) / doc_count)
+        k1, b = 1.5, 0.75
         ranked: list[RetrievedDocument] = []
         for content, metadata in zip(documents, metadatas, strict=False):
             lowered = content.lower()
-            overlap = sum(1 for term in query_terms if term in lowered)
-            if overlap <= 0:
-                continue
-            score = overlap / max(len(query_terms), 1)
-            ranked.append(
-                RetrievedDocument(
+            doc_len = len(content)
+            score = 0.0
+            for term in query_terms:
+                tf = lowered.count(term)
+                if tf == 0:
+                    continue
+                idf = max(0.0, (doc_count - df[term] + 0.5) / (df[term] + 0.5))
+                import math
+                idf = math.log(1 + idf)
+                tf_norm = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
+                score += idf * tf_norm
+            if score > 0:
+                ranked.append(RetrievedDocument(
                     content=content,
                     metadata=metadata,
                     score=score,
-                    source="keyword",
-                )
-            )
+                    source="bm25",
+                ))
+
         ranked.sort(key=lambda item: item.score, reverse=True)
         return [asdict(item) for item in ranked[:top_k]]
+
+    def _rrf_fuse(
+        self,
+        vector_results: list[dict[str, Any]],
+        bm25_results: list[dict[str, Any]],
+        top_k: int,
+    ) -> list[dict[str, Any]]:
+        """Reciprocal Rank Fusion: merge two ranked lists."""
+        rrf_scores: dict[str, float] = {}
+        doc_map: dict[str, dict[str, Any]] = {}
+
+        for rank, item in enumerate(vector_results):
+            key = item["content"][:100]  # Use content prefix as dedup key
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (self.RRF_K + rank + 1)
+            doc_map[key] = item
+
+        for rank, item in enumerate(bm25_results):
+            key = item["content"][:100]
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (self.RRF_K + rank + 1)
+            if key not in doc_map:
+                doc_map[key] = item
+
+        sorted_keys = sorted(rrf_scores, key=lambda k: rrf_scores[k], reverse=True)
+        results = []
+        for key in sorted_keys[:top_k]:
+            item = dict(doc_map[key])
+            item["score"] = round(rrf_scores[key], 6)
+            item["source"] = "hybrid"
+            results.append(item)
+        return results
 
     def _normalize_vector_results(self, response: dict[str, Any]) -> list[dict[str, Any]]:
         documents = (response.get("documents") or [[]])[0]

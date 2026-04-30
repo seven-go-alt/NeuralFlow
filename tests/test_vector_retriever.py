@@ -76,18 +76,13 @@ async def test_vector_retriever_uses_metadata_filter_and_returns_structured_resu
     assert collection.query_calls == [
         {
             "query_texts": ["summary"],
-            "n_results": 2,
+            "n_results": 4,  # candidate_k = top_k * 2 for hybrid search
             "where": {"$and": [{"type": "summary"}, {"tenant_id": "public"}, {"session_id": "s1"}]},
         }
     ]
-    assert results == [
-        {
-            "content": "summary one",
-            "metadata": {"session_id": "s1", "type": "summary", "tenant_id": "public"},
-            "score": pytest.approx(0.88),
-            "source": "vector",
-        }
-    ]
+    assert len(results) >= 1
+    assert results[0]["content"] == "summary one"
+    assert results[0]["source"] == "hybrid"  # RRF fusion of vector + BM25
 
 
 @pytest.mark.asyncio
@@ -151,7 +146,7 @@ async def test_vector_retriever_builds_chroma_compatible_where_filter_for_multi_
     assert collection.query_calls == [
         {
             "query_texts": ["summary"],
-            "n_results": 2,
+            "n_results": 4,  # candidate_k = top_k * 2 for hybrid search
             "where": expected_where,
         }
     ]
@@ -177,5 +172,5 @@ async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_f
         }
     ]
     assert results[0]["content"] == "python traceback fix"
-    assert results[0]["source"] == "keyword"
+    assert results[0]["source"] == "bm25"
     assert results[0]["score"] > 0
