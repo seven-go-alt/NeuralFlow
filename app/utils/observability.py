@@ -23,9 +23,9 @@ from prometheus_client import (
 )
 
 try:
-    from prometheus_client import multiprocess
+    from prometheus_client import multiprocess as _multiprocess_module
 except ImportError:  # pragma: no cover
-    multiprocess = None
+    _multiprocess_module = None  # type: ignore[assignment]
 
 
 _session_id_var: ContextVar[str] = ContextVar("session_id", default="anonymous")
@@ -197,11 +197,11 @@ def get_log_context() -> dict[str, str]:
 
 def _build_default_registry() -> CollectorRegistry:
     multiproc_dir = os.getenv("PROMETHEUS_MULTIPROC_DIR")
-    if multiproc_dir and multiprocess is not None:
+    if multiproc_dir and _multiprocess_module is not None:
         registry = CollectorRegistry()
-        multiprocess.MultiProcessCollector(registry)
+        _multiprocess_module.MultiProcessCollector(registry)
         return registry
-    return cast(CollectorRegistry, REGISTRY)
+    return REGISTRY
 
 
 def _get_or_create_counter(

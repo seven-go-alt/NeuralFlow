@@ -11,7 +11,7 @@ class HttpxClientFactory:
         self.transport = transport
 
     def __call__(self, timeout: httpx.Timeout) -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=self.transport, timeout=timeout)
+        return httpx.AsyncClient(transport=self.transport, timeout=timeout)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio

@@ -71,12 +71,12 @@ class EmbeddingIntentClassifier:
         # 预计算各意图的 example embeddings（懒加载）
         if not self._example_embeddings:
             for intent, examples in INTENT_EXAMPLES.items():
-                embs = []
+                collected: list[list[float]] = []
                 for ex in examples:
                     emb = await self._get_embedding(ex)
                     if emb:
-                        embs.append(emb)
-                self._example_embeddings[intent] = embs if embs else None
+                        collected.append(emb)
+                self._example_embeddings[intent] = collected or None
 
         # 计算每个意图的平均相似度
         scores: dict[str, float] = {}

@@ -48,7 +48,7 @@ class SpyCollection:
 
     def get(self, where=None, include=None):
         self.get_calls.append({"where": where, "include": include})
-        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]  # type: ignore[arg-type]
         return {
             "documents": [item["document"] for item in matched],
             "metadatas": [item["metadata"] for item in matched],
@@ -119,7 +119,7 @@ class StrictChromaCollection(SpyCollection):
         if where and "$and" not in where and len(where) > 1:
             raise ValueError(f"Expected where to have exactly one operator, got {where}")
         self.get_calls.append({"where": where, "include": include})
-        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]  # type: ignore[arg-type]
         return {
             "documents": [item["document"] for item in matched],
             "metadatas": [item["metadata"] for item in matched],

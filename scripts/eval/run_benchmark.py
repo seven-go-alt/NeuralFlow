@@ -35,8 +35,8 @@ async def run_single_case(
     selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
 
     # 执行 Agent（带重试）
-    run_result = None
-    latency = 0
+    run_result: dict | None = None
+    latency: float = 0.0
     for attempt in range(max_retries):
         start = time.perf_counter()
         try:
@@ -60,6 +60,8 @@ async def run_single_case(
                     "steps": [],
                     "iterations": 0,
                 }
+
+    assert run_result is not None
 
     # 关键词评分
     kw_score = AgentEvaluator.keyword_score(run_result["final_answer"], expected_keywords)

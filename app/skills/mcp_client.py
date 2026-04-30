@@ -147,6 +147,7 @@ class MCPClient:
                 is_retryable=False,
                 should_trigger_fallback=True,
             ) from exc
+        raise MCPToolExecutionError("MCP request failed unexpectedly", status_code=500)
 
     def _default_client_factory(self, timeout: httpx.Timeout) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=timeout)

@@ -11,7 +11,7 @@ from typing import Any
 
 from litellm import acompletion
 
-from app.agents.react import ReActAgent
+from app.agents.react import ReActAgent, _skills_to_tools
 from app.config import get_settings
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
@@ -119,7 +119,7 @@ class AgentOrchestrator:
         # 注入自定义 system prompt（通过 extra_context）
         result = await agent._run_react_loop(
             query=query,
-            tools=ReActAgent._skills_to_tools(skills) if skills else [],
+            tools=_skills_to_tools(skills) if skills else [],
             skill_map={s.name: s for s in skills},
             session_id=session_id,
             tenant_context=tenant_context,

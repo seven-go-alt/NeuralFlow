@@ -47,7 +47,7 @@ def coding_skills():
 async def test_agent_direct_answer(coding_skills):
     """LLM 直接回答，不调用工具。"""
     mcp = StubMCP()
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3)  # type: ignore[arg-type]
 
     with patch("app.agents.react.acompletion", new_callable=AsyncMock) as mock:
         mock.return_value = _make_choice(content="Python 是一种编程语言。")
@@ -67,7 +67,7 @@ async def test_agent_direct_answer(coding_skills):
 async def test_agent_calls_tool_then_answers(coding_skills):
     """LLM 先调用工具，再给出最终回答。"""
     mcp = StubMCP({"python_exec": {"stdout": "5\n", "stderr": "", "return_code": 0}})
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3)  # type: ignore[arg-type]
 
     tc = _make_tool_call("python_exec", json.dumps({"input": "print(2+3)"}))
 
@@ -95,7 +95,7 @@ async def test_agent_calls_tool_then_answers(coding_skills):
 async def test_reflection_passes_on_first_try(coding_skills):
     """回答质量好，Reflection 第一次就通过。"""
     mcp = StubMCP()
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)  # type: ignore[arg-type]
 
     with patch("app.agents.react.acompletion", new_callable=AsyncMock) as mock:
         mock.side_effect = [
@@ -118,7 +118,7 @@ async def test_reflection_passes_on_first_try(coding_skills):
 async def test_reflection_triggers_retry(coding_skills):
     """回答不完整，Reflection 触发重试后通过。"""
     mcp = StubMCP()
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)  # type: ignore[arg-type]
 
     with patch("app.agents.react.acompletion", new_callable=AsyncMock) as mock:
         mock.side_effect = [
@@ -148,7 +148,7 @@ async def test_reflection_triggers_retry(coding_skills):
 async def test_reflection_max_limit(coding_skills):
     """Reflection 达到最大次数后停止。"""
     mcp = StubMCP()
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)  # type: ignore[arg-type]
 
     with patch("app.agents.react.acompletion", new_callable=AsyncMock) as mock:
         mock.side_effect = [
@@ -173,7 +173,7 @@ async def test_reflection_max_limit(coding_skills):
 async def test_reflection_disabled(coding_skills):
     """Reflection 关闭时不执行评估。"""
     mcp = StubMCP()
-    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)
+    agent = ReActAgent(mcp_client=mcp, max_iterations=3, max_reflections=2)  # type: ignore[arg-type]
 
     with patch("app.agents.react.acompletion", new_callable=AsyncMock) as mock:
         mock.return_value = _make_choice(content="直接回答")

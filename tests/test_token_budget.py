@@ -1,11 +1,30 @@
 from __future__ import annotations
 
+import pytest
+
 from app.core.token_budget import ContextSegment, TokenBudgetManager
 
 
 class FakeEncoder:
+    """Stateless word-level encoder: each unique word gets a deterministic token ID."""
+    _word_to_id: dict[str, int] = {}
+
     def encode(self, text: str) -> list[int]:
-        return text.split()
+        for word in text.split():
+            if word not in FakeEncoder._word_to_id:
+                FakeEncoder._word_to_id[word] = len(FakeEncoder._word_to_id)
+        return [FakeEncoder._word_to_id[w] for w in text.split()]
+
+    def decode(self, tokens: list[int]) -> str:
+        id_to_word = {v: k for k, v in FakeEncoder._word_to_id.items()}
+        return " ".join(id_to_word[t] for t in tokens)
+
+
+@pytest.fixture(autouse=True)
+def _reset_encoder():
+    FakeEncoder._word_to_id = {}
+    yield
+    FakeEncoder._word_to_id = {}
 
 
 def test_count_tokens_uses_encoder_result() -> None:

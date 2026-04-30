@@ -117,9 +117,9 @@ class ContextBuilder:
 
         signature = inspect.signature(search_method)
         if "session_id" in signature.parameters:
-            search_kwargs["session_id"] = self.session_id
+            search_kwargs["session_id"] = self.session_id  # type: ignore[assignment]
 
-        return await search_method(user_query, **search_kwargs)
+        return await search_method(user_query, **search_kwargs)  # type: ignore[arg-type]
 
     def _split_working_memory(self, messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         if len(messages) <= 1:

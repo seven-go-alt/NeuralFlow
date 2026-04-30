@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Literal
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -45,7 +46,7 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
         scope = _parse_csv_header(request.headers.get("X-Tenant-Scope")) or [tenant_id]
         roles = _parse_csv_header(request.headers.get("X-Tenant-Roles")) or ["reader"]
         subject = (request.headers.get("X-Tenant-Subject") or "anonymous").strip() or "anonymous"
-        source = "header" if request.headers.get("X-Tenant-ID") else "default"
+        source: Literal["header", "default"] = "header" if request.headers.get("X-Tenant-ID") else "default"
         return TenantContext(
             tenant_id=tenant_id,
             scope=scope,

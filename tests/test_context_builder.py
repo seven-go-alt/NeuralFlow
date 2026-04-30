@@ -52,8 +52,8 @@ async def test_context_builder_skips_long_term_lookup_for_default_intent() -> No
     long_mem = FakeLongTermMemory()
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=FakeWorkingMemory(),
-        long_mem=long_mem,
+        working_mem=FakeWorkingMemory(),  # type: ignore[arg-type]
+        long_mem=long_mem,  # type: ignore[arg-type]
     )
 
     prompt = await builder.build_prompt(user_query="你好", intent="general")
@@ -68,8 +68,8 @@ async def test_context_builder_loads_long_term_lookup_for_history_intent() -> No
     long_mem = FakeLongTermMemory()
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=FakeWorkingMemory(),
-        long_mem=long_mem,
+        working_mem=FakeWorkingMemory(),  # type: ignore[arg-type]
+        long_mem=long_mem,  # type: ignore[arg-type]
     )
 
     prompt = await builder.build_prompt(user_query="我之前喜欢什么风格？", intent="personal_preference")
@@ -83,8 +83,8 @@ async def test_context_builder_supports_legacy_long_term_search_signature() -> N
     long_mem = LegacyLongTermMemory()
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=FakeWorkingMemory(),
-        long_mem=long_mem,
+        working_mem=FakeWorkingMemory(),  # type: ignore[arg-type]
+        long_mem=long_mem,  # type: ignore[arg-type]
     )
 
     prompt = await builder.build_prompt(user_query="帮我回忆一下之前的设计", intent="query_history")
@@ -97,8 +97,8 @@ async def test_context_builder_supports_legacy_long_term_search_signature() -> N
 async def test_context_builder_uses_registered_default_skill_names_for_coding_intent() -> None:
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=FakeWorkingMemory(),
-        long_mem=FakeLongTermMemory(),
+        working_mem=FakeWorkingMemory(),  # type: ignore[arg-type]
+        long_mem=FakeLongTermMemory(),  # type: ignore[arg-type]
     )
 
     prompt = await builder.build_prompt(user_query="帮我看一下这个 Python 报错", intent="coding")
@@ -112,9 +112,9 @@ async def test_context_builder_applies_token_budget_and_exposes_trim_metrics() -
     token_budget = FakeTokenBudgetManager()
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=FakeWorkingMemory(),
-        long_mem=long_mem,
-        token_budget_manager=token_budget,
+        working_mem=FakeWorkingMemory(),  # type: ignore[arg-type]
+        long_mem=long_mem,  # type: ignore[arg-type]
+        token_budget_manager=token_budget,  # type: ignore[arg-type]
     )
 
     prompt = await builder.build_prompt(user_query="你好", intent="query_history")

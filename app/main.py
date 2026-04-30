@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import AsyncIterator
+from typing import Any
 from time import perf_counter
 
 import httpx
@@ -434,10 +435,10 @@ async def _run_skills(
     intent: str,
     user_query: str,
     tenant_context: TenantContext | None = None,
-) -> list[dict[str, dict]]:
-    results: list[dict[str, dict]] = []
+) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
     for skill in skills:
-        payload = {
+        payload: dict[str, Any] = {
             "session_id": session_id,
             "intent": intent,
             "input": user_query,
