@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import AsyncIterator
 from time import perf_counter
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
+import httpx
 
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
@@ -24,10 +28,19 @@ from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
 from app.agents.react import ReActAgent
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
 observability = create_observability()
 app = FastAPI(title=settings.app_name)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
@@ -38,6 +51,16 @@ mcp_client = MCPClient()
 plugin_manager = PluginManager.from_env()
 stream_registry = StreamTaskRegistry()
 mcp_logger = configure_structured_logging(logger_name="neuralflow.mcp", audit_log_path=audit_log_path)
+
+_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+
+
+@app.get("/", include_in_schema=False)
+async def serve_frontend():
+    index_path = os.path.join(_FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    return RedirectResponse("/docs")
 
 
 class ChatRequest(BaseModel):
@@ -126,6 +149,58 @@ async def list_skills() -> SkillsListResponse:
     )
 
 
+def _strip_provider_prefix(model: str) -> str:
+    """openai/gpt-5.4 -> gpt-5.4"""
+    if "/" in model:
+        return model.split("/", 1)[1]
+    return model
+
+
+def _ensure_openai_prefix(model: str) -> str:
+    """gpt-5.4 -> openai/gpt-5.4（已是 openai/ 或其他 provider 前缀则不动）"""
+    if "/" in model:
+        return model
+    return f"openai/{model}"
+
+
+@app.get("/api/models")
+async def list_models():
+    """从配置的 LLM 中转站拉取可用模型列表"""
+    api_base = settings.llm_api_base
+    api_key = settings.llm_api_key or settings.openai_api_key
+    current = settings.litellm_model
+    current_display = _strip_provider_prefix(current)
+    if not api_base:
+        return {"models": [], "current_model": current_display, "error": "LLM_API_BASE not configured"}
+    url = api_base.rstrip("/") + "/models"
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+        raw = data.get("data", []) if isinstance(data, dict) else []
+        model_ids = [m.get("id", "") for m in raw if isinstance(m, dict) and m.get("id")]
+        return {"models": sorted(model_ids), "current_model": current_display}
+    except Exception as exc:
+        return {"models": [], "current_model": current_display, "error": str(exc)}
+
+
+class ModelSwitchRequest(BaseModel):
+    model: str
+
+
+@app.post("/api/models/switch")
+async def switch_model(request: ModelSwitchRequest):
+    """运行时切换当前使用的模型（仅内存生效，重启后恢复 .env 配置）"""
+    litellm_model = _ensure_openai_prefix(request.model)
+    settings.litellm_model = litellm_model
+    llm_client.model = litellm_model
+    return {"message": f"Model switched to {litellm_model}", "model": request.model, "litellm_model": litellm_model}
+
+
 @app.post("/api/intent/detect", response_model=IntentDetectResponse)
 async def detect_intent(http_request: Request, request: IntentDetectRequest) -> IntentDetectResponse:
     result = await intent_router.detect(request.message)
@@ -204,8 +279,7 @@ async def chat_react(http_request: Request, request: ChatRequest):
     selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
     
     # 3. 初始化并运行 ReAct Agent
-    # 这里复用全局的 llm_client 和 mcp_client
-    agent = ReActAgent(llm_client=llm_client, mcp_client=mcp_client)
+    agent = ReActAgent(mcp_client=mcp_client)
     
     # 执行循环
     result = await agent.execute(
@@ -335,6 +409,8 @@ async def _run_skills(
             if "unexpected keyword argument 'read_only'" not in str(exc):
                 raise
             result = await mcp_client.call_tool(skill.tool_name, payload)
+        except Exception as exc:
+            result = {"error": str(exc)}
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
         mcp_logger.info(
             "tool_called",

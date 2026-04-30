@@ -54,4 +54,14 @@ class InMemoryVectorClient:
 
 def get_vector_client() -> ClientAPI | InMemoryVectorClient:
     settings = get_settings()
-    return HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+    try:
+        client = HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        client.heartbeat()
+        return client
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "ChromaDB unavailable at %s:%s, using in-memory fallback",
+            settings.chroma_host, settings.chroma_port,
+        )
+        return InMemoryVectorClient()
