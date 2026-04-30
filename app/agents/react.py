@@ -4,40 +4,55 @@ import json
 import logging
 from typing import Any
 
-from app.core.llm import LLMClient
+from litellm import acompletion
+
+from app.config import get_settings
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition
 
 logger = logging.getLogger("neuralflow.agents")
 
-REACT_SYSTEM_PROMPT = """你是一个具备自主决策能力的智能体 (AI Agent)。
-你必须遵循 REASON -> ACT -> OBSERVATION 的循环来解决问题。
+SYSTEM_PROMPT = (
+    "你是一个具备工具调用能力的智能助手。"
+    "根据用户问题，选择最合适的工具来获取信息，然后给出准确的回答。"
+    "如果不需要工具就能回答，直接回复即可。"
+)
 
-可用工具列表:
-{tool_descriptions}
 
-回答格式规范:
-Thought: 你对当前步骤的思考过程。
-Action: 必须是工具列表中工具的 name。
-Action Input: 执行该工具所需的 JSON 格式参数。
-Observation: 工具执行后的结果（由系统提供）。
-... (重复上述步骤)
-Final Answer: 最终总结出的答案。
+def _skills_to_tools(skills: list[SkillDefinition]) -> list[dict[str, Any]]:
+    """将 SkillDefinition 列表转换为 OpenAI function calling tools 格式。"""
+    tools = []
+    for skill in skills:
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": skill.name,
+                "description": skill.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "input": {
+                            "type": "string",
+                            "description": f"传递给 {skill.name} 工具的查询或指令",
+                        }
+                    },
+                    "required": ["input"],
+                },
+            },
+        })
+    return tools
 
-注意：
-1. 每次只输出一个 Action。
-2. 如果你认为已经拿到了足够的信息，请输出 Final Answer。
-3. 请确保 Action Input 是合法的 JSON 格式。
-"""
 
 class ReActAgent:
     def __init__(
         self,
-        llm_client: LLMClient,
         mcp_client: MCPClient,
         max_iterations: int = 5,
     ) -> None:
-        self.llm = llm_client
+        settings = get_settings()
+        self.model = settings.litellm_model
+        self.api_base = settings.llm_api_base
+        self.api_key = settings.llm_api_key or settings.openai_api_key
         self.mcp = mcp_client
         self.max_iterations = max_iterations
 
@@ -48,99 +63,115 @@ class ReActAgent:
         session_id: str,
         tenant_context: Any | None = None,
     ) -> dict[str, Any]:
-        tool_desc = "\n".join([f"- {s.name}: {s.description} (tool_name: {s.tool_name})" for s in skills])
-        system_msg = REACT_SYSTEM_PROMPT.format(tool_descriptions=tool_desc)
-        
-        history = [
-            {"role": "system", "content": system_msg},
+        tools = _skills_to_tools(skills)
+        skill_map = {s.name: s for s in skills}
+
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": query},
         ]
-        
-        steps = []
+
+        steps: list[dict[str, Any]] = []
         final_answer = ""
-        
-        for i in range(self.max_iterations):
-            # 虽然 LLMClient.generate 只接收 prompt，但我们可以构造一个带上下文的 prompt
-            prompt = self._build_react_prompt(history)
-            response = await self.llm.generate(prompt)
-            
-            logger.info(f"ReAct Iteration {i+1} response: {response}")
-            
-            # 解析 Action
-            action, action_input, thought = self._parse_response(response)
-            
-            steps.append({
-                "iteration": i + 1,
-                "thought": thought,
-                "action": action,
-                "action_input": action_input,
-                "response": response
-            })
-            
-            if not action or action == "Final Answer":
-                final_answer = response.split("Final Answer:")[-1].strip() if "Final Answer:" in response else response
+
+        for iteration in range(self.max_iterations):
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": messages,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            if self.api_base:
+                kwargs["api_base"] = self.api_base
+            if self.api_key:
+                kwargs["api_key"] = self.api_key
+
+            response = await acompletion(**kwargs)
+            choice = response.choices[0]
+            message = choice.message
+
+            # 收集 assistant 消息（包含可能的 tool_calls）
+            assistant_msg: dict[str, Any] = {"role": "assistant", "content": message.content or ""}
+            tool_calls = getattr(message, "tool_calls", None)
+
+            if tool_calls:
+                assistant_msg["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in tool_calls
+                ]
+            messages.append(assistant_msg)
+
+            # 无 tool_calls → 视为最终回答
+            if not tool_calls:
+                final_answer = message.content or ""
+                steps.append({
+                    "iteration": iteration + 1,
+                    "type": "final_answer",
+                    "content": final_answer,
+                })
                 break
-            
-            # 找到对应的 skill
-            target_skill = next((s for s in skills if s.name == action), None)
-            if not target_skill:
-                observation = f"Error: 找不到工具 {action}"
-            else:
+
+            # 逐个执行 tool_calls
+            for tc in tool_calls:
+                tool_name = tc.function.name
                 try:
-                    # 构造 MCP Payload
+                    args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    args = {"input": tc.function.arguments}
+
+                tool_input = args.get("input", "")
+
+                skill = skill_map.get(tool_name)
+                if not skill:
+                    observation = f"Error: 未知工具 {tool_name}"
+                else:
                     payload = {
                         "session_id": session_id,
-                        "input": action_input,
+                        "input": tool_input,
                     }
                     if tenant_context:
                         payload.update({
                             "tenant_id": tenant_context.tenant_id,
                             "tenant_roles": tenant_context.roles,
                         })
-                    
-                    obs_result = await self.mcp.call_tool(target_skill.tool_name, payload, read_only=target_skill.read_only)
-                    observation = json.dumps(obs_result, ensure_ascii=False)
-                except Exception as e:
-                    observation = f"Error executing tool: {str(e)}"
-            
-            logger.info(f"Observation: {observation}")
-            steps[-1]["observation"] = observation
-            
-            # 更新上下文
-            history.append({"role": "assistant", "content": response})
-            history.append({"role": "user", "content": f"Observation: {observation}"})
+                    try:
+                        obs_result = await self.mcp.call_tool(
+                            skill.tool_name,
+                            payload,
+                            read_only=skill.read_only,
+                        )
+                        observation = json.dumps(obs_result, ensure_ascii=False)
+                    except Exception as e:
+                        observation = f"Error executing tool: {e}"
+
+                steps.append({
+                    "iteration": iteration + 1,
+                    "type": "tool_call",
+                    "tool": tool_name,
+                    "input": tool_input,
+                    "observation": observation,
+                })
+
+                # 将工具结果以 tool role 回传
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": observation,
+                })
+
+        if not final_answer:
+            final_answer = "未能在最大迭代次数内得出结论。"
 
         return {
             "query": query,
-            "final_answer": final_answer or "未能达成结论",
+            "final_answer": final_answer,
             "steps": steps,
-            "iterations": len(steps)
+            "iterations": len(steps),
         }
-
-    def _build_react_prompt(self, history: list[dict[str, str]]) -> str:
-        # 由于 LLMClient 内部会包装系统提示词，这里我们将历史拼接成一个大的上下文
-        lines = []
-        for msg in history:
-            prefix = "User: " if msg["role"] == "user" else "Assistant: "
-            if msg["role"] == "system":
-                prefix = "System Instructions: "
-            lines.append(f"{prefix}{msg['content']}")
-        return "\n".join(lines) + "\nAssistant: "
-
-    def _parse_response(self, response: str) -> tuple[str | None, Any, str]:
-        thought = ""
-        action = None
-        action_input = {}
-        
-        if "Thought:" in response:
-            thought = response.split("Thought:")[1].split("Action:")[0].strip()
-        
-        if "Action:" in response and "Action Input:" in response:
-            action = response.split("Action:")[1].split("Action Input:")[0].strip()
-            input_str = response.split("Action Input:")[1].split("Observation:")[0].split("Final Answer:")[0].strip()
-            try:
-                action_input = json.loads(input_str)
-            except:
-                action_input = input_str
-                
-        return action, action_input, thought
