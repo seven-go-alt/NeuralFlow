@@ -27,6 +27,7 @@ from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
 from app.agents.react import ReActAgent
+from app.agents.orchestrator import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -316,6 +317,52 @@ async def chat_react(http_request: Request, request: ChatRequest):
         "steps": result["steps"],
         "total_iterations": result["iterations"],
         "reflections": result.get("reflections", []),
+    }
+
+
+@app.post("/chat/orchestrate")
+async def chat_orchestrate(http_request: Request, request: ChatRequest):
+    """
+    Multi-Agent 编排接口：自动分类路由到 Coder/Planner/General Specialist Agent
+    """
+    http_request.state.session_id = request.session_id
+    tenant_context = getattr(http_request.state, "tenant", None)
+    tenant_id = tenant_context.tenant_id if tenant_context else settings.tenant_default_id
+
+    orchestrator = AgentOrchestrator(mcp_client=mcp_client)
+
+    result = await orchestrator.execute(
+        query=request.message,
+        session_id=request.session_id,
+        tenant_context=tenant_context,
+    )
+
+    # 记忆更新
+    if result["final_answer"]:
+        try:
+            from app.memory.working import WorkingMemory
+            wm = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
+            wm.add_message("user", request.message)
+            wm.add_message("assistant", result["final_answer"])
+        except Exception as e:
+            logger.warning(f"Failed to update memory in orchestrate mode: {e}")
+
+    _emit_response_generated_hook(
+        reply=result["final_answer"],
+        request=request,
+        intent=result["route"],
+        prompt=f"Orchestrator -> {result['route']}",
+        skill_results=[{"skill": s["tool"], "result": s["observation"]} for s in result["steps"] if s.get("type") == "tool_call"],
+        tenant_context=tenant_context,
+    )
+
+    return {
+        "session_id": request.session_id,
+        "route": result["route"],
+        "route_reason": result["route_reason"],
+        "final_answer": result["final_answer"],
+        "steps": result["steps"],
+        "total_iterations": result["iterations"],
     }
 
 
