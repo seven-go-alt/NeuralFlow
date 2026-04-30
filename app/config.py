@@ -25,7 +25,7 @@ DEFAULT_INTENT_POLICIES = {
     },
     "coding": {
         "memory_strategy": "working_only",
-        "skill_whitelist": ["python", "filesystem"],
+        "skill_whitelist": ["python_exec", "file_read", "file_write", "file_list"],
     },
     "planning": {
         "memory_strategy": "working_only",
@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     ollama_fallback_model: str | None = "ollama/qwen2.5:7b"
 
     mcp_base_url: str = "http://localhost:9000"
+    mcp_code_server_url: str | None = Field(default=None, alias="MCP_CODE_SERVER_URL")
+    mcp_filesystem_server_url: str | None = Field(default=None, alias="MCP_FILESYSTEM_SERVER_URL")
     mcp_timeout_seconds: float = 15.0
     mcp_retry_attempts: int = 3
     mcp_retry_backoff_seconds: float = 0.5

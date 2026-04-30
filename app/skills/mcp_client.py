@@ -41,6 +41,7 @@ class MCPClient:
         retry_attempts: int | None = None,
         retry_backoff_seconds: float | None = None,
         client_factory: Callable[[httpx.Timeout], httpx.AsyncClient] | None = None,
+        tool_routes: dict[str, str] | None = None,
     ) -> None:
         settings = get_settings()
         self.base_url = (base_url or settings.mcp_base_url).rstrip("/")
@@ -48,11 +49,40 @@ class MCPClient:
         self.retry_attempts = retry_attempts or settings.mcp_retry_attempts
         self.retry_backoff_seconds = retry_backoff_seconds or settings.mcp_retry_backoff_seconds
         self.client_factory = client_factory or self._default_client_factory
+        self.tool_routes: dict[str, str] = tool_routes or {}
+        if settings.mcp_code_server_url:
+            for tool in ("python_exec",):
+                self.tool_routes.setdefault(tool, settings.mcp_code_server_url.rstrip("/"))
+        if settings.mcp_filesystem_server_url:
+            for tool in ("file_read", "file_write", "file_list"):
+                self.tool_routes.setdefault(tool, settings.mcp_filesystem_server_url.rstrip("/"))
 
     async def list_tools(self) -> list[MCPToolDescriptor]:
-        payload = await self._request_json("GET", "/tools")
-        tools = payload.get("tools", []) if isinstance(payload, dict) else []
-        return [MCPToolDescriptor.model_validate(item) for item in tools]
+        all_tools: list[MCPToolDescriptor] = []
+        seen_bases: set[str] = set()
+
+        # Main MCP server
+        try:
+            payload = await self._request_json("GET", "/tools")
+            tools = payload.get("tools", []) if isinstance(payload, dict) else []
+            all_tools.extend(MCPToolDescriptor.model_validate(item) for item in tools)
+            seen_bases.add(self.base_url)
+        except Exception:
+            pass
+
+        # Additional tool servers from routes
+        for tool_name, base in self.tool_routes.items():
+            if base in seen_bases:
+                continue
+            seen_bases.add(base)
+            try:
+                payload = await self._request_json("GET", "/tools", base_url=base)
+                tools = payload.get("tools", []) if isinstance(payload, dict) else []
+                all_tools.extend(MCPToolDescriptor.model_validate(item) for item in tools)
+            except Exception:
+                pass
+
+        return all_tools
 
     async def call_tool(self, tool_name: str, payload: dict[str, Any], *, read_only: bool = True) -> dict[str, Any]:
         if not read_only:
@@ -62,7 +92,8 @@ class MCPClient:
                 is_retryable=False,
                 should_trigger_fallback=False,
             )
-        result = await self._request_json("POST", f"/tools/{tool_name}", json_body=payload)
+        base = self.tool_routes.get(tool_name, self.base_url)
+        result = await self._request_json("POST", f"/tools/{tool_name}", json_body=payload, base_url=base)
         return result if isinstance(result, dict) else {"result": result}
 
     async def _request_json(
@@ -71,7 +102,9 @@ class MCPClient:
         path: str,
         *,
         json_body: dict[str, Any] | None = None,
+        base_url: str | None = None,
     ) -> dict[str, Any] | list[Any] | str:
+        target_base = base_url or self.base_url
         retryer = AsyncRetrying(
             stop=stop_after_attempt(self.retry_attempts),
             wait=wait_fixed(self.retry_backoff_seconds),
@@ -82,7 +115,7 @@ class MCPClient:
             async for attempt in retryer:
                 with attempt:
                     async with self.client_factory(self.timeout) as client:
-                        response = await client.request(method, f"{self.base_url}{path}", json=json_body)
+                        response = await client.request(method, f"{target_base}{path}", json=json_body)
                     if response.status_code in self.RETRYABLE_STATUS_CODES:
                         raise MCPToolExecutionError(
                             f"MCP server returned retryable status {response.status_code}",

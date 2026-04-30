@@ -305,7 +305,7 @@ async def chat_react(http_request: Request, request: ChatRequest):
         request=request,
         intent=routed.primary_intent,
         prompt="ReAct Loop (Multi-step)",
-        skill_results=[{"skill": s["action"], "result": s["observation"]} for s in result["steps"] if s.get("action")],
+        skill_results=[{"skill": s["tool"], "result": s["observation"]} for s in result["steps"] if s.get("type") == "tool_call"],
         tenant_context=tenant_context,
     )
 
@@ -314,7 +314,8 @@ async def chat_react(http_request: Request, request: ChatRequest):
         "intent": routed.primary_intent,
         "final_answer": result["final_answer"],
         "steps": result["steps"],
-        "total_iterations": result["iterations"]
+        "total_iterations": result["iterations"],
+        "reflections": result.get("reflections", []),
     }
 
 
