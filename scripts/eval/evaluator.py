@@ -1,19 +1,17 @@
 """
 NeuralFlow Agent Evaluator
-实现 LLM-as-a-judge 评估模型。
-针对 Agent 的工具调用准确性、逻辑严密性和最终回答质量进行评分。
+LLM-as-a-judge 评测 + 关键词自动评分。
 """
 
 import json
-import asyncio
 from typing import Any
+
 from app.core.llm import LLMClient
 
-# 评估 Prompt 模版
 EVAL_PROMPT_TEMPLATE = """你是一个专业的 AI Agent 评测员。请根据以下信息对智能体的表现进行评分（0-10分）。
 
 用户问题: {query}
-智能体执行步骤: 
+智能体执行步骤:
 {steps}
 最终回答: {final_answer}
 
@@ -34,69 +32,45 @@ EVAL_PROMPT_TEMPLATE = """你是一个专业的 AI Agent 评测员。请根据�
 }}
 """
 
+
 class AgentEvaluator:
-    def __init__(self, judge_model: str = "gpt-4o"):
+    def __init__(self, judge_model: str | None = None) -> None:
         self.judge_llm = LLMClient(model=judge_model)
 
     async def evaluate_run(self, run_result: dict[str, Any]) -> dict[str, Any]:
-        """评估单次 Agent 运行结果"""
+        """评估单次 Agent 运行结果。"""
         steps_str = ""
         for step in run_result.get("steps", []):
-            steps_str += f"- Thought: {step.get('thought')}\n"
-            steps_str += f"  Action: {step.get('action')}({step.get('action_input')})\n"
-            steps_str += f"  Observation: {step.get('observation')}\n"
+            step_type = step.get("type", "")
+            if step_type == "tool_call":
+                steps_str += f"- Tool Call: {step.get('tool')}({step.get('input')})\n"
+                steps_str += f"  Observation: {step.get('observation')}\n"
+            elif step_type == "final_answer":
+                steps_str += f"- Final Answer: {step.get('content', '')[:200]}\n"
+            else:
+                steps_str += f"- Thought: {step.get('thought', '')}\n"
+                steps_str += f"  Action: {step.get('action', '')}\n"
+                steps_str += f"  Observation: {step.get('observation', '')}\n"
 
         eval_prompt = EVAL_PROMPT_TEMPLATE.format(
-            query=run_result.get("query"),
-            steps=steps_str,
-            final_answer=run_result.get("final_answer")
+            query=run_result.get("query", ""),
+            steps=steps_str or "(无步骤，直接回答)",
+            final_answer=run_result.get("final_answer", ""),
         )
 
         raw_eval = await self.judge_llm.generate(eval_prompt)
         try:
-            # 简单清理 LLM 输出中的 Markdown 标记
-            json_str = raw_eval.strip("`").replace("json", "", 1).strip()
+            json_str = raw_eval.strip()
+            if json_str.startswith("```"):
+                json_str = json_str.strip("`").replace("json", "", 1).strip()
             return json.loads(json_str)
-        except Exception as e:
-            return {"error": f"Failed to parse evaluation: {str(e)}", "raw": raw_eval}
+        except Exception:
+            return {"error": "Failed to parse evaluation", "raw": raw_eval}
 
-    async def run_benchmark(self, dataset: list[dict[str, Any]], agent_executor: Any):
-        """运行完整基准测试集"""
-        results = []
-        print(f"--- Starting Benchmark: {len(dataset)} cases ---")
-        
-        for case in dataset:
-            print(f"Testing Case: {case['query'][:50]}...")
-            # 模拟 Agent 执行
-            run_result = await agent_executor.execute(
-                query=case["query"],
-                skills=case.get("skills", []),
-                session_id="eval-session"
-            )
-            # 进行评估
-            eval_score = await self.evaluate_run(run_result)
-            results.append({
-                "query": case["query"],
-                "run": run_result,
-                "evaluation": eval_score
-            })
-            
-        return results
-
-async def demo_eval():
-    # 模拟数据
-    mock_run = {
-        "query": "帮我查询最近 3 天的系统 CPU 负载并总结趋势",
-        "steps": [
-            {"thought": "需要查询监控数据", "action": "monitor_tool", "action_input": {"days": 3}, "observation": "CPU Load: 20%, 35%, 50%"},
-        ],
-        "final_answer": "过去 3 天 CPU 负载呈上升趋势，从 20% 增加到了 50%。"
-    }
-    
-    evaluator = AgentEvaluator()
-    report = await evaluator.evaluate_run(mock_run)
-    print(json.dumps(report, indent=2, ensure_ascii=False))
-
-if __name__ == "__main__":
-    # asyncio.run(demo_eval())
-    print("Evaluator ready. Run within NeuralFlow env to test performance.")
+    @staticmethod
+    def keyword_score(answer: str, expected_keywords: list[str]) -> float:
+        """基于关键词的自动评分（0-10）。"""
+        if not expected_keywords:
+            return 10.0
+        hits = sum(1 for kw in expected_keywords if kw.lower() in answer.lower())
+        return round(hits / len(expected_keywords) * 10, 1)

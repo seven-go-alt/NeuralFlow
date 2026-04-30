@@ -1,20 +1,146 @@
 [
   {
-    "id": "case_001",
-    "query": "请统计一下目前注册的所有技能名称。",
-    "expected_tools": ["skill_list"],
-    "category": "introspection"
+    "id": "gen_001",
+    "query": "你好，请介绍一下你自己。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["助手", "帮助"],
+    "category": "general",
+    "intent": "general"
   },
   {
-    "id": "case_002",
-    "query": "查询 tenant-A 的历史对话，寻找关于 'database' 的讨论。",
+    "id": "gen_002",
+    "query": "今天天气怎么样？",
+    "expected_tools": [],
+    "expected_answer_keywords": ["天气"],
+    "category": "general",
+    "intent": "general"
+  },
+  {
+    "id": "gen_003",
+    "query": "用一句话解释什么是人工智能。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["智能", "技术"],
+    "category": "general",
+    "intent": "general"
+  },
+  {
+    "id": "hist_001",
+    "query": "帮我查一下之前关于 Redis 的讨论记录。",
     "expected_tools": ["memory"],
-    "category": "multi-tenant-retrieval"
+    "expected_answer_keywords": ["Redis"],
+    "category": "query_history",
+    "intent": "query_history"
   },
   {
-    "id": "case_003",
-    "query": "先帮我列出项目根目录的文件列表，然后读取 README.md 的前 10 行。",
-    "expected_tools": ["filesystem", "filesystem"],
-    "category": "multi-step"
+    "id": "hist_002",
+    "query": "我们上次讨论的项目方案是什么？",
+    "expected_tools": ["memory"],
+    "expected_answer_keywords": ["方案", "讨论"],
+    "category": "query_history",
+    "intent": "query_history"
+  },
+  {
+    "id": "hist_003",
+    "query": "我之前提到过哪些技术偏好？",
+    "expected_tools": ["memory"],
+    "expected_answer_keywords": [],
+    "category": "query_history",
+    "intent": "query_history"
+  },
+  {
+    "id": "hist_004",
+    "query": "查找关于数据库优化的历史对话。",
+    "expected_tools": ["memory"],
+    "expected_answer_keywords": ["数据库"],
+    "category": "query_history",
+    "intent": "query_history"
+  },
+  {
+    "id": "code_001",
+    "query": "帮我写一个 Python 函数实现二分查找。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["def", "binary", "查找"],
+    "category": "coding",
+    "intent": "coding"
+  },
+  {
+    "id": "code_002",
+    "query": "用 Python 实现一个 LRU 缓存。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["class", "LRU", "cache"],
+    "category": "coding",
+    "intent": "coding"
+  },
+  {
+    "id": "code_003",
+    "query": "写一个 FastAPI 的 health check 接口。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["FastAPI", "health"],
+    "category": "coding",
+    "intent": "coding"
+  },
+  {
+    "id": "code_004",
+    "query": "帮我写一个 Python 装饰器实现重试功能。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["def", "retry", "decorator"],
+    "category": "coding",
+    "intent": "coding"
+  },
+  {
+    "id": "code_005",
+    "query": "实现一个简单的 Python 异步任务队列。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["async", "queue"],
+    "category": "coding",
+    "intent": "coding"
+  },
+  {
+    "id": "plan_001",
+    "query": "帮我制定一个微服务架构的迁移方案。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["微服务", "迁移"],
+    "category": "planning",
+    "intent": "planning"
+  },
+  {
+    "id": "plan_002",
+    "query": "设计一个高并发系统的架构方案。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["并发", "架构"],
+    "category": "planning",
+    "intent": "planning"
+  },
+  {
+    "id": "plan_003",
+    "query": "拆分一个单体应用为前后端分离的方案。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["前后端", "分离"],
+    "category": "planning",
+    "intent": "planning"
+  },
+  {
+    "id": "multi_001",
+    "query": "先帮我查一下之前有没有讨论过 Docker 相关的内容，然后根据结果给出一个 Docker 入门指南。",
+    "expected_tools": ["memory"],
+    "expected_answer_keywords": ["Docker"],
+    "category": "multi_step",
+    "intent": "query_history"
+  },
+  {
+    "id": "multi_002",
+    "query": "帮我查一下之前的技术偏好记录，然后基于这些偏好推荐一个适合的后端框架。",
+    "expected_tools": ["memory"],
+    "expected_answer_keywords": ["框架"],
+    "category": "multi_step",
+    "intent": "query_history"
+  },
+  {
+    "id": "multi_003",
+    "query": "先解释一下什么是设计模式，然后用 Python 写一个单例模式的实现。",
+    "expected_tools": [],
+    "expected_answer_keywords": ["设计模式", "单例", "class"],
+    "category": "multi_step",
+    "intent": "coding"
   }
 ]
