@@ -19,7 +19,7 @@ class FakeResponse:
 async def test_llm_client_falls_back_to_ollama_when_primary_provider_fails(monkeypatch) -> None:
     calls: list[str] = []
 
-    async def fake_acompletion(*, model: str, messages: list[dict], stream: bool = False):
+    async def fake_acompletion(*, model: str, messages: list[dict], stream: bool = False, **kwargs):
         calls.append(model)
         if model == "primary-model":
             raise RuntimeError("invalid openai key")
@@ -39,7 +39,7 @@ async def test_llm_client_falls_back_to_ollama_when_primary_provider_fails(monke
 
 @pytest.mark.asyncio
 async def test_llm_client_returns_rule_based_summary_when_all_models_fail(monkeypatch) -> None:
-    async def fake_acompletion(*, model: str, messages: list[dict], stream: bool = False):
+    async def fake_acompletion(*, model: str, messages: list[dict], stream: bool = False, **kwargs):
         raise RuntimeError(f"{model} unavailable")
 
     monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)

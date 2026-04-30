@@ -23,6 +23,8 @@ class LLMClient:
     def __init__(self, model: str | None = None) -> None:
         settings = get_settings()
         self.model = model or settings.litellm_model
+        self.api_base = settings.llm_api_base
+        self.api_key = settings.llm_api_key or settings.openai_api_key
         self.fallback_model = settings.ollama_fallback_model
         self.offline_fallback_enabled = settings.offline_fallback_enabled
 
@@ -68,18 +70,28 @@ class LLMClient:
             yield {"event": "message", "data": build_rule_based_fallback_reply(prompt, error=primary_exc)}
 
     async def _generate_once(self, prompt: str, model: str) -> str:
-        response = await acompletion(
-            model=model,
-            messages=self._build_messages(prompt),
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": self._build_messages(prompt),
+        }
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        response = await acompletion(**kwargs)
         return response.choices[0].message.content or ""
 
     async def _stream_once(self, prompt: str, model: str, include_thinking: bool = False) -> AsyncIterator[dict[str, str]]:
-        stream = await acompletion(
-            model=model,
-            messages=self._build_messages(prompt),
-            stream=True,
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": self._build_messages(prompt),
+            "stream": True,
+        }
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        stream = await acompletion(**kwargs)
         async for chunk in stream:
             thinking = self._extract_thinking(chunk)
             if include_thinking and thinking:

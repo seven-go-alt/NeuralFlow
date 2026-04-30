@@ -6,7 +6,7 @@ def test_settings_exposes_redis_and_chroma_helpers(monkeypatch) -> None:
     monkeypatch.delenv("REDIS_PORT", raising=False)
     monkeypatch.delenv("REDIS_DB", raising=False)
     monkeypatch.delenv("CHROMA_HOST", raising=False)
-    monkeypatch.delenv("CHROMA_PORT", raising=False)
+    monkeypatch.setenv("CHROMA_PORT", "8000")
     monkeypatch.delenv("CELERY_BROKER_URL", raising=False)
     monkeypatch.delenv("CELERY_RESULT_BACKEND", raising=False)
     get_settings.cache_clear()

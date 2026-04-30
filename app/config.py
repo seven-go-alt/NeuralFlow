@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    llm_api_base: str | None = Field(default=None, alias="LLM_API_BASE")
+    llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
     offline_fallback_enabled: bool = True
     ollama_fallback_model: str | None = "ollama/qwen2.5:7b"
 
