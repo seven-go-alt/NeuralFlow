@@ -13,6 +13,8 @@ NeuralFlow 是一个基于 FastAPI、Redis、ChromaDB 和 Celery 的 Agent 工�
 
 ```text
 NeuralFlow/
+├── frontend/
+│   └── index.html          # 可视化 Demo 前端
 ├── app/
 │   ├── main.py
 │   ├── config.py
@@ -65,13 +67,35 @@ uv run uvicorn app.main:app --reload
 
 `.python-version` 已固定为 `3.11`。
 
+## 可视化 Demo 前端
+
+项目内置了一个单页 Demo 前端，启动后直接访问 `http://localhost:8000` 即可打开：
+
+```bash
+uv run uvicorn app.main:app --reload
+# 浏览器打开 http://localhost:8000
+```
+
+前端功能：
+
+- **Standard 模式**：单轮对话，展示意图识别、技能执行、记忆检索
+- **Streaming 模式**：SSE 实时流式输出，逐 token 渲染
+- **ReAct Agent 模式**：多步推理循环，右侧实时展示 Thought → Action → Observation 步骤
+- 右侧面板可切换查看 Intent 识别结果、已注册 Skills、运行时 Config
+- 左侧 Sidebar 支持切换租户、查看 Session 统计
+
+即使未配置外部 LLM（`OPENAI_API_KEY` 为空），离线兜底路径也会返回非 500 响应，前端可正常展示完整流程。
+
 ## 环境变量
 
-核心配置只围绕 Redis 和 ChromaDB：
+核心配置：
 
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB`
 - `CHROMA_HOST` / `CHROMA_PORT` / `CHROMA_COLLECTION`
 - `OPENAI_API_KEY` 或其他兼容 LiteLLM 的凭证
+- `LLM_API_BASE`：自定义 LLM 中转站地址（如 `https://your-relay.com/v1`）
+- `LLM_API_KEY`：中转站 API Key（优先级高于 `OPENAI_API_KEY`）
+- `LITELLM_MODEL`：默认模型，需带 provider 前缀（如 `openai/gpt-5.4`）
 - `MCP_BASE_URL`：MCP Server 地址，默认通过 HTTP 拉取 `/tools` 并调用远端工具
 - `NEURALFLOW_PLUGIN_DIR`：插件目录，默认值为 `plugins`
 - `NEURALFLOW_AUDIT_LOG_PATH`：结构化审计/观测日志落盘位置
@@ -105,6 +129,9 @@ docker compose up --build
 - `POST /api/intent/detect`：返回意图识别结果、是否使用 fallback，以及每个意图对应的记忆/技能策略
 - `POST /chat`：写入短期记忆，按意图构造上下文，按白名单调用 MCP 技能，并通过 LiteLLM 生成回复
 - `POST /chat/stream`：输出 SSE 流式响应，并按运行时配置决定是否透出 thinking/reasoning 片段
+- `POST /chat/react`：ReAct Agent 模式，支持多步工具调用循环（function calling），返回执行步骤与最终回答
+- `GET /api/models`：从配置的 LLM 中转站拉取可用模型列表
+- `POST /api/models/switch`：运行时切换当前使用的模型（仅内存生效）
 
 `POST /chat` 当前会额外返回：
 
@@ -118,15 +145,23 @@ docker compose up --build
 
 ## 自主智能体 (Autonomous Agents)
 
-### ReAct Agent
+### ReAct Agent (Function Calling)
 
-项目在 `app/agents/react.py` 实现了标准的 **Reason-Act (ReAct)** 循环。与传统的单次工具调用不同，ReAct Agent 会：
-1. **Thought**: 思考当前任务状态。
-2. **Action**: 从 whitelisted skills 中选择最合适的工具。
-3. **Observation**: 执行工具并观察结果。
-4. **Loop**: 重复上述过程，直到得出 **Final Answer**。
+项目在 `app/agents/react.py` 实现了基于 **OpenAI Function Calling** 的 ReAct 循环。与传统文本解析不同，Agent 直接使用标准 `tool_calls` 协议：
 
-这极大增强了 Agent 处理复杂、多步骤任务（如“先查询数据库，再根据结果生成代码，最后保存文件”）的能力。
+1. 将 skills 转换为 OpenAI tools schema（`type: function`, `function: {name, description, parameters}`）
+2. 通过 `litellm.acompletion(tools=...)` 发起请求
+3. 当 LLM 返回 `tool_calls` 时，执行 MCP 工具并将结果以 `tool` role 回传
+4. 循环直到 LLM 返回普通文本（Final Answer），最多 `max_iterations` 轮
+
+这符合 2024-2026 Agent 行业标准，面试时可以直接讲 function calling 而非脆弱的文本解析。
+
+```bash
+# 测试 ReAct Agent
+curl -s http://localhost:8000/chat/react \
+  -X POST -H 'Content-Type: application/json' \
+  -d '{“session_id”:”demo”,”message”:”帮我查一下之前关于 Redis 的讨论记录”}' | jq
+```
 
 ## 模型微调 (Fine-tuning)
 
@@ -137,10 +172,28 @@ docker compose up --build
 
 ## Agent 评测体系 (Evaluation)
 
-在 `scripts/eval/evaluator.py` 中实现了 **LLM-as-a-judge** 评测方案：
-- 自动化运行基准测试集。
-- 从工具调用准确性、逻辑严密性、回答质量三个维度进行量化评分（0-10分）。
-- 为 Agent 的持续优化提供客观的数据反馈。
+在 `scripts/eval/` 下实现了完整的评测体系：
+
+- **18 个测试用例**，覆盖 5 个意图类别：general、query_history、coding、planning、multi_step
+- **LLM-as-a-judge** 自动评分：工具准确性、逻辑严密性、回答质量（0-10分）
+- **关键词自动评分**：基于 `expected_answer_keywords` 的快速评分
+- **Benchmark Runner**：`scripts/eval/run_benchmark.py` 逐条执行并输出 JSON 报告
+
+```bash
+# 运行 Benchmark
+uv run python -m scripts.eval.run_benchmark
+```
+
+最新 Benchmark 结果（18 cases）：
+
+| 类别 | 用例数 | 关键词得分 | 工具匹配 |
+|------|--------|-----------|---------|
+| general | 3 | 8.3/10 | 3/3 |
+| query_history | 4 | 10.0/10 | 4/4 |
+| coding | 5 | 10.0/10 | 5/5 |
+| planning | 3 | 10.0/10 | 3/3 |
+| multi_step | 3 | 10.0/10 | 3/3 |
+| **总计** | **18** | **9.7/10** | **18/18** |
 
 ## 插件 Hook
 
@@ -361,9 +414,13 @@ locust -f load_test.py --host http://localhost:8000
 
 ## 最近补充能力
 
+- **ReAct Agent 升级为 Function Calling**：使用标准 OpenAI `tool_calls` 协议，替代脆弱的文本解析
+- **LLM 摘要**：`Summarizer` 支持 LLM 生成结构化摘要（主题、关键信息、决策点），保留截断兜底
+- **评测体系**：18 个测试用例 + LLM-as-a-judge 评分 + Benchmark Runner
 - 可观测性：新增结构化请求日志、`TelemetryMiddleware` 与 `/metrics` 指标导出
 - 运行时配置：新增 `ConfigManager`，支持通过管理接口热更新开关类配置并记录审计日志
 - 流式响应：`/chat/stream` 支持 SSE 输出，并兼容 thinking 开关与中断注册表
+- 模型切换：`/api/models` 列出可用模型，`/api/models/switch` 运行时切换
 
 ## 开发路线调整
 
