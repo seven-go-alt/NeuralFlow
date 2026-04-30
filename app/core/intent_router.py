@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.config import get_settings
 from app.core.llm import LLMClient
@@ -29,6 +29,98 @@ class IntentLLMClassifier(Protocol):
     async def classify(self, text: str) -> list[str]: ...
 
 
+INTENT_EXAMPLES: dict[str, list[str]] = {
+    "query_history": [
+        "帮我查一下之前的记录",
+        "我们上次讨论了什么",
+        "之前提到过哪些技术",
+        "查找历史对话",
+    ],
+    "coding": [
+        "帮我写一个函数",
+        "用 Python 实现一个算法",
+        "写一个 API 接口",
+        "调试这段代码",
+    ],
+    "planning": [
+        "帮我制定一个方案",
+        "设计一个系统架构",
+        "规划一下项目路线图",
+        "拆分这个需求",
+    ],
+}
+
+
+class EmbeddingIntentClassifier:
+    """基于 Embedding 余弦相似度的意图分类器。"""
+
+    def __init__(self, model: str | None = None) -> None:
+        settings = get_settings()
+        self.model = model or "text-embedding-3-small"
+        self.api_base = settings.llm_api_base
+        self.api_key = settings.llm_api_key or settings.openai_api_key
+        self._example_embeddings: dict[str, list[list[float]] | None] = {}
+
+    async def classify(self, text: str) -> list[str]:
+        from litellm import aembedding
+
+        # 获取用户输入的 embedding
+        user_emb = await self._get_embedding(text)
+        if not user_emb:
+            return []
+
+        # 预计算各意图的 example embeddings（懒加载）
+        if not self._example_embeddings:
+            for intent, examples in INTENT_EXAMPLES.items():
+                embs = []
+                for ex in examples:
+                    emb = await self._get_embedding(ex)
+                    if emb:
+                        embs.append(emb)
+                self._example_embeddings[intent] = embs if embs else None
+
+        # 计算每个意图的平均相似度
+        scores: dict[str, float] = {}
+        for intent, embs in self._example_embeddings.items():
+            if not embs:
+                continue
+            sims = [self._cosine_similarity(user_emb, emb) for emb in embs]
+            scores[intent] = max(sims)
+
+        if not scores:
+            return []
+
+        # 按相似度排序
+        sorted_intents = sorted(scores, key=lambda k: scores[k], reverse=True)
+        top_score = scores[sorted_intents[0]]
+        if top_score < 0.3:
+            return []
+        return [sorted_intents[0]]
+
+    async def _get_embedding(self, text: str) -> list[float] | None:
+        from litellm import aembedding
+
+        kwargs: dict[str, Any] = {"model": self.model, "input": [text]}
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        try:
+            response = await aembedding(**kwargs)
+            return response.data[0]["embedding"]
+        except Exception:
+            return None
+
+    @staticmethod
+    def _cosine_similarity(a: list[float], b: list[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = sum(x * x for x in a) ** 0.5
+        norm_b = sum(x * x for x in b) ** 0.5
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return dot / (norm_a * norm_b)
+
+
 class LiteLLMIntentClassifier:
     def __init__(self, llm_client: LLMClient | None = None) -> None:
         self.llm_client = llm_client or LLMClient()
@@ -48,10 +140,12 @@ class IntentRouter:
     def __init__(
         self,
         llm_classifier: IntentLLMClassifier | None = None,
+        embedding_classifier: EmbeddingIntentClassifier | None = None,
         keyword_rules: dict[str, list[str]] | None = None,
         policy_map: dict[str, IntentPolicy] | None = None,
         default_intent: str | None = None,
         llm_fallback_enabled: bool | None = None,
+        embedding_fallback_enabled: bool = False,
     ) -> None:
         settings = get_settings()
         self.default_intent = default_intent or settings.intent_default
@@ -65,12 +159,15 @@ class IntentRouter:
             else llm_fallback_enabled
         )
         self.llm_classifier = llm_classifier or LiteLLMIntentClassifier()
+        self.embedding_fallback_enabled = embedding_fallback_enabled
+        self.embedding_classifier = embedding_classifier
 
     async def detect(self, user_query: str) -> IntentDetectionResult:
         normalized_text = user_query.strip()
         if not normalized_text:
             return self._build_result([self.default_intent], used_fallback=False)
 
+        # Priority 1: keyword matching
         matched_intents = self._match_keywords(normalized_text)
         if matched_intents:
             logger.info(
@@ -83,6 +180,20 @@ class IntentRouter:
             )
             return self._build_result(matched_intents, used_fallback=False)
 
+        # Priority 2: embedding classification (fast, no LLM call)
+        if self.embedding_fallback_enabled and self.embedding_classifier is not None:
+            try:
+                emb_intents = await self.embedding_classifier.classify(normalized_text)
+                if emb_intents:
+                    logger.info(
+                        "intent detection used embedding fallback",
+                        extra={"component": "intent_router", "primary_intent": emb_intents[0]},
+                    )
+                    return self._build_result(emb_intents, used_fallback=True)
+            except Exception as exc:
+                logger.warning("embedding intent classification failed: %s", exc)
+
+        # Priority 3: LLM classification
         if not self.llm_fallback_enabled:
             return self._build_result([self.default_intent], used_fallback=False)
 
