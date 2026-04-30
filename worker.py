@@ -1,6 +1,9 @@
+import asyncio
+
 from celery import Celery
 
 from app.config import get_settings
+from app.core.llm import LLMClient
 from app.memory.long_term import LongTermMemory
 from app.memory.summarizer import Summarizer
 
@@ -20,9 +23,17 @@ def compress_and_archive(
     messages: list[dict[str, str]] | None = None,
     long_term_memory: LongTermMemory | None = None,
 ) -> str:
-    summarizer = Summarizer()
+    llm_client = LLMClient()
+    summarizer = Summarizer(llm_client=llm_client)
+
     if messages is not None:
-        summary = summarizer.summarize_messages(session_id=session_id, messages=messages)
+        loop = asyncio.new_event_loop()
+        try:
+            summary = loop.run_until_complete(
+                summarizer.summarize_messages_async(session_id=session_id, messages=messages)
+            )
+        finally:
+            loop.close()
         message_count = len(messages)
     else:
         summary = summarizer.summarize(history_text or "")
