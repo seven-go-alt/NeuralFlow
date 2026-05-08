@@ -1,94 +1,304 @@
 # NeuralFlow
 
-NeuralFlow 是一个基于 FastAPI、Redis、ChromaDB 和 Celery 的 Agent 工程模板，当前方案聚焦轻量原型开发：
+NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识库 Agent 平台**。
 
-- L0 短期记忆：Redis 滑动窗口保存最近 10 轮对话
-- L2 长期记忆：ChromaDB 存储压缩摘要与向量检索结果
-- Token 优化：按意图决定是否查询长期记忆
-- 异步归档：Celery 将过期对话压缩后写入长期记忆
+它把以下能力整合到一套可运行系统里：
 
-这个版本不引入 MongoDB，避免额外的数据库运维负担。记忆层仍保留抽象基类，后续如果要扩展 SQLite、Milvus 或其他存储，可以继续往下接。
+- FastAPI 后端
+- Agent Runtime
+- Function Calling
+- MCP Tool 集成
+- Redis Working Memory
+- ChromaDB Vector Retrieval
+- Document RAG Pipeline
+- Streaming Chat / SSE Runtime Events
+- Next.js Runtime Console
+- Multi-tenant Isolation
+- Celery 异步摄入任务
 
-## 项目结构
+这不是一个只会聊天的 demo，而是一套围绕 **文档知识库 + Agent + 检索增强生成** 的工程化骨架。
+
+---
+
+## 1. 项目定位
+
+当前版本的 NeuralFlow 目标是：
+
+> 将通用 Agent Runtime 升级为可扩展的企业知识库 AI Agent 平台。
+
+它支持把 PDF、Markdown、TXT、DOCX 文档上传进系统，自动完成：
+
+1. 文件存储
+2. 文档解析
+3. Chunk 切分
+4. Embedding 生成
+5. ChromaDB 建索引
+6. Query Retrieval
+7. RAG Context Assembly
+8. 注入聊天 / Agent Prompt
+9. 在前端展示引用来源与检索 chunks
+
+---
+
+## 2. 核心能力
+
+### Agent Runtime
+- `/chat` 同步对话
+- `/chat/stream` SSE 流式响应
+- `/chat/react` ReAct / Function Calling agent
+- `/chat/orchestrate` 多 Agent 编排
+
+### 文档知识库
+- 支持上传：`PDF / Markdown / TXT / DOCX`
+- 文档状态管理：`uploaded / queued / parsing / chunking / embedding / indexing / ready / failed`
+- 多租户隔离
+- 文档详情 / chunk 浏览
+
+### RAG Pipeline
+- 文档解析
+- token-aware recursive chunk splitting
+- configurable overlap
+- OpenAI-compatible embedding provider
+- embedding cache
+- ChromaDB retrieval
+- token-budget-aware context builder
+- citations / source support
+
+### 前端 Runtime Console
+- documents 页面
+- chunk 可视化
+- runtime panel 检索展示
+- 聊天消息下方 source citations 展示
+- 上传后自动刷新文档列表
+
+### 工程能力
+- SQLAlchemy metadata storage
+- Celery ingestion queue
+- structured logging
+- tenant middleware
+- Prometheus metrics
+- runtime config hot patch
+- pytest regression coverage
+
+完整变更记录见：
+
+- [`CHANGELOG.md`](CHANGELOG.md)
+
+---
+
+## 3. 技术栈
+
+### Backend
+- FastAPI
+- SQLAlchemy
+- Redis
+- ChromaDB
+- Celery
+- LiteLLM / OpenAI-compatible API
+- PyMuPDF
+- python-docx
+- markdown-it-py
+- tiktoken
+
+### Frontend
+- Next.js 15
+- TypeScript
+- Zustand
+- React Query
+
+---
+
+## 4. 架构概览
+
+完整 RAG 架构说明见：
+
+- [`docs/rag-architecture.md`](docs/rag-architecture.md)
+
+高层数据流：
+
+```text
+Upload File
+  -> Document Record
+  -> Async Ingestion Task
+  -> Parse
+  -> Chunk
+  -> Embed
+  -> Chroma Index
+
+User Query
+  -> Retrieval
+  -> Context Builder
+  -> Agent / Chat Prompt
+  -> LLM Response
+  -> Citations / Sources
+```
+
+---
+
+## 5. 当前项目结构
 
 ```text
 NeuralFlow/
-├── frontend/
-│   ├── app/                # Next.js 15 App Router 控制台
-│   ├── features/           # Chat / runtime / sidebar feature slices
-│   ├── services/           # API 与 SSE streaming 抽象
-│   ├── store/              # Zustand 全局状态
-│   └── types/              # Agent runtime 类型
 ├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── config_manager.py
+│   ├── agents/
 │   ├── api/
+│   │   ├── documents.py
+│   │   ├── retrieval.py
 │   │   └── streaming.py
 │   ├── core/
-│   │   ├── context.py
-│   │   ├── llm.py
-│   │   ├── intent_router.py
-│   │   ├── router.py
-│   │   └── token_budget.py
+│   ├── db/
+│   ├── documents/
+│   ├── embeddings/
+│   ├── ingestion/
 │   ├── memory/
-│   │   ├── base.py
-│   │   ├── long_term.py
-│   │   ├── summarizer.py
-│   │   ├── vector_retriever.py
-│   │   └── working.py
-│   ├── middleware/
-│   │   ├── telemetry.py
-│   │   └── tenant_isolation.py
-│   ├── models/
-│   │   └── tenant.py
-│   ├── plugins/
-│   │   └── manager.py
-│   ├── skills/
-│   │   ├── mcp_client.py
-│   │   └── registry.py
-│   └── utils/
-│       ├── observability.py
-│       ├── redis_client.py
-│       └── vector_client.py
-├── src/neuralflow/__init__.py
+│   ├── rag/
+│   ├── retrieval/
+│   └── main.py
+├── frontend/
+│   ├── app/
+│   │   └── documents/
+│   ├── components/
+│   │   ├── documents/
+│   │   └── rag/
+│   ├── features/
+│   ├── services/
+│   └── types/
+├── docs/
+│   └── rag-architecture.md
 ├── tests/
-├── Dockerfile
-├── docker-compose.yml
-├── worker.py
-└── .env.example
+└── worker.py
 ```
 
-## 用 uv 管理 Python 与依赖
+---
+
+## 6. 文档知识库 API
+
+### 上传文档
+```http
+POST /api/documents/upload
+```
+
+multipart/form-data：
+- `file`
+- `title` (optional)
+
+### 文档列表
+```http
+GET /api/documents
+```
+
+### 文档详情
+```http
+GET /api/documents/{document_id}
+```
+
+### 查看 chunks
+```http
+GET /api/documents/{document_id}/chunks
+```
+
+### 删除文档
+```http
+DELETE /api/documents/{document_id}
+```
+
+### 重新建索引
+```http
+POST /api/documents/{document_id}/reindex
+```
+
+### 检索调试接口
+```http
+POST /api/retrieval/search
+```
+
+请求示例：
+
+```json
+{
+  "query": "员工请假制度是什么？",
+  "top_k": 5,
+  "score_threshold": 0.2,
+  "filters": {}
+}
+```
+
+---
+
+## 7. Chat / Agent API
+
+### 同步聊天
+```http
+POST /chat
+```
+
+示例请求：
+
+```json
+{
+  "session_id": "demo-1",
+  "message": "员工请假制度是什么？",
+  "use_retrieval": true
+}
+```
+
+示例响应（节选）：
+
+```json
+{
+  "session_id": "demo-1",
+  "intent": "general",
+  "reply": "...",
+  "citations": [
+    {
+      "index": 1,
+      "label": "Employee Handbook",
+      "document_id": "doc_xxx",
+      "chunk_id": "chk_xxx",
+      "page_number": 3
+    }
+  ]
+}
+```
+
+### 流式聊天
+```http
+POST /chat/stream
+```
+
+SSE events 包含：
+- `retrieval`
+- `chunk`
+- `thinking`
+- `message`
+- `done`
+- `error`
+
+---
+
+## 8. 本地启动
+
+### 8.1 Python
 
 ```bash
 cd ~/github/NeuralFlow
 cp .env.example .env
 uv sync
-uv run pytest -q
-uv run uvicorn app.main:app --reload
 ```
 
-`.python-version` 已固定为 `3.11`。
-
-## 启动与停止
-
-### 本地开发模式
-
-后端 API：
+### 8.2 启动后端
 
 ```bash
-uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-如需同时运行异步归档 worker：
+### 8.3 启动 Celery worker
 
 ```bash
 uv run celery -A worker.celery_app worker --loglevel=info
 ```
 
-前端控制台：
+### 8.4 启动前端
 
 ```bash
 cd frontend
@@ -96,413 +306,204 @@ npm install
 npm run dev
 ```
 
-本地开发模式下，API、worker 和前端都是前台进程，停止时在对应终端按 `Ctrl+C` 即可。
-
-### Docker Compose 模式
-
-一键启动 API、worker、Redis 和 ChromaDB：
+### 8.5 可选：Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-后台启动：
+---
 
-```bash
-docker compose up --build -d
-```
+## 9. 环境变量
 
-停止并保留 ChromaDB 数据卷：
+核心变量：
 
-```bash
-docker compose down
-```
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `REDIS_DB`
+- `CHROMA_HOST`
+- `CHROMA_PORT`
+- `DATABASE_URL`
+- `DOCUMENTS_STORAGE_DIR`
+- `LLM_API_BASE`
+- `LLM_API_KEY`
+- `OPENAI_API_KEY`
+- `LITELLM_MODEL`
+- `MCP_BASE_URL`
 
-如果需要同时删除 ChromaDB 数据卷，清空本地向量数据：
+RAG 相关：
 
-```bash
-docker compose down -v
-```
+- `EMBEDDING_MODEL`（代码默认 `text-embedding-3-small`）
+- `rag_default_top_k`
+- `rag_score_threshold`
 
-## Agent Runtime Console 前端
+---
 
-项目内置了一个 Next.js 15 + TypeScript 的 Agent Runtime Console。它不是普通聊天框，而是面向 RAG、Function Calling、MCP 工具、多会话、记忆和流式推理的运行时观测台：
+## 10. 多租户隔离
+
+系统通过 `TenantIsolationMiddleware` 基于 Header 传入租户上下文：
+
+- `X-Tenant-ID`
+- `X-Tenant-Scope`
+- `X-Tenant-Roles`
+- `X-Tenant-Subject`
+
+文档 metadata、chunk metadata、retrieval filter 全链路带 `tenant_id`。
+
+---
+
+## 11. 作品集亮点
+
+这版项目的亮点不在“接了一个向量库”，而在于它展示了完整工程链路：
+
+- 文档上传系统
+- 异步 ingestion pipeline
+- 企业知识库检索
+- RAG context assembly
+- Agent integration
+- 引用来源展示
+- 多租户隔离
+- streaming observability
+- regression tests
+
+如果你要把它写进简历或作品集，最适合强调的关键词是：
+
+- **Enterprise RAG**
+- **AI Knowledge Base Platform**
+- **Agent Runtime**
+- **Function Calling / MCP**
+- **Multi-tenant Retrieval**
+- **Async Ingestion Pipeline**
+- **Source-aware Citation UX**
+
+---
+
+## 12. Demo Walkthrough (5-minute portfolio run)
+
+如果你要快速演示这套系统，建议按下面顺序：
+
+### Step 1: 启动服务
 
 ```bash
 uv run uvicorn app.main:app --reload
-cd frontend
-npm install
-npm run dev
-# 浏览器打开 http://localhost:3000
+uv run celery -A worker.celery_app worker --loglevel=info
+cd frontend && npm run dev
 ```
 
-前端功能：
+### Step 2: 打开 Documents 页面
 
-- **Streaming 模式**：SSE 实时输出，逐 token 渲染，并透出 thinking 事件
-- **ReAct Agent 模式**：多步 Function Calling / MCP 工具循环
-- **Orchestrate 模式**：路由到 Coder / Planner / General Specialist Agent
-- **左侧 Sidebar**：多会话、知识库、工具、模型选择、设置入口
-- **主 Chat 区域**：Markdown、代码高亮、重试 / regenerate、token 与 latency 元信息
-- **右侧 Runtime Panel**：Thinking、RAG retrieval、retrieved chunks、tool calls、MCP execution、memory updates、compression summaries、latency / metrics
+浏览器访问：
 
-即使未配置外部 LLM（`OPENAI_API_KEY` 为空），离线兜底路径也会返回非 500 响应，前端可正常展示完整流程。
+- `http://localhost:3000/documents`
 
-## 环境变量
+上传一个示例文件，例如：
+- 员工手册 PDF
+- 团队规范 Markdown
+- 产品需求 TXT
+- 培训材料 DOCX
 
-核心配置：
+观察点：
+- 文档是否出现在列表里
+- 状态是否从 `queued` 进入后续阶段
+- chunk 数量是否可见
 
-- `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB`
-- `CHROMA_HOST` / `CHROMA_PORT` / `CHROMA_COLLECTION`
-- `OPENAI_API_KEY` 或其他兼容 LiteLLM 的凭证
-- `LLM_API_BASE`：自定义 LLM 中转站地址（如 `https://your-relay.com/v1`）
-- `LLM_API_KEY`：中转站 API Key（优先级高于 `OPENAI_API_KEY`）
-- `LITELLM_MODEL`：默认模型，需带 provider 前缀（如 `openai/gpt-5.4`）
-- `MCP_BASE_URL`：MCP Server 地址，默认通过 HTTP 拉取 `/tools` 并调用远端工具
-- `NEURALFLOW_PLUGIN_DIR`：插件目录，默认值为 `plugins`
-- `NEURALFLOW_AUDIT_LOG_PATH`：结构化审计/观测日志落盘位置
+### Step 3: 检查文档详情
 
-Celery 默认直接复用 Redis：
+点击文档进入详情页，确认：
+- 文档 metadata 正常
+- chunk 已生成
+- page / token / section 信息可见
 
-- broker 默认使用 `redis://<host>:<port>/<db>`
-- result backend 默认使用下一个 DB：`redis://<host>:<port>/<db+1>`
+### Step 4: 回到 Chat Console 提问
 
-只有在你需要单独拆分时，才需要显式设置 `CELERY_BROKER_URL` 和 `CELERY_RESULT_BACKEND`。
+示例问题：
 
-## Docker Compose
+- `员工请假制度是什么？`
+- `这份规范里对代码评审有什么要求？`
+- `根据知识库，总结一下 onboarding 流程。`
+
+观察点：
+- Runtime Panel 中是否出现 retrieved chunks
+- 是否出现 source / score / page 信息
+- assistant 回答下方是否展示 citations
+
+### Step 5: 展示流式检索可观测性
+
+使用 `/chat/stream` 路径时，可以重点展示：
+- retrieval 事件
+- chunk 事件
+- streaming tokens
+- 最终 answer + sources
+
+这一步很适合在面试或作品集录屏中展示，因为它能直观看出系统不是“黑盒聊天框”，而是可观测的 RAG Agent Runtime。
+
+---
+
+## 13. 测试
+
+运行新增的 RAG 关键测试：
 
 ```bash
-docker compose up --build
+uv run pytest -q \
+  tests/test_rag_chat.py \
+  tests/test_rag_context_builder.py \
+  tests/test_documents_api.py \
+  tests/test_ingestion_pipeline.py \
+  tests/test_retrieval_api.py
 ```
 
-启动后：
-
-- API: http://localhost:8000
-- ChromaDB: http://localhost:8001
-- Redis: localhost:6379
-
-## 基本接口
-
-- `GET /healthz`：健康检查
-- `GET /metrics`：导出 Prometheus 指标（请求耗时、错误数、活跃会话数）
-- `GET /admin/config`：读取当前运行时配置快照，需要管理密钥（兼容 `X-Admin-Secret` 或 `Authorization: Bearer <token>`）
-- `PATCH /admin/config`：热更新运行时配置并写入审计日志，需要管理密钥（兼容 `X-Admin-Secret` 或 `Authorization: Bearer <token>`）
-- `GET /api/skills`：列出当前注册并可暴露给策略层的技能
-- `POST /api/intent/detect`：返回意图识别结果、是否使用 fallback，以及每个意图对应的记忆/技能策略
-- `POST /chat`：写入短期记忆，按意图构造上下文，按白名单调用 MCP 技能，并通过 LiteLLM 生成回复
-- `POST /chat/stream`：输出 SSE 流式响应，并按运行时配置决定是否透出 thinking/reasoning 片段
-- `POST /chat/react`：ReAct Agent 模式，支持多步工具调用循环（function calling），返回执行步骤与最终回答
-- `GET /api/models`：从配置的 LLM 中转站拉取可用模型列表
-- `POST /api/models/switch`：运行时切换当前使用的模型（仅内存生效）
-
-`POST /chat` 当前会额外返回：
-
-- `used_skills`：本轮实际执行的技能名列表
-- `skill_results`：每个技能的执行结果，便于调试 MCP 调用链路
-
-运行时还有两条与联调很相关的观测链路：
-
-- MCP 工具发现会输出 `tool_discovered`
-- MCP 工具调用会输出 `tool_called`，并携带 `duration_ms`
-
-## 自主智能体 (Autonomous Agents)
-
-### ReAct Agent (Function Calling)
-
-项目在 `app/agents/react.py` 实现了基于 **OpenAI Function Calling** 的 ReAct 循环。与传统文本解析不同，Agent 直接使用标准 `tool_calls` 协议：
-
-1. 将 skills 转换为 OpenAI tools schema（`type: function`, `function: {name, description, parameters}`）
-2. 通过 `litellm.acompletion(tools=...)` 发起请求
-3. 当 LLM 返回 `tool_calls` 时，执行 MCP 工具并将结果以 `tool` role 回传
-4. 循环直到 LLM 返回普通文本（Final Answer），最多 `max_iterations` 轮
-
-这符合 2024-2026 Agent 行业标准，面试时可以直接讲 function calling 而非脆弱的文本解析。
+运行全量测试：
 
 ```bash
-# 测试 ReAct Agent
-curl -s http://localhost:8000/chat/react \
-  -X POST -H 'Content-Type: application/json' \
-  -d '{“session_id”:”demo”,”message”:”帮我查一下之前关于 Redis 的讨论记录”}' | jq
+uv run pytest tests/ -v
 ```
 
-## 模型微调 (Fine-tuning)
-
-在 `scripts/finetune/lora_train.py` 中提供了基于 **QLoRA (PEFT)** 的微调模版：
-- 支持 4-bit 量化训练（节省显存）。
-- 适配 Llama/Qwen 等主流开源架构。
-- 演示了如何针对特定 Agent 任务（如 Intent Detection 优化或特定工具参数注入）进行 SFT。
-
-## Agent 评测体系 (Evaluation)
-
-在 `scripts/eval/` 下实现了完整的评测体系：
-
-- **18 个测试用例**，覆盖 5 个意图类别：general、query_history、coding、planning、multi_step
-- **LLM-as-a-judge** 自动评分：工具准确性、逻辑严密性、回答质量（0-10分）
-- **关键词自动评分**：基于 `expected_answer_keywords` 的快速评分
-- **Benchmark Runner**：`scripts/eval/run_benchmark.py` 逐条执行并输出 JSON 报告
-
-```bash
-# 运行 Benchmark
-uv run python -m scripts.eval.run_benchmark
-```
-
-最新 Benchmark 结果（18 cases）：
-
-| 类别 | 用例数 | 关键词得分 | 工具匹配 |
-|------|--------|-----------|---------|
-| general | 3 | 8.3/10 | 3/3 |
-| query_history | 4 | 10.0/10 | 4/4 |
-| coding | 5 | 10.0/10 | 5/5 |
-| planning | 3 | 10.0/10 | 3/3 |
-| multi_step | 3 | 10.0/10 | 3/3 |
-| **总计** | **18** | **9.7/10** | **18/18** |
-
-## 插件 Hook
-
-服务启动时会从 `NEURALFLOW_PLUGIN_DIR` 指向的目录加载所有 `.py` 插件文件（忽略以下划线开头的文件）。
-
-当前内置的 Hook 触发点：
-
-- `on_response_generated(payload)`：`/chat` 与 `/chat/stream` 产出回复后触发
-
-`payload` 里会带上这些字段：
-
-- `session_id`
-- `message`
-- `reply`
-- `intent`
-- `prompt`
-- `skill_results`
-- `tenant_id`
-- `tenant_roles`
-- `tenant_scope`
-
-最小插件示例：
-
-```python
-def on_response_generated(payload):
-    print(
-        f"PLUGIN_HOOK session={payload['session_id']} "
-        f"tenant={payload['tenant_id']} intent={payload['intent']}"
-    )
-```
-
-例如：
-
-```bash
-mkdir -p plugins
-cat > plugins/test_logger.py <<'PY'
-def on_response_generated(payload):
-    print(
-        f"PLUGIN_HOOK session={payload['session_id']} "
-        f"tenant={payload['tenant_id']} intent={payload['intent']}"
-    )
-PY
-
-NEURALFLOW_PLUGIN_DIR=plugins uv run uvicorn app.main:app --reload
-```
-
-## 离线降级
-
-当外部 LLM 不可用（例如 API Key 错误、上游超时、Ollama 未启动）时，`/chat` 与 `/chat/stream` 不会直接返回 500，而会进入离线兜底路径：
-
-- 优先尝试已配置的本地/备用模型链路
-- 若备用链路也不可用，则返回规则兜底摘要
-
-这意味着在联调和压测时，即使故意把 `OPENAI_API_KEY` 配错，也应该看到非 500 的 HTTP 响应。
-
-## 管理接口示例
-
-先设置管理密钥：
-
-```bash
-export ADMIN_SECRET_KEY=test-admin-key
-```
-
-读取当前运行时配置：
-
-```bash
-curl -s http://localhost:8000/admin/config \
-  -H "X-Admin-Secret: $ADMIN_SECRET_KEY" | jq
-```
-
-等价写法（Bearer 认证）:
-
-```bash
-curl -s http://localhost:8000/admin/config \
-  -H "Authorization: Bearer $ADMIN_SECRET_KEY" | jq
-```
-
-示例响应：
-
-```json
-{
-  "config": {
-    "working_memory_max_turns": 10,
-    "max_context_tokens_soft": 6000,
-    "max_context_tokens": 8000,
-    "token_budget_recent_messages": 4,
-    "vector_search_cache_ttl_seconds": 300,
-    "vector_search_default_top_k": 3,
-    "stream_thinking_enabled": false,
-    "intent_llm_fallback_enabled": true,
-    "litellm_model": "gpt-4o-mini",
-    "model_routing_strategy": "primary"
-  },
-  "audit_entry": null
-}
-```
-
-热更新配置：
-
-```bash
-curl -s http://localhost:8000/admin/config \
-  -X PATCH \
-  -H "Content-Type: application/json" \
-  -H "X-Admin-Secret: $ADMIN_SECRET_KEY" \
-  -d '{
-    "max_context_tokens": 4096,
-    "stream_thinking_enabled": true
-  }' | jq
-```
-
-示例响应：
-
-```json
-{
-  "config": {
-    "working_memory_max_turns": 10,
-    "max_context_tokens_soft": 4096,
-    "max_context_tokens": 4096,
-    "token_budget_recent_messages": 4,
-    "vector_search_cache_ttl_seconds": 300,
-    "vector_search_default_top_k": 3,
-    "stream_thinking_enabled": true,
-    "intent_llm_fallback_enabled": true,
-    "litellm_model": "gpt-4o-mini",
-    "model_routing_strategy": "primary"
-  },
-  "audit_entry": {
-    "timestamp": "2026-04-17T02:00:00Z",
-    "actor": "admin_api",
-    "source_ip": "127.0.0.1",
-    "changes": {
-      "max_context_tokens_soft": {"old": 6000, "new": 4096},
-      "max_context_tokens": {"old": 8000, "new": 4096},
-      "stream_thinking_enabled": {"old": false, "new": true}
-    }
-  }
-}
-```
-
-说明：当你只下调 `max_context_tokens` 而未显式传入 `max_context_tokens_soft` 时，服务会自动把 soft limit 一并收缩，避免配置进入非法状态。
-
-## Metrics 指标说明
-
-默认通过 `GET /metrics` 暴露 Prometheus 文本格式指标，当前重点包括：
-
-- `neuralflow_request_duration_seconds{endpoint, intent}`：请求耗时直方图
-- `neuralflow_errors_total{endpoint, intent}`：未处理异常计数
-- `neuralflow_active_sessions`：当前 in-flight 会话数
-- `neuralflow_llm_token_usage_total{model, type}`：LLM 输入/输出 token 计数
-- `neuralflow_memory_cache_hit_total{layer}`：记忆缓存命中计数
-
-抓取示例：
-
-```bash
-curl -s http://localhost:8000/metrics | grep neuralflow_
-```
-
-如果以多进程方式部署 Prometheus client，可额外设置：
-
-- `PROMETHEUS_MULTIPROC_DIR`：启用 multiprocess collector
-- `NEURALFLOW_AUDIT_LOG_PATH`：指定结构化审计日志文件路径
-
-## 阶段四本地验收参考
-
-下面这组命令对应阶段四的四类真实本地验收：
-
-1. MCP 集成：启动 MCP Server，发送 `/chat` 请求，检查日志中是否出现 `tool_discovered` 与 `tool_called` / `duration_ms`
-2. 租户隔离：对同一 `session_id` 分别带 `X-Tenant-ID: A` 与 `X-Tenant-ID: B` 请求，确认 Redis key 前缀不同、返回上下文不串租户
-3. 离线降级：故意配置错误的 `OPENAI_API_KEY`，验证 `/chat` 返回非 500，且进入兜底回复
-4. 插件 Hook：在 `plugins/test_logger.py` 注册 `on_response_generated`，发送请求后观察控制台是否打印 `PLUGIN_HOOK ...`
-
-最小验证命令示例：
-
-```bash
-curl -s http://localhost:8000/healthz
-
-curl -s http://localhost:8000/chat \
-  -X POST \
-  -H 'Content-Type: application/json' \
-  -H 'X-Tenant-ID: tenant-A' \
-  -d '{"session_id":"shared-session","message":"请查询历史 stage4 history"}' | jq
-
-curl -s http://localhost:8000/chat \
-  -X POST \
-  -H 'Content-Type: application/json' \
-  -H 'X-Tenant-ID: tenant-B' \
-  -d '{"session_id":"shared-session","message":"请查询历史 stage4 history"}' | jq
-```
-
-## 测试与压测
-
-安装开发依赖后，可以直接运行：
-
-```bash
-uv sync --group dev
-uv run pytest tests/ -v --cov=app
-```
-
-如果你使用项目已有 `.venv`，也可执行：
-
-```bash
-source .venv/bin/activate
-pytest tests/ -v --cov=app
-```
-
-项目根目录已提供 `load_test.py`，支持 `healthz`、`metrics`、`/admin/config` 以及可选的 `/chat` 压测：
-
-```bash
-export ADMIN_SECRET_KEY=***
-locust -f load_test.py --host http://localhost:8000
-```
-
-说明：
-- 默认压测 `GET /healthz`、`GET /metrics`、`GET/PATCH /admin/config`
-- 默认使用 `Authorization: Bearer $ADMIN_SECRET_KEY` 调用管理接口
-- 如需把 `/chat` 也加入压测，启动前设置 `NEURALFLOW_LOAD_ENABLE_CHAT=1`
-- 若本地未配置外部 LLM 凭证，建议先只压 `healthz/metrics/admin` 链路
-
-## 最近补充能力
-
-- **ReAct Agent 升级为 Function Calling**：使用标准 OpenAI `tool_calls` 协议，替代脆弱的文本解析
-- **LLM 摘要**：`Summarizer` 支持 LLM 生成结构化摘要（主题、关键信息、决策点），保留截断兜底
-- **评测体系**：18 个测试用例 + LLM-as-a-judge 评分 + Benchmark Runner
-- 可观测性：新增结构化请求日志、`TelemetryMiddleware` 与 `/metrics` 指标导出
-- 运行时配置：新增 `ConfigManager`，支持通过管理接口热更新开关类配置并记录审计日志
-- 流式响应：`/chat/stream` 支持 SSE 输出，并兼容 thinking 开关与中断注册表
-- 模型切换：`/api/models` 列出可用模型，`/api/models/switch` 运行时切换
-
-## 开发路线调整
-
-Phase 1：基础设施
-- 启动 Redis 和 ChromaDB
-- 跑通 FastAPI 骨架和健康检查
-
-Phase 2：记忆模块
-- 完成 `WorkingMemory` 的 Redis 滑动窗口逻辑
-- 完成 `LongTermMemory` 的 Chroma 检索与写入逻辑
-
-Phase 3：上下文优化
-- 实现按意图查询长期记忆的 `ContextBuilder`
-- 将短期记忆、长期记忆和 LLM 调用串起来
-
-Phase 4：异步归档与技能调用
-- 用 Celery 将历史对话压缩为摘要后异步写入 ChromaDB
-- 接入 MCP/技能调用能力
-
-Phase 5：运行时治理
-- 增加请求链路可观测性与 Prometheus 指标
-- 提供运行时配置热更新与审计能力
-
-当前代码已完成 Phase 5 的主线能力，并补上了对应测试。
+---
+
+## 14. 已完成的 RAG 升级项
+
+- [x] 文档上传系统
+- [x] 文件元数据存储
+- [x] 多用户 / 多租户隔离
+- [x] PDF / Markdown / TXT / DOCX 解析
+- [x] token-aware chunk pipeline
+- [x] embedding provider abstraction
+- [x] ChromaDB retrieval
+- [x] RAG context builder
+- [x] Agent / Chat RAG injection
+- [x] 前端 documents 页面
+- [x] source citations 展示
+- [x] retrieval chunk 可视化
+- [x] 异步 ingestion 任务
+- [x] 测试覆盖主链路
+
+---
+
+## 15. 下一步可继续增强
+
+- Redis-backed embedding cache
+- richer metadata filter（tags / owner / document groups）
+- markdown heading hierarchy parsing
+- OCR pipeline
+- reranker / hybrid retrieval
+- signed file preview URLs
+- Postgres production profile
+- role-based knowledge base ACL
+
+---
+
+## 16. License / Notes
+
+当前仓库更适合作为：
+
+- AI 应用架构作品集
+- 企业知识库 Agent 原型
+- RAG 平台工程模板
+
+如果你要进一步产品化，建议下一步优先补：
+
+1. Postgres migration
+2. object storage abstraction
+3. auth / ACL
+4. observability dashboard
+5. deployment manifests
