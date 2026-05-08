@@ -40,14 +40,14 @@ class Summarizer:
             lines.append(f"{role}: {content}")
         return "\n".join(lines)
 
-    async def summarize_messages_async(self, session_id: str, messages: list[dict[str, str]]) -> str:
+    async def summarize_messages_async(
+        self, session_id: str, messages: list[dict[str, str]]
+    ) -> str:
         """使用 LLM 生成结构化摘要。LLM 不可用时回退到规则截断。"""
         if not messages:
             return f"session={session_id}\n对话为空。"
 
-        history_text = "\n".join(
-            f"{m.get('role', '?')}: {m.get('content', '')}" for m in messages
-        )
+        history_text = "\n".join(f"{m.get('role', '?')}: {m.get('content', '')}" for m in messages)
 
         if self._llm is not None:
             try:

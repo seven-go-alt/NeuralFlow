@@ -104,8 +104,12 @@ def test_intent_detect_endpoint_returns_structured_result(monkeypatch) -> None:
                 primary_intent="query_history",
                 used_fallback=False,
                 policies={
-                    "query_history": IntentPolicy(memory_strategy="long_term", skill_whitelist=["memory"]),
-                    "coding": IntentPolicy(memory_strategy="working_only", skill_whitelist=["python"]),
+                    "query_history": IntentPolicy(
+                        memory_strategy="long_term", skill_whitelist=["memory"]
+                    ),
+                    "coding": IntentPolicy(
+                        memory_strategy="working_only", skill_whitelist=["python"]
+                    ),
                 },
             )
 

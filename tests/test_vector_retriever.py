@@ -43,7 +43,9 @@ class SpyCollection:
         ]
 
     def query(self, query_texts, n_results=3, where=None):
-        self.query_calls.append({"query_texts": query_texts, "n_results": n_results, "where": where})
+        self.query_calls.append(
+            {"query_texts": query_texts, "n_results": n_results, "where": where}
+        )
         return self.query_result
 
     def get(self, where=None, include=None):
@@ -67,7 +69,9 @@ class SpyCollection:
 @pytest.mark.asyncio
 async def test_vector_retriever_uses_metadata_filter_and_returns_structured_results() -> None:
     collection = SpyCollection()
-    retriever = VectorRetriever(collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300)
+    retriever = VectorRetriever(
+        collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300
+    )
 
     results = await retriever.search("summary", session_id="s1", memory_type="summary", top_k=2)
 
@@ -103,7 +107,9 @@ class StrictChromaCollection(SpyCollection):
         if not where:
             return True
         if "$and" in where:
-            return all(StrictChromaCollection._matches_where(metadata, clause) for clause in where["$and"])
+            return all(
+                StrictChromaCollection._matches_where(metadata, clause) for clause in where["$and"]
+            )
         if len(where) != 1:
             raise ValueError(f"Expected where to have exactly one operator, got {where}")
         key, value = next(iter(where.items()))
@@ -112,7 +118,9 @@ class StrictChromaCollection(SpyCollection):
     def query(self, query_texts, n_results=3, where=None):
         if where and "$and" not in where and len(where) > 1:
             raise ValueError(f"Expected where to have exactly one operator, got {where}")
-        self.query_calls.append({"query_texts": query_texts, "n_results": n_results, "where": where})
+        self.query_calls.append(
+            {"query_texts": query_texts, "n_results": n_results, "where": where}
+        )
         return self.query_result
 
     def get(self, where=None, include=None):
@@ -128,9 +136,13 @@ class StrictChromaCollection(SpyCollection):
 
 
 @pytest.mark.asyncio
-async def test_vector_retriever_builds_chroma_compatible_where_filter_for_multi_field_queries() -> None:
+async def test_vector_retriever_builds_chroma_compatible_where_filter_for_multi_field_queries() -> (
+    None
+):
     collection = StrictChromaCollection()
-    retriever = VectorRetriever(collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300)
+    retriever = VectorRetriever(
+        collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300
+    )
 
     results = await retriever.search("summary", session_id="s1", memory_type="summary", top_k=2)
 
@@ -159,7 +171,9 @@ async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_f
         raise RuntimeError("chroma unavailable")
 
     collection.query = raise_query  # type: ignore[method-assign]
-    retriever = VectorRetriever(collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300)
+    retriever = VectorRetriever(
+        collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300
+    )
 
     results = await retriever.search("python fix", session_id="s1", memory_type="summary", top_k=2)
 

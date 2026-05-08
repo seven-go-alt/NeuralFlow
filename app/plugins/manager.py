@@ -55,7 +55,6 @@ class PluginManager:
                 )
 
 
-
 def _load_module(file_path: Path) -> ModuleType | None:
     spec = importlib.util.spec_from_file_location(f"neuralflow_plugin_{file_path.stem}", file_path)
     if spec is None or spec.loader is None:

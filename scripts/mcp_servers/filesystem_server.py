@@ -77,7 +77,10 @@ async def list_tools():
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "path": {"type": "string", "description": "相对于沙箱根目录的目录路径，默认为根目录"},
+                        "path": {
+                            "type": "string",
+                            "description": "相对于沙箱根目录的目录路径，默认为根目录",
+                        },
                     },
                 },
             },
@@ -120,9 +123,11 @@ async def list_files(request: FileListRequest):
 
     entries = []
     for item in sorted(dir_path.iterdir()):
-        entries.append({
-            "name": item.name,
-            "type": "dir" if item.is_dir() else "file",
-            "size": item.stat().st_size if item.is_file() else None,
-        })
+        entries.append(
+            {
+                "name": item.name,
+                "type": "dir" if item.is_dir() else "file",
+                "size": item.stat().st_size if item.is_file() else None,
+            }
+        )
     return {"path": request.path or ".", "entries": entries}

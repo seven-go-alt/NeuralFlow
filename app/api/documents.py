@@ -29,11 +29,15 @@ async def upload_document(
     owner_user_id = getattr(getattr(request.state, "tenant", None), "subject", "anonymous")
     service = DocumentService(db)
     try:
-        record = await service.upload_document(tenant_id=tenant_id, owner_user_id=owner_user_id, upload=file, title=title)
+        record = await service.upload_document(
+            tenant_id=tenant_id, owner_user_id=owner_user_id, upload=file, title=title
+        )
     except DocumentValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     ingest_document_task.delay(tenant_id=tenant_id, document_id=record.document_id)
-    refreshed = DocumentRepository(db).get_document(tenant_id=tenant_id, document_id=record.document_id)
+    refreshed = DocumentRepository(db).get_document(
+        tenant_id=tenant_id, document_id=record.document_id
+    )
     if refreshed is None:
         raise HTTPException(status_code=500, detail="Uploaded document missing after ingestion")
     return DocumentUploadResponse(
@@ -58,8 +62,20 @@ def list_documents(
 ):
     tenant_id = getattr(request.state, "tenant_id", "public")
     repo = DocumentRepository(db)
-    items, total = repo.list_documents(tenant_id=tenant_id, page=page, page_size=page_size, status=status, file_type=file_type, keyword=keyword)
-    return DocumentListResponse(items=[DocumentRead.model_validate(item) for item in items], total=total, page=page, page_size=page_size)
+    items, total = repo.list_documents(
+        tenant_id=tenant_id,
+        page=page,
+        page_size=page_size,
+        status=status,
+        file_type=file_type,
+        keyword=keyword,
+    )
+    return DocumentListResponse(
+        items=[DocumentRead.model_validate(item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentRead)

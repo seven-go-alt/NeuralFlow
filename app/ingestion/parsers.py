@@ -11,11 +11,15 @@ from app.documents.schemas import ParsedDocument, ParsedSection
 
 
 class DocumentParser(Protocol):
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument: ...
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument: ...
 
 
 class PDFParser:
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument:
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument:
         pdf = fitz.open(source_path)
         sections: list[ParsedSection] = []
         extracted_pages: list[str] = []
@@ -50,7 +54,9 @@ class MarkdownParser:
     def __init__(self) -> None:
         self.md = MarkdownIt()
 
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument:
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument:
         with open(source_path, "r", encoding="utf-8") as f:
             text = f.read()
         tokens = self.md.parse(text)
@@ -104,7 +110,9 @@ class MarkdownParser:
 
 
 class TXTParser:
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument:
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument:
         with open(source_path, "r", encoding="utf-8") as f:
             text = f.read()
         return ParsedDocument(
@@ -121,7 +129,9 @@ class TXTParser:
 
 
 class DOCXParser:
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument:
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument:
         doc = DocxDocument(source_path)
         paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
         text = "\n".join(paragraphs)

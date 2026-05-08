@@ -38,7 +38,9 @@ class FakeLongTermMemory:
 async def test_context_builder_uses_memory_strategy_and_skill_whitelist() -> None:
     builder = ContextBuilder(
         session_id="demo",
-        working_mem=type("WM", (), {"get_messages": lambda self: [{"role": "user", "content": "hello"}]})(),
+        working_mem=type(
+            "WM", (), {"get_messages": lambda self: [{"role": "user", "content": "hello"}]}
+        )(),
         long_mem=FakeLongTermMemory(),  # type: ignore[arg-type]
     )
 
@@ -57,7 +59,9 @@ async def test_context_builder_uses_memory_strategy_and_skill_whitelist() -> Non
 
 def test_working_memory_moves_overflow_messages_to_archive_queue() -> None:
     redis_client = FakeRedis()
-    memory = WorkingMemory(session_id="demo", max_turns=2, archive_batch_size=4, client=redis_client)  # type: ignore[arg-type]
+    memory = WorkingMemory(
+        session_id="demo", max_turns=2, archive_batch_size=4, client=redis_client
+    )  # type: ignore[arg-type]
 
     memory.add_message("user", "u1")
     memory.add_message("assistant", "a1")

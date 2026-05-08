@@ -9,7 +9,9 @@ from app.retrieval.schemas import RetrievalRequest, RetrievalResponse, Retrieval
 
 
 class RetrievalService:
-    def __init__(self, document_repo: DocumentRepository, embedding_service: EmbeddingService | None = None) -> None:
+    def __init__(
+        self, document_repo: DocumentRepository, embedding_service: EmbeddingService | None = None
+    ) -> None:
         self.document_repo = document_repo
         self.embedding_service = embedding_service or EmbeddingService()
         self.store = ChromaDocumentStore()
@@ -29,7 +31,9 @@ class RetrievalService:
                 continue
             results.append(
                 RetrievalResult(
-                    chunk_id=metadata.get("chunk_id", ids[idx] if idx < len(ids) else f"chunk_{idx}"),
+                    chunk_id=metadata.get(
+                        "chunk_id", ids[idx] if idx < len(ids) else f"chunk_{idx}"
+                    ),
                     document_id=metadata.get("document_id", "unknown"),
                     content=content,
                     score=score,

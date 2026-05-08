@@ -62,7 +62,9 @@ async def test_admin_config_patch_rejects_invalid_values_without_mutating_state(
             headers={"X-Admin-Secret": "test-admin-key"},
             json={"max_context_tokens_soft": 9000, "max_context_tokens": 1000},
         )
-        current_response = await client.get("/admin/config", headers={"X-Admin-Secret": "test-admin-key"})
+        current_response = await client.get(
+            "/admin/config", headers={"X-Admin-Secret": "test-admin-key"}
+        )
 
     assert invalid_response.status_code == 422
     assert current_response.status_code == 200

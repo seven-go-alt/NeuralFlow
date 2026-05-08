@@ -9,7 +9,9 @@ class EmbeddingCache:
         self._store: dict[str, list[float]] = {}
 
     def build_key(self, model: str, text: str) -> str:
-        return hashlib.sha256(json.dumps({"model": model, "text": text}, ensure_ascii=False).encode("utf-8")).hexdigest()
+        return hashlib.sha256(
+            json.dumps({"model": model, "text": text}, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
 
     def get(self, model: str, text: str) -> list[float] | None:
         return self._store.get(self.build_key(model, text))

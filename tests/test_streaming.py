@@ -23,7 +23,9 @@ class StubWorkingMemory:
 
 
 class StubContextBuilder:
-    def __init__(self, session_id: str, working_mem=None, long_mem=None, token_budget_manager=None) -> None:
+    def __init__(
+        self, session_id: str, working_mem=None, long_mem=None, token_budget_manager=None
+    ) -> None:
         self.session_id = session_id
 
     async def build_prompt(self, user_query: str, intent: str, **kwargs) -> str:

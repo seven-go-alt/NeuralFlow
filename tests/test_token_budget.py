@@ -7,6 +7,7 @@ from app.core.token_budget import ContextSegment, TokenBudgetManager
 
 class FakeEncoder:
     """Stateless word-level encoder: each unique word gets a deterministic token ID."""
+
     _word_to_id: dict[str, int] = {}
 
     def encode(self, text: str) -> list[int]:

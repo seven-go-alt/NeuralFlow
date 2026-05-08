@@ -50,7 +50,7 @@ async def run_single_case(
         except Exception as exc:
             latency = round(time.perf_counter() - start, 2)
             if attempt < max_retries - 1:
-                print(f"\n  [retry {attempt+1}/{max_retries}] {exc}")
+                print(f"\n  [retry {attempt + 1}/{max_retries}] {exc}")
                 await asyncio.sleep(2)
             else:
                 print(f"\n  [FAILED after {max_retries} retries] {exc}")
@@ -70,7 +70,9 @@ async def run_single_case(
     gt_score = AgentEvaluator.rouge_l_score(run_result["final_answer"], expected_answer)
 
     # 工具使用检查
-    used_tools = [s.get("tool", "") for s in run_result.get("steps", []) if s.get("type") == "tool_call"]
+    used_tools = [
+        s.get("tool", "") for s in run_result.get("steps", []) if s.get("type") == "tool_call"
+    ]
     tool_match = True
     if expected_tools:
         tool_match = any(t in used_tools for t in expected_tools)
@@ -151,7 +153,9 @@ async def main() -> None:
         cat_kw = sum(r["keyword_score"] for r in items) / len(items)
         cat_gt = sum(r["ground_truth_score"] for r in items) / len(items)
         cat_tool = sum(1 for r in items if r["tool_match"])
-        print(f"  {cat:20s}  cases={len(items)}  kw={cat_kw:.1f}  gt={cat_gt:.1f}  tool={cat_tool}/{len(items)}")
+        print(
+            f"  {cat:20s}  cases={len(items)}  kw={cat_kw:.1f}  gt={cat_gt:.1f}  tool={cat_tool}/{len(items)}"
+        )
 
     # 保存报告
     report_path = Path(__file__).parent / "benchmark_report.json"

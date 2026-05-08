@@ -41,10 +41,7 @@ PLANNER_SYSTEM = (
     "使用 Markdown 格式，层次清晰。"
 )
 
-GENERAL_SYSTEM = (
-    "你是一个知识渊博的智能助手。"
-    "给出准确、简洁、有帮助的回答。"
-)
+GENERAL_SYSTEM = "你是一个知识渊博的智能助手。给出准确、简洁、有帮助的回答。"
 
 ROUTE_SKILL_MAP: dict[str, list[str]] = {
     "coding": ["python_exec", "file_read", "file_write", "file_list"],
@@ -69,7 +66,10 @@ class AgentOrchestrator:
 
     async def _classify_route(self, query: str) -> dict[str, str]:
         prompt = ROUTE_PROMPT.format(query=query)
-        kwargs: dict[str, Any] = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
         if self.api_base:
             kwargs["api_base"] = self.api_base
         if self.api_key:

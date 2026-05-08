@@ -72,7 +72,9 @@ async def test_context_builder_loads_long_term_lookup_for_history_intent() -> No
         long_mem=long_mem,  # type: ignore[arg-type]
     )
 
-    prompt = await builder.build_prompt(user_query="我之前喜欢什么风格？", intent="personal_preference")
+    prompt = await builder.build_prompt(
+        user_query="我之前喜欢什么风格？", intent="personal_preference"
+    )
 
     assert "相关历史记忆" in prompt
     assert long_mem.queries == [("我之前喜欢什么风格？", 3, "demo")]
@@ -119,7 +121,10 @@ async def test_context_builder_applies_token_budget_and_exposes_trim_metrics() -
 
     prompt = await builder.build_prompt(user_query="你好", intent="query_history")
 
-    assert prompt == "你是一个智能助手。\n---\n当前对话:\n[{'role': 'assistant', 'content': 'Hello'}]\n---\n用户问题:\n你好"
+    assert (
+        prompt
+        == "你是一个智能助手。\n---\n当前对话:\n[{'role': 'assistant', 'content': 'Hello'}]\n---\n用户问题:\n你好"
+    )
     assert [segment.name for segment in token_budget.segments] == [
         "system_prompt",
         "retrieved_memory",

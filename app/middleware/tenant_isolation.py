@@ -42,11 +42,15 @@ class TenantIsolationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     def _build_tenant_context(self, request: Request) -> TenantContext:
-        tenant_id = (request.headers.get("X-Tenant-ID") or self.default_tenant_id).strip() or self.default_tenant_id
+        tenant_id = (
+            request.headers.get("X-Tenant-ID") or self.default_tenant_id
+        ).strip() or self.default_tenant_id
         scope = _parse_csv_header(request.headers.get("X-Tenant-Scope")) or [tenant_id]
         roles = _parse_csv_header(request.headers.get("X-Tenant-Roles")) or ["reader"]
         subject = (request.headers.get("X-Tenant-Subject") or "anonymous").strip() or "anonymous"
-        source: Literal["header", "default"] = "header" if request.headers.get("X-Tenant-ID") else "default"
+        source: Literal["header", "default"] = (
+            "header" if request.headers.get("X-Tenant-ID") else "default"
+        )
         return TenantContext(
             tenant_id=tenant_id,
             scope=scope,

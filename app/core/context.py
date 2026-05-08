@@ -25,7 +25,9 @@ class ContextBuilder:
         self.session_id = session_id
         self.settings = settings
         self.tenant_id = tenant_id or "public"
-        self.working_mem = working_mem or WorkingMemory(session_id=session_id, tenant_id=self.tenant_id)
+        self.working_mem = working_mem or WorkingMemory(
+            session_id=session_id, tenant_id=self.tenant_id
+        )
         self.long_mem = long_mem or LongTermMemory(tenant_id=self.tenant_id)
         self.token_budget_manager = token_budget_manager or TokenBudgetManager(
             encoding_name=settings.token_budget_encoding,
@@ -49,7 +51,9 @@ class ContextBuilder:
         skill_results: list[dict[str, object]] | None = None,
     ) -> str:
         segments: list[ContextSegment] = [
-            ContextSegment(name="system_prompt", text="你是一个智能助手。", priority=0, required=True)
+            ContextSegment(
+                name="system_prompt", text="你是一个智能助手。", priority=0, required=True
+            )
         ]
 
         effective_skill_whitelist = skill_whitelist
@@ -80,7 +84,9 @@ class ContextBuilder:
         effective_memory_strategy = memory_strategy
         if effective_memory_strategy is None:
             effective_memory_strategy = (
-                "long_term" if intent in {"query_history", "personal_preference"} else "working_only"
+                "long_term"
+                if intent in {"query_history", "personal_preference"}
+                else "working_only"
             )
 
         if effective_memory_strategy == "long_term":
@@ -96,9 +102,17 @@ class ContextBuilder:
 
         early_chat, recent_chat = self._split_working_memory(self.working_mem.get_messages())
         if early_chat:
-            segments.append(ContextSegment(name="early_chat", text=f"较早对话:\n{early_chat}", priority=3))
-        segments.append(ContextSegment(name="recent_chat", text=f"当前对话:\n{recent_chat}", priority=1))
-        segments.append(ContextSegment(name="user_query", text=f"用户问题:\n{user_query}", priority=0, required=True))
+            segments.append(
+                ContextSegment(name="early_chat", text=f"较早对话:\n{early_chat}", priority=3)
+            )
+        segments.append(
+            ContextSegment(name="recent_chat", text=f"当前对话:\n{recent_chat}", priority=1)
+        )
+        segments.append(
+            ContextSegment(
+                name="user_query", text=f"用户问题:\n{user_query}", priority=0, required=True
+            )
+        )
 
         trim_result = self.token_budget_manager.trim_context(segments)
         self.last_trim_metadata = {
@@ -121,7 +135,9 @@ class ContextBuilder:
 
         return await search_method(user_query, **search_kwargs)  # type: ignore[arg-type]
 
-    def _split_working_memory(self, messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _split_working_memory(
+        self, messages: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         if len(messages) <= 1:
             return [], messages
         configured_limit = max(1, self.settings.token_budget_recent_messages)

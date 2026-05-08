@@ -5,7 +5,11 @@ from app.embeddings.providers_openai import OpenAICompatibleEmbeddingProvider
 
 
 class EmbeddingService:
-    def __init__(self, provider: OpenAICompatibleEmbeddingProvider | None = None, cache: EmbeddingCache | None = None) -> None:
+    def __init__(
+        self,
+        provider: OpenAICompatibleEmbeddingProvider | None = None,
+        cache: EmbeddingCache | None = None,
+    ) -> None:
         self.provider = provider or OpenAICompatibleEmbeddingProvider()
         self.cache = cache or EmbeddingCache()
 

@@ -18,11 +18,15 @@ class ChromaDocumentStore:
         metadatas = [chunk["metadata"] for chunk in chunks]
         embeddings = [chunk.get("embedding") for chunk in chunks]
         try:
-            self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings)
+            self.collection.upsert(
+                ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings
+            )
         except AttributeError:
             self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
 
-    def query(self, query_text: str, top_k: int, where: dict[str, Any] | None = None) -> dict[str, Any]:
+    def query(
+        self, query_text: str, top_k: int, where: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         return self.collection.query(query_texts=[query_text], n_results=top_k, where=where)
 
     def delete_document(self, tenant_id: str, document_id: str) -> None:

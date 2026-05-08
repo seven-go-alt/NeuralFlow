@@ -20,7 +20,9 @@ class IngestionPipeline:
         self.chunk_splitter = RecursiveChunkSplitter()
         self.store = ChromaDocumentStore()
 
-    async def run(self, tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small") -> dict:
+    async def run(
+        self, tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
+    ) -> dict:
         db = SessionLocal()
         repo = DocumentRepository(db)
         try:
@@ -45,7 +47,9 @@ class IngestionPipeline:
                 chunk_count=len(chunks),
                 token_count=sum(chunk.token_count for chunk in chunks),
             )
-            vectors = await self.embedding_service.embed_texts([chunk.content for chunk in chunks], model=embedding_model)
+            vectors = await self.embedding_service.embed_texts(
+                [chunk.content for chunk in chunks], model=embedding_model
+            )
             for chunk, vector in zip(chunks, vectors, strict=False):
                 chunk.embedding = vector
                 chunk.metadata.update(
@@ -61,7 +65,12 @@ class IngestionPipeline:
                 )
             repo.update_status(tenant_id, document_id, DocumentStatus.INDEXING)
             self.store.upsert_chunks([chunk.model_dump() for chunk in chunks])
-            repo.replace_chunks(tenant_id=tenant_id, document_id=document_id, chunks=chunks, embedding_model=embedding_model)
+            repo.replace_chunks(
+                tenant_id=tenant_id,
+                document_id=document_id,
+                chunks=chunks,
+                embedding_model=embedding_model,
+            )
             repo.update_status(
                 tenant_id,
                 document_id,
@@ -70,11 +79,31 @@ class IngestionPipeline:
                 token_count=sum(chunk.token_count for chunk in chunks),
                 indexed=True,
             )
-            logger.info("document indexed", extra={"tenant_id": tenant_id, "document_id": document_id, "chunk_count": len(chunks)})
-            return {"document_id": document_id, "chunk_count": len(chunks), "status": DocumentStatus.READY.value}
+            logger.info(
+                "document indexed",
+                extra={
+                    "tenant_id": tenant_id,
+                    "document_id": document_id,
+                    "chunk_count": len(chunks),
+                },
+            )
+            return {
+                "document_id": document_id,
+                "chunk_count": len(chunks),
+                "status": DocumentStatus.READY.value,
+            }
         except Exception as exc:
-            logger.exception("document ingestion failed", extra={"tenant_id": tenant_id, "document_id": document_id})
-            repo.update_status(tenant_id, document_id, DocumentStatus.FAILED, error_message=str(exc), failed_stage="ingestion")
+            logger.exception(
+                "document ingestion failed",
+                extra={"tenant_id": tenant_id, "document_id": document_id},
+            )
+            repo.update_status(
+                tenant_id,
+                document_id,
+                DocumentStatus.FAILED,
+                error_message=str(exc),
+                failed_stage="ingestion",
+            )
             raise
         finally:
             db.close()

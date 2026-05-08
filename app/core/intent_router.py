@@ -245,7 +245,9 @@ def _build_policy_map(raw_map: dict[str, dict[str, object]]) -> dict[str, Intent
     for intent, raw_policy in raw_map.items():
         memory_strategy = str(raw_policy.get("memory_strategy", "working_only"))
         raw_whitelist = raw_policy.get("skill_whitelist", [])
-        skill_whitelist = [str(item) for item in raw_whitelist] if isinstance(raw_whitelist, list) else []
+        skill_whitelist = (
+            [str(item) for item in raw_whitelist] if isinstance(raw_whitelist, list) else []
+        )
         policies[intent] = IntentPolicy(
             memory_strategy=memory_strategy,
             skill_whitelist=skill_whitelist,

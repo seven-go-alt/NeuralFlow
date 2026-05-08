@@ -112,7 +112,9 @@ class ConfigManager:
         async with self._lock.read_lock():
             return [entry.model_copy(deep=True) for entry in self._audit_entries]
 
-    async def update(self, patch: Mapping[str, Any], *, source_ip: str, actor: str) -> RuntimeConfig:
+    async def update(
+        self, patch: Mapping[str, Any], *, source_ip: str, actor: str
+    ) -> RuntimeConfig:
         async with self._lock.write_lock():
             current_data = self._current.model_dump()
             normalized_patch = _normalize_patch(current_data, dict(patch))

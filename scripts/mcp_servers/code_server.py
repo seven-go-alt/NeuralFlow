@@ -61,9 +61,19 @@ def _execute_python(code: str) -> dict:
         )
         stdout = result.stdout[:MAX_OUTPUT_LENGTH] if result.stdout else ""
         stderr = result.stderr[:MAX_OUTPUT_LENGTH] if result.stderr else ""
-        return {"stdout": stdout, "stderr": stderr, "return_code": result.returncode, "blocked": False}
+        return {
+            "stdout": stdout,
+            "stderr": stderr,
+            "return_code": result.returncode,
+            "blocked": False,
+        }
     except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": f"执行超时（{EXEC_TIMEOUT_SECONDS}秒）", "return_code": -1, "blocked": False}
+        return {
+            "stdout": "",
+            "stderr": f"执行超时（{EXEC_TIMEOUT_SECONDS}秒）",
+            "return_code": -1,
+            "blocked": False,
+        }
     except Exception as exc:
         return {"stdout": "", "stderr": f"执行异常: {exc}", "return_code": -1, "blocked": False}
 

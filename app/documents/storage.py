@@ -17,7 +17,9 @@ class LocalDocumentStorage:
         self.base_dir = Path(base_dir or getattr(settings, "documents_storage_dir", default_dir))
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
-    async def save_upload(self, tenant_id: str, document_id: str, upload: UploadFile) -> tuple[str, int, str]:
+    async def save_upload(
+        self, tenant_id: str, document_id: str, upload: UploadFile
+    ) -> tuple[str, int, str]:
         tenant_dir = self.base_dir / tenant_id
         tenant_dir.mkdir(parents=True, exist_ok=True)
         suffix = Path(upload.filename or "upload.bin").suffix

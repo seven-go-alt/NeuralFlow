@@ -47,7 +47,9 @@ class LongTermMemory:
         )
         return item_id
 
-    async def search(self, query: str, top_k: int | None = None, session_id: str | None = None) -> list[str]:
+    async def search(
+        self, query: str, top_k: int | None = None, session_id: str | None = None
+    ) -> list[str]:
         results = await self.retriever.search(
             query=query,
             session_id=session_id,

@@ -39,13 +39,20 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         if default_session_id != "anonymous":
             self.observability.active_sessions.inc()
             session_tracked = True
-        logger.info("request started", extra={"session_id": default_session_id, "trace_id": trace_id, "intent": "unknown"})
+        logger.info(
+            "request started",
+            extra={"session_id": default_session_id, "trace_id": trace_id, "intent": "unknown"},
+        )
         try:
             response = await call_next(request)
         except Exception:
-            response = self._build_error_response(request, endpoint=endpoint, trace_id=trace_id, started_at=started_at)
+            response = self._build_error_response(
+                request, endpoint=endpoint, trace_id=trace_id, started_at=started_at
+            )
         else:
-            response = self._finalize_response(request, response, endpoint=endpoint, trace_id=trace_id, started_at=started_at)
+            response = self._finalize_response(
+                request, response, endpoint=endpoint, trace_id=trace_id, started_at=started_at
+            )
         finally:
             if session_tracked:
                 self.observability.active_sessions.dec()
@@ -65,7 +72,9 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
         duration_seconds = duration_ms / 1000
         set_log_context(session_id=session_id, trace_id=trace_id, intent=intent)
-        self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(duration_seconds)
+        self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(
+            duration_seconds
+        )
         response.headers["X-Request-ID"] = trace_id
         logger.info(
             "request completed",
@@ -93,7 +102,9 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
         duration_seconds = duration_ms / 1000
         set_log_context(session_id=session_id, trace_id=trace_id, intent=intent)
-        self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(duration_seconds)
+        self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(
+            duration_seconds
+        )
         self.observability.error_total.labels(endpoint=endpoint, intent=intent).inc()
         logger.exception(
             "request failed",

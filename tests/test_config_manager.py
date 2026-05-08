@@ -49,7 +49,9 @@ async def test_config_manager_keeps_concurrent_reads_consistent() -> None:
 
     before = await manager.get_snapshot()
     update_task = asyncio.create_task(
-        manager.update({"vector_search_cache_ttl_seconds": 120}, source_ip="127.0.0.1", actor="admin")
+        manager.update(
+            {"vector_search_cache_ttl_seconds": 120}, source_ip="127.0.0.1", actor="admin"
+        )
     )
     during = await manager.get_snapshot()
     await update_task

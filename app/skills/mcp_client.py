@@ -84,7 +84,9 @@ class MCPClient:
 
         return all_tools
 
-    async def call_tool(self, tool_name: str, payload: dict[str, Any], *, read_only: bool = True) -> dict[str, Any]:
+    async def call_tool(
+        self, tool_name: str, payload: dict[str, Any], *, read_only: bool = True
+    ) -> dict[str, Any]:
         if not read_only:
             raise MCPToolExecutionError(
                 "Mutating MCP tools are disabled by default",
@@ -93,7 +95,9 @@ class MCPClient:
                 should_trigger_fallback=False,
             )
         base = self.tool_routes.get(tool_name, self.base_url)
-        result = await self._request_json("POST", f"/tools/{tool_name}", json_body=payload, base_url=base)
+        result = await self._request_json(
+            "POST", f"/tools/{tool_name}", json_body=payload, base_url=base
+        )
         return result if isinstance(result, dict) else {"result": result}
 
     async def _request_json(
@@ -115,7 +119,9 @@ class MCPClient:
             async for attempt in retryer:
                 with attempt:
                     async with self.client_factory(self.timeout) as client:
-                        response = await client.request(method, f"{target_base}{path}", json=json_body)
+                        response = await client.request(
+                            method, f"{target_base}{path}", json=json_body
+                        )
                     if response.status_code in self.RETRYABLE_STATUS_CODES:
                         raise MCPToolExecutionError(
                             f"MCP server returned retryable status {response.status_code}",

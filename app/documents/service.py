@@ -31,7 +31,9 @@ class DocumentService:
         self.repo = DocumentRepository(db)
         self.storage = LocalDocumentStorage()
 
-    async def upload_document(self, tenant_id: str, owner_user_id: str, upload: UploadFile, title: str | None = None):
+    async def upload_document(
+        self, tenant_id: str, owner_user_id: str, upload: UploadFile, title: str | None = None
+    ):
         filename = upload.filename or "upload.bin"
         suffix = Path(filename).suffix.lower()
         file_type = _ALLOWED_SUFFIXES.get(suffix)
@@ -39,8 +41,12 @@ class DocumentService:
             raise DocumentValidationError(f"Unsupported file type: {suffix or 'unknown'}")
 
         document_id = f"doc_{uuid.uuid4().hex[:24]}"
-        storage_path, size_bytes, checksum = await self.storage.save_upload(tenant_id=tenant_id, document_id=document_id, upload=upload)
-        mime_type = upload.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        storage_path, size_bytes, checksum = await self.storage.save_upload(
+            tenant_id=tenant_id, document_id=document_id, upload=upload
+        )
+        mime_type = (
+            upload.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        )
         payload = DocumentCreate(
             tenant_id=tenant_id,
             owner_user_id=owner_user_id,
@@ -56,5 +62,7 @@ class DocumentService:
             source_info_json={"original_filename": filename},
         )
         record = self.repo.create_document(payload=payload, document_id=document_id)
-        self.repo.update_status(tenant_id=tenant_id, document_id=document_id, status=DocumentStatus.QUEUED)
+        self.repo.update_status(
+            tenant_id=tenant_id, document_id=document_id, status=DocumentStatus.QUEUED
+        )
         return record

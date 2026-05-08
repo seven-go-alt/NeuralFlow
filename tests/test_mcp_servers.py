@@ -24,7 +24,9 @@ class TestCodeServer:
         assert tools[0]["read_only"] is True
 
     def test_execute_simple_code(self):
-        resp = self.client.post("/tools/python_exec", json={"session_id": "t", "input": "print(2 + 3)"})
+        resp = self.client.post(
+            "/tools/python_exec", json={"session_id": "t", "input": "print(2 + 3)"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["stdout"].strip() == "5"
@@ -45,24 +47,34 @@ class TestCodeServer:
         assert "ZeroDivisionError" in data["stderr"]
 
     def test_blocks_os_import(self):
-        resp = self.client.post("/tools/python_exec", json={"session_id": "t", "input": "import os; os.system('ls')"})
+        resp = self.client.post(
+            "/tools/python_exec", json={"session_id": "t", "input": "import os; os.system('ls')"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["blocked"] is True
         assert "禁止" in data["stderr"]
 
     def test_blocks_subprocess_import(self):
-        resp = self.client.post("/tools/python_exec", json={"session_id": "t", "input": "import subprocess; subprocess.run(['ls'])"})
+        resp = self.client.post(
+            "/tools/python_exec",
+            json={"session_id": "t", "input": "import subprocess; subprocess.run(['ls'])"},
+        )
         assert resp.status_code == 200
         assert resp.json()["blocked"] is True
 
     def test_blocks_eval_exec(self):
-        resp = self.client.post("/tools/python_exec", json={"session_id": "t", "input": "eval('1+1')"})
+        resp = self.client.post(
+            "/tools/python_exec", json={"session_id": "t", "input": "eval('1+1')"}
+        )
         assert resp.status_code == 200
         assert resp.json()["blocked"] is True
 
     def test_blocks_file_write(self):
-        resp = self.client.post("/tools/python_exec", json={"session_id": "t", "input": "open('/tmp/x', 'w').write('hi')"})
+        resp = self.client.post(
+            "/tools/python_exec",
+            json={"session_id": "t", "input": "open('/tmp/x', 'w').write('hi')"},
+        )
         assert resp.status_code == 200
         assert resp.json()["blocked"] is True
 
@@ -89,6 +101,7 @@ class TestFilesystemServer:
 
     def teardown_method(self):
         import shutil
+
         if self._sandbox.exists():
             shutil.rmtree(self._sandbox)
 
@@ -102,32 +115,37 @@ class TestFilesystemServer:
         assert "file_list" in names
 
     def test_write_and_read_file(self):
-        write_resp = self.client.post("/tools/file_write", json={
-            "session_id": "t", "path": "test.txt", "content": "hello world"
-        })
+        write_resp = self.client.post(
+            "/tools/file_write",
+            json={"session_id": "t", "path": "test.txt", "content": "hello world"},
+        )
         assert write_resp.status_code == 200
         assert write_resp.json()["bytes_written"] == 11
 
-        read_resp = self.client.post("/tools/file_read", json={
-            "session_id": "t", "path": "test.txt"
-        })
+        read_resp = self.client.post(
+            "/tools/file_read", json={"session_id": "t", "path": "test.txt"}
+        )
         assert read_resp.status_code == 200
         assert read_resp.json()["content"] == "hello world"
 
     def test_write_creates_parent_dirs(self):
-        resp = self.client.post("/tools/file_write", json={
-            "session_id": "t", "path": "a/b/c.txt", "content": "nested"
-        })
+        resp = self.client.post(
+            "/tools/file_write", json={"session_id": "t", "path": "a/b/c.txt", "content": "nested"}
+        )
         assert resp.status_code == 200
 
-        read_resp = self.client.post("/tools/file_read", json={
-            "session_id": "t", "path": "a/b/c.txt"
-        })
+        read_resp = self.client.post(
+            "/tools/file_read", json={"session_id": "t", "path": "a/b/c.txt"}
+        )
         assert read_resp.json()["content"] == "nested"
 
     def test_list_directory(self):
-        self.client.post("/tools/file_write", json={"session_id": "t", "path": "f1.txt", "content": "a"})
-        self.client.post("/tools/file_write", json={"session_id": "t", "path": "f2.txt", "content": "b"})
+        self.client.post(
+            "/tools/file_write", json={"session_id": "t", "path": "f1.txt", "content": "a"}
+        )
+        self.client.post(
+            "/tools/file_write", json={"session_id": "t", "path": "f2.txt", "content": "b"}
+        )
 
         resp = self.client.post("/tools/file_list", json={"session_id": "t", "path": "."})
         assert resp.status_code == 200
@@ -136,20 +154,18 @@ class TestFilesystemServer:
         assert "f2.txt" in names
 
     def test_path_traversal_rejected(self):
-        resp = self.client.post("/tools/file_read", json={
-            "session_id": "t", "path": "../../../etc/passwd"
-        })
+        resp = self.client.post(
+            "/tools/file_read", json={"session_id": "t", "path": "../../../etc/passwd"}
+        )
         assert resp.status_code == 403
         assert "遍历" in resp.json()["detail"]
 
     def test_read_nonexistent_file(self):
-        resp = self.client.post("/tools/file_read", json={
-            "session_id": "t", "path": "no_such_file.txt"
-        })
+        resp = self.client.post(
+            "/tools/file_read", json={"session_id": "t", "path": "no_such_file.txt"}
+        )
         assert resp.status_code == 404
 
     def test_list_nonexistent_dir(self):
-        resp = self.client.post("/tools/file_list", json={
-            "session_id": "t", "path": "no_such_dir"
-        })
+        resp = self.client.post("/tools/file_list", json={"session_id": "t", "path": "no_such_dir"})
         assert resp.status_code == 404

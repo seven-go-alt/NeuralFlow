@@ -60,9 +60,13 @@ config_manager = ConfigManager()
 mcp_client = MCPClient()
 plugin_manager = PluginManager.from_env()
 stream_registry = StreamTaskRegistry()
-mcp_logger = configure_structured_logging(logger_name="neuralflow.mcp", audit_log_path=audit_log_path)
+mcp_logger = configure_structured_logging(
+    logger_name="neuralflow.mcp", audit_log_path=audit_log_path
+)
 
-_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+_FRONTEND_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend"
+)
 
 
 @app.get("/", include_in_schema=False)
@@ -158,7 +162,10 @@ async def patch_runtime_config(http_request: Request, patch: dict) -> AdminConfi
 @app.get("/api/skills", response_model=SkillsListResponse)
 async def list_skills() -> SkillsListResponse:
     return SkillsListResponse(
-        skills=[SkillResponse(name=skill.name, description=skill.description) for skill in skill_registry.list_skills()]
+        skills=[
+            SkillResponse(name=skill.name, description=skill.description)
+            for skill in skill_registry.list_skills()
+        ]
     )
 
 
@@ -184,7 +191,11 @@ async def list_models():
     current = settings.litellm_model
     current_display = _strip_provider_prefix(current)
     if not api_base:
-        return {"models": [], "current_model": current_display, "error": "LLM_API_BASE not configured"}
+        return {
+            "models": [],
+            "current_model": current_display,
+            "error": "LLM_API_BASE not configured",
+        }
     url = api_base.rstrip("/") + "/models"
     headers = {}
     if api_key:
@@ -211,11 +222,17 @@ async def switch_model(request: ModelSwitchRequest):
     litellm_model = _ensure_openai_prefix(request.model)
     settings.litellm_model = litellm_model
     llm_client.model = litellm_model
-    return {"message": f"Model switched to {litellm_model}", "model": request.model, "litellm_model": litellm_model}
+    return {
+        "message": f"Model switched to {litellm_model}",
+        "model": request.model,
+        "litellm_model": litellm_model,
+    }
 
 
 @app.post("/api/intent/detect", response_model=IntentDetectResponse)
-async def detect_intent(http_request: Request, request: IntentDetectRequest) -> IntentDetectResponse:
+async def detect_intent(
+    http_request: Request, request: IntentDetectRequest
+) -> IntentDetectResponse:
     result = await intent_router.detect(request.message)
     http_request.state.intent = result.primary_intent
     return _serialize_intent_result(result)
@@ -224,7 +241,9 @@ async def detect_intent(http_request: Request, request: IntentDetectRequest) -> 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     http_request.state.session_id = request.session_id
-    payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
+    payload = await _prepare_chat(
+        request, tenant_context=getattr(http_request.state, "tenant", None)
+    )
     http_request.state.intent = payload["intent"]
     reply = await _generate_reply_with_fallback(payload["prompt"])
     _emit_response_generated_hook(
@@ -248,12 +267,18 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
 
 
 @app.post("/chat/stream")
-async def chat_stream(http_request: Request, request: ChatRequest, include_thinking: bool | None = None):
+async def chat_stream(
+    http_request: Request, request: ChatRequest, include_thinking: bool | None = None
+):
     http_request.state.session_id = request.session_id
-    payload = await _prepare_chat(request, tenant_context=getattr(http_request.state, "tenant", None))
+    payload = await _prepare_chat(
+        request, tenant_context=getattr(http_request.state, "tenant", None)
+    )
     http_request.state.intent = payload["intent"]
     runtime_config = await config_manager.get_snapshot()
-    include_reasoning = runtime_config.stream_thinking_enabled if include_thinking is None else include_thinking
+    include_reasoning = (
+        runtime_config.stream_thinking_enabled if include_thinking is None else include_thinking
+    )
 
     async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
         if payload.get("retrieval_results"):
@@ -276,7 +301,9 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
                     },
                 }
         reply_parts: list[str] = []
-        async for chunk in _stream_reply_with_fallback(payload["prompt"], include_thinking=include_reasoning):
+        async for chunk in _stream_reply_with_fallback(
+            payload["prompt"], include_thinking=include_reasoning
+        ):
             if chunk["event"] == "message":
                 reply_parts.append(chunk["data"])
             yield {"event": chunk["event"], "data": {"delta": chunk["data"]}}
@@ -302,30 +329,31 @@ async def chat_react(http_request: Request, request: ChatRequest):
     http_request.state.session_id = request.session_id
     tenant_context = getattr(http_request.state, "tenant", None)
     tenant_id = tenant_context.tenant_id if tenant_context else settings.tenant_default_id
-    
+
     # 1. 识别意图
     routed = await intent_router.detect(request.message)
     http_request.state.intent = routed.primary_intent
     primary_policy = routed.policies[routed.primary_intent]
-    
+
     # 2. 获取允许使用的工具
     selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
-    
+
     # 3. 初始化并运行 ReAct Agent
     agent = ReActAgent(mcp_client=mcp_client)
-    
+
     # 执行循环
     result = await agent.execute(
         query=request.message,
         skills=selected_skills,
         session_id=request.session_id,
-        tenant_context=tenant_context
+        tenant_context=tenant_context,
     )
-    
+
     # 4. 记录结果并更新记忆（将最终回答存入短期记忆）
     if result["final_answer"]:
         try:
             from app.memory.working import WorkingMemory
+
             working_memory = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
             working_memory.add_message("user", request.message)
             working_memory.add_message("assistant", result["final_answer"])
@@ -338,7 +366,11 @@ async def chat_react(http_request: Request, request: ChatRequest):
         request=request,
         intent=routed.primary_intent,
         prompt="ReAct Loop (Multi-step)",
-        skill_results=[{"skill": s["tool"], "result": s["observation"]} for s in result["steps"] if s.get("type") == "tool_call"],
+        skill_results=[
+            {"skill": s["tool"], "result": s["observation"]}
+            for s in result["steps"]
+            if s.get("type") == "tool_call"
+        ],
         tenant_context=tenant_context,
     )
 
@@ -373,6 +405,7 @@ async def chat_orchestrate(http_request: Request, request: ChatRequest):
     if result["final_answer"]:
         try:
             from app.memory.working import WorkingMemory
+
             wm = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
             wm.add_message("user", request.message)
             wm.add_message("assistant", result["final_answer"])
@@ -384,7 +417,11 @@ async def chat_orchestrate(http_request: Request, request: ChatRequest):
         request=request,
         intent=result["route"],
         prompt=f"Orchestrator -> {result['route']}",
-        skill_results=[{"skill": s["tool"], "result": s["observation"]} for s in result["steps"] if s.get("type") == "tool_call"],
+        skill_results=[
+            {"skill": s["tool"], "result": s["observation"]}
+            for s in result["steps"]
+            if s.get("type") == "tool_call"
+        ],
         tenant_context=tenant_context,
     )
 
@@ -399,7 +436,9 @@ async def chat_orchestrate(http_request: Request, request: ChatRequest):
 
 
 async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | None = None) -> dict:
-    tenant_id = tenant_context.tenant_id if tenant_context is not None else settings.tenant_default_id
+    tenant_id = (
+        tenant_context.tenant_id if tenant_context is not None else settings.tenant_default_id
+    )
     try:
         working_memory = WorkingMemory(session_id=request.session_id, tenant_id=tenant_id)
     except TypeError as exc:
@@ -434,11 +473,17 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
             retrieval_request = RetrievalRequest(
                 query=request.message,
                 top_k=(request.retrieval_options or {}).get("top_k", settings.rag_default_top_k),
-                score_threshold=(request.retrieval_options or {}).get("score_threshold", settings.rag_score_threshold),
+                score_threshold=(request.retrieval_options or {}).get(
+                    "score_threshold", settings.rag_score_threshold
+                ),
                 filters=(request.retrieval_options or {}).get("filters", {}),
             )
-            retrieval_response = await retrieval_service.search(tenant_id=tenant_id, request=retrieval_request)
-            rag_build = RAGContextBuilder().build(query=request.message, results=retrieval_response.results)
+            retrieval_response = await retrieval_service.search(
+                tenant_id=tenant_id, request=retrieval_request
+            )
+            rag_build = RAGContextBuilder().build(
+                query=request.message, results=retrieval_response.results
+            )
             rag_results = [item.model_dump() for item in retrieval_response.results]
             rag_citations = rag_build.citations
             rag_context = rag_build.context
@@ -465,7 +510,9 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         skill_results=skill_results,
     )
     if rag_context:
-        prompt = f"{prompt}\n\n---\n企业知识库检索上下文（回答时优先参考并尽量给出引用）:\n{rag_context}"
+        prompt = (
+            f"{prompt}\n\n---\n企业知识库检索上下文（回答时优先参考并尽量给出引用）:\n{rag_context}"
+        )
     return {
         "working_memory": working_memory,
         "intent": routed.primary_intent,
@@ -483,7 +530,9 @@ async def _generate_reply_with_fallback(prompt: str) -> str:
         return build_rule_based_fallback_reply(prompt, error=exc)
 
 
-async def _stream_reply_with_fallback(prompt: str, include_thinking: bool = False) -> AsyncIterator[dict[str, str]]:
+async def _stream_reply_with_fallback(
+    prompt: str, include_thinking: bool = False
+) -> AsyncIterator[dict[str, str]]:
     try:
         async for chunk in llm_client.stream_generate(prompt, include_thinking=include_thinking):
             yield chunk
@@ -561,7 +610,6 @@ async def _discover_remote_tools(session_id: str, intent: str) -> None:
         )
 
 
-
 def _emit_response_generated_hook(
     *,
     reply: str,
@@ -580,12 +628,15 @@ def _emit_response_generated_hook(
             "intent": intent,
             "prompt": prompt,
             "skill_results": skill_results,
-            "tenant_id": tenant_context.tenant_id if tenant_context is not None else settings.tenant_default_id,
+            "tenant_id": tenant_context.tenant_id
+            if tenant_context is not None
+            else settings.tenant_default_id,
             "tenant_roles": tenant_context.roles if tenant_context is not None else [],
-            "tenant_scope": tenant_context.scope if tenant_context is not None else [settings.tenant_default_id],
+            "tenant_scope": tenant_context.scope
+            if tenant_context is not None
+            else [settings.tenant_default_id],
         },
     )
-
 
 
 def _serialize_intent_result(result: IntentDetectionResult) -> IntentDetectResponse:

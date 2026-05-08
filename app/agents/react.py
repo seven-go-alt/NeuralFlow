@@ -39,23 +39,25 @@ def _skills_to_tools(skills: list[SkillDefinition]) -> list[dict[str, Any]]:
     """将 SkillDefinition 列表转换为 OpenAI function calling tools 格式。"""
     tools = []
     for skill in skills:
-        tools.append({
-            "type": "function",
-            "function": {
-                "name": skill.name,
-                "description": skill.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "input": {
-                            "type": "string",
-                            "description": f"传递给 {skill.name} 工具的查询或指令",
-                        }
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": skill.name,
+                    "description": skill.description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "input": {
+                                "type": "string",
+                                "description": f"传递给 {skill.name} 工具的查询或指令",
+                            }
+                        },
+                        "required": ["input"],
                     },
-                    "required": ["input"],
                 },
-            },
-        })
+            }
+        )
     return tools
 
 
@@ -88,7 +90,9 @@ class ReActAgent:
         self.max_iterations = max_iterations
         self.max_reflections = max_reflections
 
-    async def _call_llm(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None) -> Any:
+    async def _call_llm(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None
+    ) -> Any:
         kwargs: dict[str, Any] = {"model": self.model, "messages": messages}
         if tools:
             kwargs["tools"] = tools
@@ -143,11 +147,13 @@ class ReActAgent:
 
             if not tool_calls:
                 final_answer = message.content or ""
-                steps.append({
-                    "iteration": iteration + 1,
-                    "type": "final_answer",
-                    "content": final_answer,
-                })
+                steps.append(
+                    {
+                        "iteration": iteration + 1,
+                        "type": "final_answer",
+                        "content": final_answer,
+                    }
+                )
                 break
 
             for tc in tool_calls:
@@ -165,10 +171,12 @@ class ReActAgent:
                 else:
                     payload = {"session_id": session_id, "input": tool_input}
                     if tenant_context:
-                        payload.update({
-                            "tenant_id": tenant_context.tenant_id,
-                            "tenant_roles": tenant_context.roles,
-                        })
+                        payload.update(
+                            {
+                                "tenant_id": tenant_context.tenant_id,
+                                "tenant_roles": tenant_context.roles,
+                            }
+                        )
                     try:
                         obs_result = await self.mcp.call_tool(
                             skill.tool_name,
@@ -179,19 +187,23 @@ class ReActAgent:
                     except Exception as e:
                         observation = f"Error executing tool: {e}"
 
-                steps.append({
-                    "iteration": iteration + 1,
-                    "type": "tool_call",
-                    "tool": tool_name,
-                    "input": tool_input,
-                    "observation": observation,
-                })
+                steps.append(
+                    {
+                        "iteration": iteration + 1,
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "input": tool_input,
+                        "observation": observation,
+                    }
+                )
 
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": observation,
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": observation,
+                    }
+                )
 
         if not final_answer:
             final_answer = "未能在最大迭代次数内得出结论。"

@@ -21,7 +21,9 @@ class StubWorkingMemory:
 
 
 class StubContextBuilder:
-    def __init__(self, session_id: str, working_mem=None, long_mem=None, token_budget_manager=None) -> None:
+    def __init__(
+        self, session_id: str, working_mem=None, long_mem=None, token_budget_manager=None
+    ) -> None:
         self.session_id = session_id
 
     async def build_prompt(self, user_query: str, intent: str, **kwargs) -> str:
@@ -55,7 +57,9 @@ def test_chat_endpoint_returns_non_500_rule_fallback_when_llm_fails(monkeypatch)
     monkeypatch.setattr("app.main.llm_client", BrokenLLMClient())
 
     client = TestClient(app, raise_server_exceptions=False)
-    response = client.post("/chat", json={"session_id": "s-offline", "message": "帮我总结 Redis 和 Chroma 的隔离差异"})
+    response = client.post(
+        "/chat", json={"session_id": "s-offline", "message": "帮我总结 Redis 和 Chroma 的隔离差异"}
+    )
 
     assert response.status_code != 500
     assert response.status_code == 200
@@ -77,7 +81,10 @@ async def test_chat_stream_endpoint_returns_rule_fallback_event_when_llm_fails(m
         async with client.stream(
             "POST",
             "/chat/stream",
-            json={"session_id": "s-offline-stream", "message": "帮我总结 Redis 和 Chroma 的隔离差异"},
+            json={
+                "session_id": "s-offline-stream",
+                "message": "帮我总结 Redis 和 Chroma 的隔离差异",
+            },
         ) as response:
             assert response.status_code == 200
             body = [line async for line in response.aiter_lines() if line]

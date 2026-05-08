@@ -25,25 +25,25 @@ def train_lora(
     output_dir: str = "output/neuralflow-lora",
     r: int = 16,
     lora_alpha: int = 32,
-    lora_dropout: float = 0.1
+    lora_dropout: float = 0.1,
 ):
     # 1. 配置 4-bit 量化 (QLoRA)
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
+        bnb_4bit_compute_dtype=torch.bfloat16,
     )
 
     # 2. 加载分词器和模型
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
-    
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         quantization_config=bnb_config,
         device_map="auto",
-        trust_remote_code=True
+        trust_remote_code=True,
     )
 
     # 3. 准备模型进行量化训练
@@ -57,7 +57,15 @@ def train_lora(
         r=r,
         lora_alpha=lora_alpha,
         lora_dropout=lora_dropout,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"] # 针对 Llama/Qwen 结构
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],  # 针对 Llama/Qwen 结构
     )
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
@@ -65,12 +73,14 @@ def train_lora(
     # 5. 加载与处理数据集
     # 假设数据格式为 {"instruction": "...", "input": "...", "output": "..."}
     dataset = load_dataset("json", data_files=dataset_path, split="train")
-    
+
     def tokenize_function(examples):
         # 实现对话模版拼接逻辑
         instructions = [f"Human: {ins}\nAI: " for ins in examples["instruction"]]
         inputs = tokenizer(instructions, truncation=True, padding="max_length", max_length=512)
-        targets = tokenizer(examples["output"], truncation=True, padding="max_length", max_length=512)
+        targets = tokenizer(
+            examples["output"], truncation=True, padding="max_length", max_length=512
+        )
         inputs["labels"] = targets["input_ids"]
         return inputs
 
@@ -85,10 +95,10 @@ def train_lora(
         num_train_epochs=3,
         logging_steps=10,
         save_strategy="epoch",
-        bf16=True, # 如果硬件支持
+        bf16=True,  # 如果硬件支持
         lr_scheduler_type="cosine",
         warmup_ratio=0.1,
-        report_to="none" # 可改为 tensorboard 或 wandb
+        report_to="none",  # 可改为 tensorboard 或 wandb
     )
 
     # 7. 启动训练
@@ -96,15 +106,16 @@ def train_lora(
         model=model,
         args=training_args,
         train_dataset=tokenized_dataset,
-        data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True)
+        data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True),
     )
 
     print("--- Starting NeuralFlow Finetuning ---")
     trainer.train()
-    
+
     # 8. 保存适配器
     model.save_pretrained(os.path.join(output_dir, "adapter"))
     print(f"Model saved to {output_dir}")
+
 
 if __name__ == "__main__":
     # 仅作为演示，实际运行需要 GPU 环境和数据集

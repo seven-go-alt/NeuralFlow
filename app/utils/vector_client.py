@@ -36,7 +36,11 @@ class InMemoryCollection:
         if not where:
             return list(self.documents)
         if "$and" in where:
-            return [item for item in self.documents if all(self._filter_clause(item["metadata"], clause) for clause in where["$and"])]
+            return [
+                item
+                for item in self.documents
+                if all(self._filter_clause(item["metadata"], clause) for clause in where["$and"])
+            ]
         return [item for item in self.documents if self._filter_clause(item["metadata"], where)]
 
     @staticmethod
@@ -60,8 +64,10 @@ def get_vector_client() -> ClientAPI | InMemoryVectorClient:
         return client
     except Exception:
         import logging
+
         logging.getLogger(__name__).warning(
             "ChromaDB unavailable at %s:%s, using in-memory fallback",
-            settings.chroma_host, settings.chroma_port,
+            settings.chroma_host,
+            settings.chroma_port,
         )
         return InMemoryVectorClient()

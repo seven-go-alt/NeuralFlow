@@ -1,4 +1,3 @@
-
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -15,7 +14,9 @@ class StubWorkingMemory:
 
 
 class StubContextBuilder:
-    def __init__(self, session_id: str, working_mem=None, long_mem=None, tenant_id: str | None = None) -> None:
+    def __init__(
+        self, session_id: str, working_mem=None, long_mem=None, tenant_id: str | None = None
+    ) -> None:
         self.session_id = session_id
 
     async def build_prompt(self, user_query: str, intent: str, **kwargs) -> str:

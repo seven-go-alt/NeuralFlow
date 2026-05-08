@@ -90,7 +90,9 @@ class VectorRetriever:
         return {"$and": clauses}
 
     def _build_cache_key(self, query: str, where: dict[str, Any], top_k: int) -> str:
-        payload = json.dumps({"query": query, "where": where, "top_k": top_k}, sort_keys=True, ensure_ascii=False)
+        payload = json.dumps(
+            {"query": query, "where": where, "top_k": top_k}, sort_keys=True, ensure_ascii=False
+        )
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         return f"vsearch:{digest}"
 
@@ -117,7 +119,9 @@ class VectorRetriever:
         except Exception:
             logger.warning("vector cache write failed", exc_info=True)
 
-    async def _vector_search(self, query: str, where: dict[str, Any], top_k: int) -> list[dict[str, Any]]:
+    async def _vector_search(
+        self, query: str, where: dict[str, Any], top_k: int
+    ) -> list[dict[str, Any]]:
         try:
             response = await asyncio.to_thread(
                 self.collection.query,
@@ -130,7 +134,9 @@ class VectorRetriever:
             return []
         return self._normalize_vector_results(response)
 
-    async def _bm25_search(self, query: str, where: dict[str, Any], top_k: int) -> list[dict[str, Any]]:
+    async def _bm25_search(
+        self, query: str, where: dict[str, Any], top_k: int
+    ) -> list[dict[str, Any]]:
         """BM25-style retrieval using TF-IDF scoring."""
         try:
             response = await asyncio.to_thread(
@@ -171,16 +177,19 @@ class VectorRetriever:
                     continue
                 idf = max(0.0, (doc_count - df[term] + 0.5) / (df[term] + 0.5))
                 import math
+
                 idf = math.log(1 + idf)
                 tf_norm = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
                 score += idf * tf_norm
             if score > 0:
-                ranked.append(RetrievedDocument(
-                    content=content,
-                    metadata=metadata,
-                    score=score,
-                    source="bm25",
-                ))
+                ranked.append(
+                    RetrievedDocument(
+                        content=content,
+                        metadata=metadata,
+                        score=score,
+                        source="bm25",
+                    )
+                )
 
         ranked.sort(key=lambda item: item.score, reverse=True)
         return [asdict(item) for item in ranked[:top_k]]

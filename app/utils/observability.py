@@ -52,7 +52,9 @@ class Observability:
     def metrics_response(self) -> Response:
         return Response(content=self.render_metrics(), media_type=CONTENT_TYPE_LATEST)
 
-    def record_llm_token_usage(self, model: str, input_tokens: int = 0, output_tokens: int = 0) -> None:
+    def record_llm_token_usage(
+        self, model: str, input_tokens: int = 0, output_tokens: int = 0
+    ) -> None:
         if input_tokens > 0:
             self.llm_token_usage.labels(model=model, type="input").inc(input_tokens)
         if output_tokens > 0:
@@ -114,7 +116,9 @@ _RESERVED_LOG_KEYS = {
 }
 
 
-def configure_structured_logging(logger_name: str = "neuralflow", audit_log_path: str | None = None) -> logging.Logger:
+def configure_structured_logging(
+    logger_name: str = "neuralflow", audit_log_path: str | None = None
+) -> logging.Logger:
     with _logger_lock:
         logger = logging.getLogger(logger_name)
         if logger_name not in _configured_loggers:
@@ -178,7 +182,9 @@ def create_observability(registry: CollectorRegistry | None = None) -> Observabi
         return observability
 
 
-def set_log_context(session_id: str | None = None, trace_id: str | None = None, intent: str | None = None) -> None:
+def set_log_context(
+    session_id: str | None = None, trace_id: str | None = None, intent: str | None = None
+) -> None:
     if session_id is not None:
         _session_id_var.set(session_id)
     if trace_id is not None:

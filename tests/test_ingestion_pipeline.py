@@ -12,7 +12,9 @@ from app.ingestion.pipeline import IngestionPipeline
 
 
 class StubParser:
-    def parse(self, document_id: str, tenant_id: str, source_path: str, title: str | None = None) -> ParsedDocument:
+    def parse(
+        self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
+    ) -> ParsedDocument:
         return ParsedDocument(
             document_id=document_id,
             tenant_id=tenant_id,
@@ -56,7 +58,15 @@ def test_recursive_chunk_splitter_produces_chunk_metadata() -> None:
         source_type="txt",
         source_path="/tmp/handbook.txt",
         metadata={},
-        sections=[ParsedSection(section_id="doc_1:s1", content="请假制度" * 100, page_number=2, heading="请假制度", metadata={"page_number": 2})],
+        sections=[
+            ParsedSection(
+                section_id="doc_1:s1",
+                content="请假制度" * 100,
+                page_number=2,
+                heading="请假制度",
+                metadata={"page_number": 2},
+            )
+        ],
         extracted_text="请假制度" * 100,
         created_at=datetime.utcnow(),
     )
@@ -111,7 +121,9 @@ async def test_ingestion_pipeline_indexes_document(monkeypatch, tmp_path: Path) 
     pipeline.embedding_service = StubEmbeddingService()
     pipeline.store = stub_store
 
-    result = await pipeline.run(tenant_id="public", document_id=document_id, embedding_model="test-embedding")
+    result = await pipeline.run(
+        tenant_id="public", document_id=document_id, embedding_model="test-embedding"
+    )
 
     assert result["status"] == "ready"
     assert result["chunk_count"] >= 1

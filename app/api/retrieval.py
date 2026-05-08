@@ -12,7 +12,9 @@ router = APIRouter(prefix="/api/retrieval", tags=["retrieval"])
 
 
 @router.post("/search", response_model=RetrievalResponse)
-async def search_documents(request: Request, payload: RetrievalRequest, db: Session = Depends(get_db)):
+async def search_documents(
+    request: Request, payload: RetrievalRequest, db: Session = Depends(get_db)
+):
     tenant_id = getattr(request.state, "tenant_id", "public")
     service = RetrievalService(document_repo=DocumentRepository(db))
     return await service.search(tenant_id=tenant_id, request=payload)

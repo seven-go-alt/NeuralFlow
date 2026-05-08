@@ -107,9 +107,7 @@ class TokenBudgetManager:
 
     def _find_drop_candidate(self, segments: list[ContextSegment]) -> int | None:
         candidates = [
-            (index, segment)
-            for index, segment in enumerate(segments)
-            if not segment.required
+            (index, segment) for index, segment in enumerate(segments) if not segment.required
         ]
         if not candidates or len(segments) <= 2:
             return None

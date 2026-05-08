@@ -23,7 +23,14 @@ class StubWorkingMemory:
 
 
 class StubContextBuilder:
-    def __init__(self, session_id: str, working_mem=None, long_mem=None, token_budget_manager=None, tenant_id: str | None = None) -> None:
+    def __init__(
+        self,
+        session_id: str,
+        working_mem=None,
+        long_mem=None,
+        token_budget_manager=None,
+        tenant_id: str | None = None,
+    ) -> None:
         self.session_id = session_id
         self.tenant_id = tenant_id
 
@@ -68,7 +75,11 @@ class StubRetrievalService:
                     content="employee handbook leave policy",
                     score=0.91,
                     metadata={"page_number": 3},
-                    source={"title": "Employee Handbook", "filename": "handbook.pdf", "page_number": 3},
+                    source={
+                        "title": "Employee Handbook",
+                        "filename": "handbook.pdf",
+                        "page_number": 3,
+                    },
                 )
             ],
         )
@@ -107,7 +118,9 @@ async def test_chat_returns_citations(monkeypatch) -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/chat", json={"session_id": "s1", "message": "请假制度是什么？", "use_retrieval": True})
+        response = await client.post(
+            "/chat", json={"session_id": "s1", "message": "请假制度是什么？", "use_retrieval": True}
+        )
 
     assert response.status_code == 200
     payload = response.json()
@@ -128,11 +141,17 @@ async def test_chat_stream_emits_retrieval_and_chunk_events(monkeypatch) -> None
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        async with client.stream("POST", "/chat/stream", json={"session_id": "s2", "message": "请假制度是什么？", "use_retrieval": True}) as response:
+        async with client.stream(
+            "POST",
+            "/chat/stream",
+            json={"session_id": "s2", "message": "请假制度是什么？", "use_retrieval": True},
+        ) as response:
             assert response.status_code == 200
             body = [line async for line in response.aiter_lines() if line]
 
     assert "event: retrieval" in body
     assert any('"count":1' in line for line in body if line.startswith("data:"))
     assert "event: chunk" in body
-    assert any("employee handbook leave policy" in line for line in body if line.startswith("data:"))
+    assert any(
+        "employee handbook leave policy" in line for line in body if line.startswith("data:")
+    )

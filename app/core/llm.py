@@ -16,7 +16,9 @@ def build_rule_based_fallback_reply(prompt: str, error: Exception | None = None)
     snippets = lines[-3:] if lines else [prompt.strip() or "未提供上下文"]
     summary = "；".join(snippet[:120] for snippet in snippets if snippet)
     error_hint = f"（原因：{error}）" if error else ""
-    return f"离线兜底摘要{error_hint}：当前外部 LLM 不可用。我先基于已有上下文给出简要总结：{summary}"
+    return (
+        f"离线兜底摘要{error_hint}：当前外部 LLM 不可用。我先基于已有上下文给出简要总结：{summary}"
+    )
 
 
 class LLMClient:
@@ -36,17 +38,25 @@ class LLMClient:
                 raise
             if self.fallback_model:
                 try:
-                    logger.warning("primary llm failed, falling back to offline model", exc_info=primary_exc)
+                    logger.warning(
+                        "primary llm failed, falling back to offline model", exc_info=primary_exc
+                    )
                     return await self._generate_once(prompt, model=self.fallback_model)
                 except Exception as fallback_exc:
-                    logger.warning("fallback llm failed, returning rule-based summary", exc_info=fallback_exc)
+                    logger.warning(
+                        "fallback llm failed, returning rule-based summary", exc_info=fallback_exc
+                    )
                     return build_rule_based_fallback_reply(prompt, error=fallback_exc)
             logger.warning("primary llm failed, returning rule-based summary", exc_info=primary_exc)
             return build_rule_based_fallback_reply(prompt, error=primary_exc)
 
-    async def stream_generate(self, prompt: str, include_thinking: bool = False) -> AsyncIterator[dict[str, str]]:
+    async def stream_generate(
+        self, prompt: str, include_thinking: bool = False
+    ) -> AsyncIterator[dict[str, str]]:
         try:
-            async for chunk in self._stream_once(prompt, model=self.model, include_thinking=include_thinking):
+            async for chunk in self._stream_once(
+                prompt, model=self.model, include_thinking=include_thinking
+            ):
                 yield chunk
             return
         except Exception as primary_exc:
@@ -54,7 +64,10 @@ class LLMClient:
                 raise
             if self.fallback_model:
                 try:
-                    logger.warning("primary stream llm failed, falling back to offline model", exc_info=primary_exc)
+                    logger.warning(
+                        "primary stream llm failed, falling back to offline model",
+                        exc_info=primary_exc,
+                    )
                     async for chunk in self._stream_once(
                         prompt,
                         model=self.fallback_model,
@@ -63,11 +76,22 @@ class LLMClient:
                         yield chunk
                     return
                 except Exception as fallback_exc:
-                    logger.warning("fallback stream llm failed, returning rule-based summary", exc_info=fallback_exc)
-                    yield {"event": "message", "data": build_rule_based_fallback_reply(prompt, error=fallback_exc)}
+                    logger.warning(
+                        "fallback stream llm failed, returning rule-based summary",
+                        exc_info=fallback_exc,
+                    )
+                    yield {
+                        "event": "message",
+                        "data": build_rule_based_fallback_reply(prompt, error=fallback_exc),
+                    }
                     return
-            logger.warning("primary stream llm failed, returning rule-based summary", exc_info=primary_exc)
-            yield {"event": "message", "data": build_rule_based_fallback_reply(prompt, error=primary_exc)}
+            logger.warning(
+                "primary stream llm failed, returning rule-based summary", exc_info=primary_exc
+            )
+            yield {
+                "event": "message",
+                "data": build_rule_based_fallback_reply(prompt, error=primary_exc),
+            }
 
     async def _generate_once(self, prompt: str, model: str) -> str:
         kwargs: dict[str, Any] = {
@@ -81,7 +105,9 @@ class LLMClient:
         response = await acompletion(**kwargs)
         return response.choices[0].message.content or ""
 
-    async def _stream_once(self, prompt: str, model: str, include_thinking: bool = False) -> AsyncIterator[dict[str, str]]:
+    async def _stream_once(
+        self, prompt: str, model: str, include_thinking: bool = False
+    ) -> AsyncIterator[dict[str, str]]:
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": self._build_messages(prompt),

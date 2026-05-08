@@ -53,10 +53,16 @@ class DocumentRepository:
         file_type: str | None = None,
         keyword: str | None = None,
     ) -> tuple[list[DocumentORM], int]:
-        stmt = select(DocumentORM).where(DocumentORM.tenant_id == tenant_id, DocumentORM.deleted_at.is_(None))
-        count_stmt = select(func.count()).select_from(DocumentORM).where(
-            DocumentORM.tenant_id == tenant_id,
-            DocumentORM.deleted_at.is_(None),
+        stmt = select(DocumentORM).where(
+            DocumentORM.tenant_id == tenant_id, DocumentORM.deleted_at.is_(None)
+        )
+        count_stmt = (
+            select(func.count())
+            .select_from(DocumentORM)
+            .where(
+                DocumentORM.tenant_id == tenant_id,
+                DocumentORM.deleted_at.is_(None),
+            )
         )
         if status:
             stmt = stmt.where(DocumentORM.status == status)
@@ -67,8 +73,14 @@ class DocumentRepository:
         if keyword:
             like = f"%{keyword}%"
             stmt = stmt.where((DocumentORM.filename.ilike(like)) | (DocumentORM.title.ilike(like)))
-            count_stmt = count_stmt.where((DocumentORM.filename.ilike(like)) | (DocumentORM.title.ilike(like)))
-        stmt = stmt.order_by(DocumentORM.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+            count_stmt = count_stmt.where(
+                (DocumentORM.filename.ilike(like)) | (DocumentORM.title.ilike(like))
+            )
+        stmt = (
+            stmt.order_by(DocumentORM.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
         items = list(self.db.scalars(stmt).all())
         total = int(self.db.scalar(count_stmt) or 0)
         return items, total
@@ -112,7 +124,9 @@ class DocumentRepository:
         self.db.commit()
         return True
 
-    def replace_chunks(self, tenant_id: str, document_id: str, chunks: list[ChunkRecord], embedding_model: str) -> None:
+    def replace_chunks(
+        self, tenant_id: str, document_id: str, chunks: list[ChunkRecord], embedding_model: str
+    ) -> None:
         self.db.query(DocumentChunkORM).filter(
             DocumentChunkORM.tenant_id == tenant_id,
             DocumentChunkORM.document_id == document_id,
@@ -136,13 +150,19 @@ class DocumentRepository:
         self.db.commit()
 
     def list_chunks(self, tenant_id: str, document_id: str) -> tuple[list[DocumentChunkORM], int]:
-        stmt = select(DocumentChunkORM).where(
-            DocumentChunkORM.tenant_id == tenant_id,
-            DocumentChunkORM.document_id == document_id,
-        ).order_by(DocumentChunkORM.chunk_index.asc())
+        stmt = (
+            select(DocumentChunkORM)
+            .where(
+                DocumentChunkORM.tenant_id == tenant_id,
+                DocumentChunkORM.document_id == document_id,
+            )
+            .order_by(DocumentChunkORM.chunk_index.asc())
+        )
         items = list(self.db.scalars(stmt).all())
         return items, len(items)
 
     def get_distinct_document_ids(self, tenant_id: str) -> list[str]:
-        stmt = select(DocumentORM.document_id).where(DocumentORM.tenant_id == tenant_id, DocumentORM.deleted_at.is_(None))
+        stmt = select(DocumentORM.document_id).where(
+            DocumentORM.tenant_id == tenant_id, DocumentORM.deleted_at.is_(None)
+        )
         return list(self.db.scalars(stmt).all())

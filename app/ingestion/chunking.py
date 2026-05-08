@@ -9,7 +9,9 @@ from app.documents.schemas import ChunkRecord, ParsedDocument
 
 
 class RecursiveChunkSplitter:
-    def __init__(self, chunk_size: int = 900, chunk_overlap: int = 120, encoding_name: str = "cl100k_base") -> None:
+    def __init__(
+        self, chunk_size: int = 900, chunk_overlap: int = 120, encoding_name: str = "cl100k_base"
+    ) -> None:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.encoding = tiktoken.get_encoding(encoding_name)
@@ -20,7 +22,9 @@ class RecursiveChunkSplitter:
         for section in document.sections:
             for text in self._split_text(section.content):
                 token_count = len(self.encoding.encode(text))
-                digest = hashlib.sha1(f"{document.document_id}:{chunk_index}:{text[:64]}".encode("utf-8")).hexdigest()[:24]
+                digest = hashlib.sha1(
+                    f"{document.document_id}:{chunk_index}:{text[:64]}".encode("utf-8")
+                ).hexdigest()[:24]
                 chunks.append(
                     ChunkRecord(
                         chunk_id=f"chk_{digest}",

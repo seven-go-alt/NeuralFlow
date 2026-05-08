@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi.testclient import TestClient
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -111,7 +110,6 @@ async def test_skill_registry_filters_requested_skills() -> None:
     assert [skill.name for skill in filtered] == ["memory", "planner"]
 
 
-
 def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypatch) -> None:
     registry = SkillRegistry()
     registry.register("planner", "规划任务")
@@ -129,7 +127,9 @@ def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypat
     monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
 
     client = TestClient(app)
-    response = client.post("/chat", json={"session_id": "s1", "message": "帮我规划并顺手查一下历史"})
+    response = client.post(
+        "/chat", json={"session_id": "s1", "message": "帮我规划并顺手查一下历史"}
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -144,7 +144,6 @@ def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypat
     assert "planner handled" in body["prompt"]
     assert "memory handled" in body["prompt"]
     assert llm.prompts and llm.prompts[0] == body["prompt"]
-
 
 
 def test_chat_endpoint_passes_tenant_context_to_mcp_payload(monkeypatch) -> None:
@@ -175,7 +174,6 @@ def test_chat_endpoint_passes_tenant_context_to_mcp_payload(monkeypatch) -> None
     assert mcp.calls[0][1]["tenant_scope"] == ["tenant-alpha"]
 
 
-
 def test_chat_endpoint_emits_mcp_discovery_and_call_duration_logs(monkeypatch) -> None:
     registry = SkillRegistry()
     registry.register("planner", "规划任务")
@@ -197,7 +195,9 @@ def test_chat_endpoint_emits_mcp_discovery_and_call_duration_logs(monkeypatch) -
     monkeypatch.setattr("app.main.mcp_logger.info", capture_log)
 
     client = TestClient(app)
-    response = client.post("/chat", json={"session_id": "s-log", "message": "帮我规划并顺手查一下历史"})
+    response = client.post(
+        "/chat", json={"session_id": "s-log", "message": "帮我规划并顺手查一下历史"}
+    )
 
     assert response.status_code == 200
     discovery_logs = [extra for message, extra in emitted_logs if message == "tool_discovered"]
@@ -205,7 +205,6 @@ def test_chat_endpoint_emits_mcp_discovery_and_call_duration_logs(monkeypatch) -
     call_logs = [extra for message, extra in emitted_logs if message == "tool_called"]
     assert [entry["tool_name"] for entry in call_logs] == ["planner", "memory"]
     assert all(entry["duration_ms"] >= 0 for entry in call_logs)
-
 
 
 def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch) -> None:
@@ -223,14 +222,15 @@ def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch
     monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
 
     client = TestClient(app)
-    response = client.post("/chat", json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史"})
+    response = client.post(
+        "/chat", json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史"}
+    )
 
     assert response.status_code == 200
     body = response.json()
     assert body["reply"] == "ok"
     assert body["used_skills"] == []
     assert llm.prompts and "query=帮我规划并顺手查一下历史" in llm.prompts[0]
-
 
 
 def test_skills_endpoint_lists_registered_skills(monkeypatch) -> None:

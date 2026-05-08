@@ -44,15 +44,21 @@ async def create_sse_response(
             async for item in event_source():
                 yield _format_sse(item["event"], item["data"])
             latency = round(time.perf_counter() - started_at, 4)
-            logger.info("stream completed", extra={"session_id": session_id, "stream_latency": latency})
+            logger.info(
+                "stream completed", extra={"session_id": session_id, "stream_latency": latency}
+            )
             yield _format_sse("done", {"status": "completed", "stream_latency": latency})
         except asyncio.CancelledError:
             latency = round(time.perf_counter() - started_at, 4)
-            logger.info("stream cancelled", extra={"session_id": session_id, "stream_latency": latency})
+            logger.info(
+                "stream cancelled", extra={"session_id": session_id, "stream_latency": latency}
+            )
             raise
         except Exception as exc:
             latency = round(time.perf_counter() - started_at, 4)
-            logger.exception("stream failed", extra={"session_id": session_id, "stream_latency": latency})
+            logger.exception(
+                "stream failed", extra={"session_id": session_id, "stream_latency": latency}
+            )
             yield _format_sse("error", {"error": str(exc), "stream_latency": latency})
         finally:
             registry.clear(session_id, current_task)
