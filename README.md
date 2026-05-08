@@ -14,7 +14,11 @@ NeuralFlow 是一个基于 FastAPI、Redis、ChromaDB 和 Celery 的 Agent 工�
 ```text
 NeuralFlow/
 ├── frontend/
-│   └── index.html          # 可视化 Demo 前端
+│   ├── app/                # Next.js 15 App Router 控制台
+│   ├── features/           # Chat / runtime / sidebar feature slices
+│   ├── services/           # API 与 SSE streaming 抽象
+│   ├── store/              # Zustand 全局状态
+│   └── types/              # Agent runtime 类型
 ├── app/
 │   ├── main.py
 │   ├── config.py
@@ -67,22 +71,79 @@ uv run uvicorn app.main:app --reload
 
 `.python-version` 已固定为 `3.11`。
 
-## 可视化 Demo 前端
+## 启动与停止
 
-项目内置了一个单页 Demo 前端，启动后直接访问 `http://localhost:8000` 即可打开：
+### 本地开发模式
+
+后端 API：
+
+```bash
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+如需同时运行异步归档 worker：
+
+```bash
+uv run celery -A worker.celery_app worker --loglevel=info
+```
+
+前端控制台：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+本地开发模式下，API、worker 和前端都是前台进程，停止时在对应终端按 `Ctrl+C` 即可。
+
+### Docker Compose 模式
+
+一键启动 API、worker、Redis 和 ChromaDB：
+
+```bash
+docker compose up --build
+```
+
+后台启动：
+
+```bash
+docker compose up --build -d
+```
+
+停止并保留 ChromaDB 数据卷：
+
+```bash
+docker compose down
+```
+
+如果需要同时删除 ChromaDB 数据卷，清空本地向量数据：
+
+```bash
+docker compose down -v
+```
+
+## Agent Runtime Console 前端
+
+项目内置了一个 Next.js 15 + TypeScript 的 Agent Runtime Console。它不是普通聊天框，而是面向 RAG、Function Calling、MCP 工具、多会话、记忆和流式推理的运行时观测台：
 
 ```bash
 uv run uvicorn app.main:app --reload
-# 浏览器打开 http://localhost:8000
+cd frontend
+npm install
+npm run dev
+# 浏览器打开 http://localhost:3000
 ```
 
 前端功能：
 
-- **Standard 模式**：单轮对话，展示意图识别、技能执行、记忆检索
-- **Streaming 模式**：SSE 实时流式输出，逐 token 渲染
-- **ReAct Agent 模式**：多步推理循环，右侧实时展示 Thought → Action → Observation 步骤
-- 右侧面板可切换查看 Intent 识别结果、已注册 Skills、运行时 Config
-- 左侧 Sidebar 支持切换租户、查看 Session 统计
+- **Streaming 模式**：SSE 实时输出，逐 token 渲染，并透出 thinking 事件
+- **ReAct Agent 模式**：多步 Function Calling / MCP 工具循环
+- **Orchestrate 模式**：路由到 Coder / Planner / General Specialist Agent
+- **左侧 Sidebar**：多会话、知识库、工具、模型选择、设置入口
+- **主 Chat 区域**：Markdown、代码高亮、重试 / regenerate、token 与 latency 元信息
+- **右侧 Runtime Panel**：Thinking、RAG retrieval、retrieved chunks、tool calls、MCP execution、memory updates、compression summaries、latency / metrics
 
 即使未配置外部 LLM（`OPENAI_API_KEY` 为空），离线兜底路径也会返回非 500 响应，前端可正常展示完整流程。
 
