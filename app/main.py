@@ -30,7 +30,6 @@ from app.middleware.telemetry import TelemetryMiddleware
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
 from app.plugins.manager import PluginManager
-from app.rag.service import RAGService
 from app.retrieval.service import RetrievalService
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry

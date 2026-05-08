@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.documents.repository import DocumentRepository
-from app.documents.schemas import DocumentChunksResponse, DocumentListResponse, DocumentRead, DocumentUploadResponse
+from app.documents.schemas import (
+    DocumentChunksResponse,
+    DocumentListResponse,
+    DocumentRead,
+    DocumentUploadResponse,
+)
 from app.documents.service import DocumentService, DocumentValidationError
 from app.ingestion.tasks import ingest_document_task
 from app.retrieval.chroma_store import ChromaDocumentStore
