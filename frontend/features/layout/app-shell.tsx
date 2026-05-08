@@ -10,6 +10,7 @@ import { MessageList } from "@/features/chat/message-list";
 import { RuntimePanel } from "@/features/runtime/runtime-panel";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { apiClient } from "@/services/api-client";
+import { searchRetrieval } from "@/services/retrieval";
 import { streamChat } from "@/services/streaming";
 import { useAgentStore } from "@/store/agent-store";
 import type { ReactAgentResponse, RuntimeEvent, ToolCall } from "@/types/agent";
@@ -70,8 +71,30 @@ export function AppShell() {
       });
 
       seedRuntime(message);
-
       try {
+        const retrieval = await searchRetrieval(message).catch(() => null);
+        if (retrieval?.results?.length) {
+          addRuntimeEvent({
+            id: crypto.randomUUID(),
+            type: "retrieval",
+            title: "Knowledge retrieval completed",
+            detail: `${retrieval.results.length} chunks matched current query.`,
+            status: "success",
+            timestamp: Date.now(),
+          });
+          setRetrievedChunks(
+            retrieval.results.map((item) => ({
+              id: item.chunk_id,
+              source: item.source.filename || item.document_id,
+              score: item.score,
+              text: item.content,
+              documentId: item.document_id,
+              chunkId: item.chunk_id,
+              pageNumber: item.source.page_number,
+              title: item.source.title || item.source.filename || item.document_id,
+            })),
+          );
+        }
         if (mode === "stream") {
           await streamChat({
             baseUrl: apiBaseUrl,
@@ -87,6 +110,25 @@ export function AppShell() {
                 appendMessageContent(activeSessionId, assistantId, delta);
               },
               onThinking: (delta) => runtimeEvent("thinking", "Thinking state", delta, "running"),
+              onRetrieval: (data) => {
+                runtimeEvent("retrieval", "Knowledge retrieval completed", `${String(data.count ?? 0)} chunks matched current query.`, "success");
+              },
+              onChunk: (data) => {
+                const source = (data.source ?? {}) as Record<string, unknown>;
+                setRetrievedChunks([
+                  ...useAgentStore.getState().runtime.retrievedChunks,
+                  {
+                    id: String(data.chunk_id ?? crypto.randomUUID()),
+                    source: String(source.filename ?? data.document_id ?? "document"),
+                    score: Number(data.score ?? 0),
+                    text: String(data.content ?? ""),
+                    documentId: String(data.document_id ?? ""),
+                    chunkId: String(data.chunk_id ?? ""),
+                    pageNumber: source.page_number ? Number(source.page_number) : null,
+                    title: String(source.title ?? source.filename ?? data.document_id ?? "document"),
+                  },
+                ]);
+              },
               onDone: (data) => {
                 runtimeEvent("metrics", "Stream completed", "SSE response closed successfully.", "success");
                 setMetrics({ latencyMs: Number(data.stream_latency ?? 0) * 1000 });
@@ -100,15 +142,26 @@ export function AppShell() {
             tokens: estimateTokens(streamedAssistantText),
           });
         } else {
-          const result = mode === "react" ? await client.react(activeSessionId, message) : await client.orchestrate(activeSessionId, message);
-          hydrateAgentResult(result);
+          const response = await client.chat(activeSessionId, message);
           updateMessage(activeSessionId, assistantId, {
-            content: result.final_answer,
+            content: response.reply,
             status: "success",
             latencyMs: performance.now() - startedAt,
-            intent: result.intent ?? result.route,
-            tokens: estimateTokens(result.final_answer),
+            intent: response.intent,
+            tokens: estimateTokens(response.reply),
+            usedSkills: response.used_skills,
+            citations: response.citations,
           });
+          if (response.citations?.length) {
+            addRuntimeEvent({
+              id: crypto.randomUUID(),
+              type: "retrieval",
+              title: "Citations attached",
+              detail: `${response.citations.length} sources attached to final answer.`,
+              status: "success",
+              timestamp: Date.now(),
+            });
+          }
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error("Request failed");
@@ -125,11 +178,8 @@ export function AppShell() {
 
       function seedRuntime(query: string) {
         addRuntimeEvent({ id: crypto.randomUUID(), type: "thinking", title: "Intent router", detail: `Classifying: ${query.slice(0, 90)}`, status: "running", timestamp: Date.now() });
-        addRuntimeEvent({ id: crypto.randomUUID(), type: "retrieval", title: "RAG retrieval queued", detail: "Working memory and vector archive are selected for context assembly.", status: "pending", timestamp: Date.now() });
-        setRetrievedChunks([
-          { id: "working-memory", source: "working_memory", score: 0.86, text: "Recent session turns are injected into the prompt builder." },
-          { id: "vector-archive", source: "long_term_memory", score: 0.74, text: "Compressed summaries and vector matches are available when intent policy requests them." },
-        ]);
+        addRuntimeEvent({ id: crypto.randomUUID(), type: "retrieval", title: "RAG retrieval queued", detail: "Document knowledge base and memory context are being prepared.", status: "pending", timestamp: Date.now() });
+        setRetrievedChunks([]);
       }
 
       function hydrateAgentResult(result: ReactAgentResponse) {

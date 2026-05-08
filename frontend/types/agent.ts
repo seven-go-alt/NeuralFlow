@@ -25,6 +25,13 @@ export interface ChatMessage {
   latencyMs?: number;
   intent?: string;
   usedSkills?: string[];
+  citations?: Array<{
+    index: number;
+    label: string;
+    document_id: string;
+    chunk_id: string;
+    page_number?: number | null;
+  }>;
 }
 
 export interface ConversationSession {
@@ -51,6 +58,10 @@ export interface RetrievedChunk {
   source: string;
   score: number;
   text: string;
+  documentId?: string;
+  chunkId?: string;
+  pageNumber?: number | null;
+  title?: string | null;
 }
 
 export interface ToolCall {
@@ -95,6 +106,13 @@ export interface ChatResponse {
   reply: string;
   used_skills: string[];
   skill_results: Array<{ skill: string; result: unknown }>;
+  citations?: Array<{
+    index: number;
+    label: string;
+    document_id: string;
+    chunk_id: string;
+    page_number?: number | null;
+  }>;
 }
 
 export interface ReactAgentResponse {

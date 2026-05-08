@@ -21,7 +21,7 @@ export class ApiClient {
   }
 
   async chat(sessionId: string, message: string) {
-    return this.post<ChatResponse>("/chat", { session_id: sessionId, message });
+    return this.post<ChatResponse>("/chat", { session_id: sessionId, message, use_retrieval: true });
   }
 
   async react(sessionId: string, message: string) {

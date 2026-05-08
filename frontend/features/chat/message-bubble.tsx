@@ -2,6 +2,7 @@
 
 import { Bot, Clock3, Copy, RefreshCw, RotateCcw, User } from "lucide-react";
 
+import { CitationList } from "@/components/rag/citation-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { compactNumber, formatLatency } from "@/lib/utils";
@@ -35,6 +36,7 @@ export function MessageBubble({ message, onRetry }: { message: ChatMessage; onRe
               Waiting for runtime output
             </div>
           )}
+          {!isUser && message.citations?.length ? <CitationList citations={message.citations} /> : null}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
           {message.intent && <Badge tone="violet">{message.intent}</Badge>}

@@ -76,6 +76,12 @@ export function Sidebar() {
           </div>
         </section>
         <ResourceGroups />
+        <section>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Knowledge Base</div>
+          <a href="/documents" className="block rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-200 transition-colors hover:bg-zinc-900">
+            Documents / RAG Console
+          </a>
+        </section>
       </div>
     </aside>
   );

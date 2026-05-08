@@ -4,6 +4,8 @@ export interface StreamCallbacks {
   onThinking?: (delta: string) => void;
   onDone?: (data: Record<string, unknown>) => void;
   onError?: (error: Error) => void;
+  onRetrieval?: (data: Record<string, unknown>) => void;
+  onChunk?: (data: Record<string, unknown>) => void;
 }
 
 export async function streamChat({
@@ -58,6 +60,8 @@ export async function streamChat({
       if (parsed.event === "message") callbacks.onDelta?.(delta);
       if (parsed.event === "thinking") callbacks.onThinking?.(delta);
       if (parsed.event === "done") callbacks.onDone?.(parsed.data);
+      if (parsed.event === "retrieval") callbacks.onRetrieval?.(parsed.data);
+      if (parsed.event === "chunk") callbacks.onChunk?.(parsed.data);
       if (parsed.event === "error") callbacks.onError?.(new Error(String(parsed.data.error ?? "Stream error")));
     }
   }
