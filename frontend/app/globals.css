@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "highlight.js/styles/github-dark.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: dark;
+  --background: 222 22% 7%;
+  --foreground: 210 30% 96%;
+  --muted: 220 14% 13%;
+  --muted-foreground: 218 12% 68%;
+  --popover: 222 18% 9%;
+  --popover-foreground: 210 30% 96%;
+  --card: 222 17% 10%;
+  --card-foreground: 210 30% 96%;
+  --border: 220 13% 18%;
+  --input: 220 13% 18%;
+  --primary: 186 88% 43%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 220 13% 16%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 259 75% 66%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 75% 57%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 186 88% 43%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  min-height: 100%;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+body {
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgb(8 47 73 / 0.18), transparent 32%),
+    linear-gradient(245deg, rgb(88 28 135 / 0.16), transparent 34%),
+    radial-gradient(circle at 52% 0%, rgb(20 184 166 / 0.1), transparent 28%);
+}
+
+button,
+select,
+textarea,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+
+.runtime-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.32) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.32) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.console-surface {
+  background:
+    linear-gradient(180deg, rgb(24 24 27 / 0.72), rgb(9 9 11 / 0.9)),
+    hsl(var(--background));
+}
+
+.hairline-panel {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 18px 60px rgb(0 0 0 / 0.18);
+}
+
+.scanline {
+  background-image: linear-gradient(90deg, transparent, rgb(34 211 238 / 0.45), transparent);
+}
+
+.markdown {
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.markdown p {
+  margin: 0.55rem 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.55rem 0 0.55rem 1.1rem;
+}
+
+.markdown li {
+  margin: 0.25rem 0;
+}
+
+.markdown a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markdown code:not(pre code) {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.35rem;
+  background: hsl(var(--muted));
+  padding: 0.1rem 0.35rem;
+  font-size: 0.82em;
+}
+
+.markdown pre {
+  margin: 0.8rem 0;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background: #090d14;
+  padding: 0.9rem;
+}
+
+.markdown blockquote {
+  border-left: 2px solid hsl(var(--primary));
+  color: hsl(var(--muted-foreground));
+  margin: 0.75rem 0;
+  padding-left: 0.8rem;
+}
