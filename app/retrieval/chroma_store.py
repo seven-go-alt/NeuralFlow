@@ -20,7 +20,7 @@ class ChromaDocumentStore:
         try:
             self.collection.upsert(
                 ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings
-            )
+            ) # type: ignore[arg-type]
         except AttributeError:
             self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
 
