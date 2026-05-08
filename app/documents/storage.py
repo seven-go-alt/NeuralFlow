@@ -13,7 +13,7 @@ from app.config import get_settings
 class LocalDocumentStorage:
     def __init__(self, base_dir: str | None = None) -> None:
         settings = get_settings()
-        default_dir = os.path.join("data", "uploads")
+        os.path.join("data", "uploads")
         self.base_dir = Path(base_dir or getattr(settings, "documents_storage_dir", "."))
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
