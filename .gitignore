@@ -7,3 +7,5 @@ chroma_data/
 redis_data/
 var/
 *.pyc
+data/neuralflow.db
+data/uploads/

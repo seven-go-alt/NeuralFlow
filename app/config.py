@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8000
     chroma_collection: str = "conversation_memory"
+    document_chroma_collection: str = "document_knowledge"
+
+    database_url: str = Field(default="sqlite:///./data/neuralflow.db", alias="DATABASE_URL")
+    documents_storage_dir: str = Field(default="data/uploads", alias="DOCUMENTS_STORAGE_DIR")
+    document_max_upload_mb: int = 50
+    rag_default_top_k: int = 5
+    rag_score_threshold: float = 0.2
+    embedding_model: str = "text-embedding-3-small"
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

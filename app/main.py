@@ -15,17 +15,23 @@ from pydantic import BaseModel, ValidationError
 
 from app.agents.orchestrator import AgentOrchestrator
 from app.agents.react import ReActAgent
+from app.api.documents import router as documents_router
+from app.api.retrieval import router as retrieval_router
 from app.api.streaming import StreamTaskRegistry, create_sse_response
 from app.config import get_settings
 from app.config_manager import ConfigManager
 from app.core.context import ContextBuilder
 from app.core.intent_router import IntentDetectionResult, IntentRouter
 from app.core.llm import LLMClient, build_rule_based_fallback_reply
+from app.db.session import init_db
+from app.documents.repository import DocumentRepository
 from app.memory.working import WorkingMemory
 from app.middleware.telemetry import TelemetryMiddleware
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
 from app.plugins.manager import PluginManager
+from app.rag.service import RAGService
+from app.retrieval.service import RetrievalService
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
@@ -36,6 +42,7 @@ settings = get_settings()
 audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
 observability = create_observability()
 app = FastAPI(title=settings.app_name)
+init_db()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,6 +52,8 @@ app.add_middleware(
 )
 app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
+app.include_router(documents_router)
+app.include_router(retrieval_router)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
 intent_router = IntentRouter()
 llm_client = LLMClient()
@@ -68,6 +77,8 @@ async def serve_frontend():
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    use_retrieval: bool = True
+    retrieval_options: dict[str, Any] | None = None
 
 
 class SkillResponse(BaseModel):
@@ -91,6 +102,7 @@ class ChatResponse(BaseModel):
     reply: str
     used_skills: list[str]
     skill_results: list[SkillExecutionResponse]
+    citations: list[dict[str, Any]] = []
 
 
 class IntentDetectRequest(BaseModel):
@@ -232,6 +244,7 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
         reply=reply,
         used_skills=[item["skill"] for item in payload["skill_results"]],
         skill_results=[SkillExecutionResponse(**item) for item in payload["skill_results"]],
+        citations=payload.get("rag_citations", []),
     )
 
 
@@ -244,6 +257,25 @@ async def chat_stream(http_request: Request, request: ChatRequest, include_think
     include_reasoning = runtime_config.stream_thinking_enabled if include_thinking is None else include_thinking
 
     async def event_source() -> AsyncIterator[dict[str, dict | str | float]]:
+        if payload.get("retrieval_results"):
+            yield {
+                "event": "retrieval",
+                "data": {
+                    "count": len(payload["retrieval_results"]),
+                    "citations": payload.get("rag_citations", []),
+                },
+            }
+            for item in payload["retrieval_results"]:
+                yield {
+                    "event": "chunk",
+                    "data": {
+                        "chunk_id": item.get("chunk_id"),
+                        "document_id": item.get("document_id"),
+                        "content": item.get("content"),
+                        "score": item.get("score"),
+                        "source": item.get("source", {}),
+                    },
+                }
         reply_parts: list[str] = []
         async for chunk in _stream_reply_with_fallback(payload["prompt"], include_thinking=include_reasoning):
             if chunk["event"] == "message":
@@ -389,6 +421,33 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         tenant_context=tenant_context,
     )
 
+    rag_results: list[dict[str, Any]] = []
+    rag_citations: list[dict[str, Any]] = []
+    rag_context = ""
+    if request.use_retrieval:
+        from app.db.session import SessionLocal
+        from app.rag.context_builder import RAGContextBuilder
+        from app.retrieval.schemas import RetrievalRequest
+
+        db = SessionLocal()
+        try:
+            retrieval_service = RetrievalService(document_repo=DocumentRepository(db))
+            retrieval_request = RetrievalRequest(
+                query=request.message,
+                top_k=(request.retrieval_options or {}).get("top_k", settings.rag_default_top_k),
+                score_threshold=(request.retrieval_options or {}).get("score_threshold", settings.rag_score_threshold),
+                filters=(request.retrieval_options or {}).get("filters", {}),
+            )
+            retrieval_response = await retrieval_service.search(tenant_id=tenant_id, request=retrieval_request)
+            rag_build = RAGContextBuilder().build(query=request.message, results=retrieval_response.results)
+            rag_results = [item.model_dump() for item in retrieval_response.results]
+            rag_citations = rag_build.citations
+            rag_context = rag_build.context
+        except Exception:
+            logger.warning("rag retrieval failed", exc_info=True)
+        finally:
+            db.close()
+
     try:
         context_builder = ContextBuilder(
             session_id=request.session_id,
@@ -406,11 +465,15 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         skill_whitelist=primary_policy.skill_whitelist,
         skill_results=skill_results,
     )
+    if rag_context:
+        prompt = f"{prompt}\n\n---\n企业知识库检索上下文（回答时优先参考并尽量给出引用）:\n{rag_context}"
     return {
         "working_memory": working_memory,
         "intent": routed.primary_intent,
         "prompt": prompt,
         "skill_results": skill_results,
+        "retrieval_results": rag_results,
+        "rag_citations": rag_citations,
     }
 
 
