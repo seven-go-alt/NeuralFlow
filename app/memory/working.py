@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 import redis
 
@@ -11,13 +11,23 @@ from app.utils.redis_client import get_redis_client
 logger = logging.getLogger(__name__)
 
 
+class RedisLike(Protocol):
+    def lpush(self, key: str, value: str) -> Any: ...
+
+    def ltrim(self, key: str, start: int, end: int) -> Any: ...
+
+    def lrange(self, key: str, start: int, end: int) -> Any: ...
+
+    def delete(self, key: str) -> Any: ...
+
+
 class WorkingMemory(MemoryStore):
     def __init__(
         self,
         session_id: str,
         max_turns: int | None = None,
         archive_batch_size: int = 4,
-        client: redis.Redis | None = None,
+        client: redis.Redis | RedisLike | None = None,
         tenant_id: str = "public",
     ) -> None:
         settings = get_settings()

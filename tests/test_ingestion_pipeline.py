@@ -7,8 +7,10 @@ from uuid import uuid4
 import pytest
 
 from app.documents.schemas import ParsedDocument, ParsedSection
+from app.embeddings.service import EmbeddingService
 from app.ingestion.chunking import RecursiveChunkSplitter
 from app.ingestion.pipeline import IngestionPipeline
+from app.retrieval.chroma_store import ChromaDocumentStore
 
 
 class StubParser:
@@ -36,12 +38,12 @@ class StubParser:
         )
 
 
-class StubEmbeddingService:
+class StubEmbeddingService(EmbeddingService):
     async def embed_texts(self, texts: list[str], model: str) -> list[list[float]]:
         return [[0.1, 0.2, 0.3] for _ in texts]
 
 
-class StubStore:
+class StubStore(ChromaDocumentStore):
     def __init__(self) -> None:
         self.upserts: list[list[dict]] = []
 

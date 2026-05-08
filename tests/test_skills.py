@@ -217,7 +217,7 @@ def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch
     monkeypatch.setattr("app.main.llm_client", llm)
     monkeypatch.setattr(
         "app.main.WorkingMemory",
-        lambda session_id: WorkingMemory(session_id=session_id, client=BrokenRedisClient()),  # type: ignore[arg-type]
+        lambda session_id: WorkingMemory(session_id=session_id, client=BrokenRedisClient()),
     )
     monkeypatch.setattr("app.main.ContextBuilder", StubContextBuilder)
 

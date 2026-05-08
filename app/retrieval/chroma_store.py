@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+import dataclasses
+from typing import Any, cast
 
 from app.utils.vector_client import get_vector_client
 
@@ -17,19 +18,28 @@ class ChromaDocumentStore:
         documents = [chunk["content"] for chunk in chunks]
         metadatas = [chunk["metadata"] for chunk in chunks]
         embeddings = [chunk.get("embedding") for chunk in chunks]
+        if any(embedding is None for embedding in embeddings):
+            raise ValueError("All chunks must have embeddings before upsert")
         try:
             self.collection.upsert(
-                ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings
-            ) # type: ignore[arg-type]
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas,
+                embeddings=embeddings,  # type: ignore[arg-type]
+            )
         except AttributeError:
             self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
 
     def query(
         self, query_text: str, top_k: int, where: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        return self.collection.query(query_texts=[query_text], n_results=top_k, where=where)
+        result = self.collection.query(query_texts=[query_text], n_results=top_k, where=where)
+        if isinstance(result, dict):
+            return cast(dict[str, Any], result)
+        # result is QueryResult, convert to dict
+        return dataclasses.asdict(result)
 
     def delete_document(self, tenant_id: str, document_id: str) -> None:
         where = {"$and": [{"tenant_id": tenant_id}, {"document_id": document_id}]}
         if hasattr(self.collection, "delete"):
-            self.collection.delete(where=where)
+            self.collection.delete(where=where)  # type: ignore[arg-type]

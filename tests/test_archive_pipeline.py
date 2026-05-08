@@ -61,7 +61,7 @@ def test_working_memory_moves_overflow_messages_to_archive_queue() -> None:
     redis_client = FakeRedis()
     memory = WorkingMemory(
         session_id="demo", max_turns=2, archive_batch_size=4, client=redis_client
-    )  # type: ignore[arg-type]
+    )
 
     memory.add_message("user", "u1")
     memory.add_message("assistant", "a1")

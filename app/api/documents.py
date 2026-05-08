@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.documents.enums import DocumentStatus
 from app.documents.repository import DocumentRepository
 from app.documents.schemas import (
+    DocumentChunkRead,
     DocumentChunksResponse,
     DocumentListResponse,
     DocumentRead,
@@ -43,7 +45,7 @@ async def upload_document(
     return DocumentUploadResponse(
         document_id=refreshed.document_id,
         filename=refreshed.original_filename,
-        status=refreshed.status,
+        status=DocumentStatus(refreshed.status),
         tenant_id=refreshed.tenant_id,
         owner_user_id=refreshed.owner_user_id,
         created_at=refreshed.created_at,
@@ -93,7 +95,10 @@ def list_document_chunks(document_id: str, request: Request, db: Session = Depen
     tenant_id = getattr(request.state, "tenant_id", "public")
     repo = DocumentRepository(db)
     items, total = repo.list_chunks(tenant_id=tenant_id, document_id=document_id)
-    return DocumentChunksResponse(items=items, total=total)
+    return DocumentChunksResponse(
+        items=[DocumentChunkRead.model_validate(item) for item in items],
+        total=total,
+    )
 
 
 @router.delete("/{document_id}")
