@@ -1,11 +1,28 @@
 "use client";
 
-import { Database, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Database, ExternalLink, Info, OctagonAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import type { RetrievedChunk } from "@/types/agent";
+import { useAgentStore } from "@/store/agent-store";
+import type { RetrievedChunk, RuntimeHint } from "@/types/agent";
+
+function HintCard({ hint }: { hint: RuntimeHint }) {
+  const Icon = hint.kind === "error" ? OctagonAlert : hint.kind === "warning" ? AlertTriangle : Info;
+  const tone = hint.kind === "error" ? "text-rose-300" : hint.kind === "warning" ? "text-amber-300" : "text-cyan-300";
+
+  return (
+    <div className="rounded-lg border p-4 text-xs leading-5 text-zinc-400">
+      <Icon className={`mb-2 h-4 w-4 ${tone}`} />
+      <div className="font-medium text-zinc-200">{hint.title}</div>
+      <div className="mt-1">{hint.detail}</div>
+    </div>
+  );
+}
 
 export function RetrievedChunks({ chunks }: { chunks: RetrievedChunk[] }) {
+  const hint = useAgentStore((state) => state.runtime.hint);
+
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
@@ -13,7 +30,8 @@ export function RetrievedChunks({ chunks }: { chunks: RetrievedChunk[] }) {
         <Badge tone="emerald">{chunks.length}</Badge>
       </div>
       <div className="space-y-2">
-        {chunks.length === 0 && (
+        {chunks.length === 0 && hint ? <HintCard hint={hint} /> : null}
+        {chunks.length === 0 && !hint && (
           <div className="rounded-lg border p-4 text-xs leading-5 text-zinc-500">
             <Database className="mb-2 h-4 w-4" />
             RAG evidence will appear after retrieval executes.
@@ -29,10 +47,10 @@ export function RetrievedChunks({ chunks }: { chunks: RetrievedChunk[] }) {
               <span>{chunk.source}</span>
               {chunk.pageNumber ? <span>· p.{chunk.pageNumber}</span> : null}
               {chunk.documentId ? (
-                <a href={`/documents/${chunk.documentId}`} className="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200">
+                <Link href={`/documents/${chunk.documentId}`} className="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200">
                   source
                   <ExternalLink className="h-3 w-3" />
-                </a>
+                </Link>
               ) : null}
             </div>
             <p className="mt-2 line-clamp-5 text-xs leading-5 text-zinc-500">{chunk.text}</p>

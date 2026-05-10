@@ -22,6 +22,20 @@ export interface DocumentItem {
   indexed_at?: string | null;
 }
 
+export const PROCESSING_DOCUMENT_STATUSES = ["uploaded", "queued", "parsing", "chunking", "embedding", "indexing"] as const;
+
+export function isDocumentReady(status: string) {
+  return status === "ready";
+}
+
+export function isDocumentFailed(status: string) {
+  return status === "failed";
+}
+
+export function isDocumentProcessing(status: string) {
+  return PROCESSING_DOCUMENT_STATUSES.includes(status as (typeof PROCESSING_DOCUMENT_STATUSES)[number]);
+}
+
 export interface DocumentListResponse {
   items: DocumentItem[];
   total: number;

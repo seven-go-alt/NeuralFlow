@@ -19,3 +19,12 @@ export async function getDocumentChunks(documentId: string): Promise<DocumentChu
   if (!response.ok) throw new Error("Failed to load document chunks");
   return response.json();
 }
+
+export async function reindexDocument(documentId: string): Promise<{ ok: boolean; document_id: string; status: string }> {
+  const response = await fetch(`${API_BASE}/api/documents/${documentId}/reindex`, {
+    method: "POST",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Failed to reindex document");
+  return response.json();
+}
