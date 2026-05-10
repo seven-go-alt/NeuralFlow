@@ -4,7 +4,6 @@ from celery import Celery
 
 from app.config import get_settings
 from app.core.llm import LLMClient
-from app.ingestion.tasks import ingest_document_task
 from app.memory.long_term import LongTermMemory
 from app.memory.summarizer import Summarizer
 
@@ -18,7 +17,9 @@ celery_app = Celery(
 celery_app.conf.task_routes = {
     "neuralflow.ingest_document": {"queue": "documents"},
 }
-celery_app.tasks.register(ingest_document_task)
+
+# Import shared tasks after celery_app initialization to avoid circular import
+from app.ingestion.tasks import ingest_document_task  # noqa: E402
 
 
 @celery_app.task
