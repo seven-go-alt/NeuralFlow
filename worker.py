@@ -19,7 +19,7 @@ celery_app.conf.task_routes = {
 }
 
 # Import shared tasks after celery_app initialization to avoid circular import
-from app.ingestion.tasks import ingest_document_task  # noqa: E402
+from app.ingestion.tasks import ingest_document_task  # noqa: E402,F401
 
 
 @celery_app.task
