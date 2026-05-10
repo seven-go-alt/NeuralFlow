@@ -14,12 +14,14 @@ export async function streamChat({
   message,
   signal,
   callbacks,
+  retrievalOptions,
 }: {
   baseUrl: string;
   sessionId: string;
   message: string;
   signal?: AbortSignal;
   callbacks: StreamCallbacks;
+  retrievalOptions?: Record<string, unknown>;
 }) {
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/stream?include_thinking=true`, {
     method: "POST",
@@ -27,7 +29,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Accept: "text/event-stream",
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, use_retrieval: true, retrieval_options: retrievalOptions }),
     signal,
   });
 

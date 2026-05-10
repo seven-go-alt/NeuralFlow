@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bot, Cpu, GitBranch, Radio, Route } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -78,9 +79,9 @@ export function Sidebar() {
         <ResourceGroups />
         <section>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Knowledge Base</div>
-          <a href="/documents" className="block rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-200 transition-colors hover:bg-zinc-900">
+          <Link href="/documents" className="block rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-200 transition-colors hover:bg-zinc-900">
             Documents / RAG Console
-          </a>
+          </Link>
         </section>
       </div>
     </aside>

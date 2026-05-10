@@ -20,8 +20,13 @@ export class ApiClient {
     return this.post<{ model: string; message: string }>("/api/models/switch", { model });
   }
 
-  async chat(sessionId: string, message: string) {
-    return this.post<ChatResponse>("/chat", { session_id: sessionId, message, use_retrieval: true });
+  async chat(sessionId: string, message: string, options?: { documentIds?: string[] }) {
+    return this.post<ChatResponse>("/chat", {
+      session_id: sessionId,
+      message,
+      use_retrieval: true,
+      retrieval_options: { filters: { document_ids: options?.documentIds ?? [] } },
+    });
   }
 
   async react(sessionId: string, message: string) {

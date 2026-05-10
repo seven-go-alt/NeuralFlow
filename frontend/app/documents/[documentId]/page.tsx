@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { DocumentActions } from "@/components/documents/document-actions";
 import { getDocument, getDocumentChunks } from "@/services/documents";
 
 export default async function DocumentDetailPage({ params }: { params: Promise<{ documentId: string }> }) {
@@ -11,10 +14,11 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
     <main className="min-h-screen bg-zinc-950 px-6 py-8 text-zinc-100">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <a href="/documents" className="text-sm text-cyan-300">← Back to documents</a>
+          <Link href="/documents" className="text-sm text-cyan-300">← Back to documents</Link>
           <div className="mt-3 text-2xl font-semibold">{document.title || document.original_filename}</div>
           <div className="mt-1 text-sm text-zinc-500">{document.original_filename} · {document.file_type.toUpperCase()} · {document.status}</div>
         </div>
+        <DocumentActions document={document} />
         <section className="grid gap-4 md:grid-cols-4">
           {[
             ["Chunks", String(document.chunk_count)],

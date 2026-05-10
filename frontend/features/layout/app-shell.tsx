@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Boxes, Database, GitBranch, Menu, PanelRightOpen, Search, Server, Sparkles } from "lucide-react";
+import { Boxes, Database, FileText, GitBranch, Menu, PanelRightOpen, Search, Server, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ChatComposer } from "@/features/chat/chat-composer";
@@ -21,6 +21,7 @@ export function AppShell() {
   const abortRef = useRef<AbortController | null>(null);
   const {
     activeSessionId,
+    sessions,
     messages,
     mode,
     apiBaseUrl,
@@ -33,11 +34,17 @@ export function AppShell() {
     addToolCall,
     setRetrievedChunks,
     setMetrics,
+    setRuntimeHint,
     resetRuntime,
     setStreaming,
     toggleRightPanel,
     toggleSidebar,
+    setSessionDocument,
   } = useAgentStore();
+
+  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
+  const activeDocument = activeSession?.activeDocument ?? null;
+  const activeDocumentIds = activeDocument ? [activeDocument.documentId] : [];
 
   const client = apiClient(apiBaseUrl);
   const { data: health, isError } = useQuery({ queryKey: ["health", apiBaseUrl], queryFn: () => client.health(), refetchInterval: 15_000 });
@@ -72,13 +79,13 @@ export function AppShell() {
 
       seedRuntime(message);
       try {
-        const retrieval = await searchRetrieval(message).catch(() => null);
+        const retrieval = await searchRetrieval(message, { documentIds: activeDocumentIds }).catch(() => null);
         if (retrieval?.results?.length) {
           addRuntimeEvent({
             id: crypto.randomUUID(),
             type: "retrieval",
-            title: "Knowledge retrieval completed",
-            detail: `${retrieval.results.length} chunks matched current query.`,
+            title: activeDocument ? `Document retrieval completed` : "Knowledge retrieval completed",
+            detail: `${retrieval.results.length} chunks matched current query.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
             status: "success",
             timestamp: Date.now(),
           });
@@ -94,6 +101,19 @@ export function AppShell() {
               title: item.source.title || item.source.filename || item.document_id,
             })),
           );
+          setRuntimeHint(null);
+        } else if (activeDocument) {
+          setRuntimeHint({
+            kind: "warning",
+            title: "No matching chunks in current document",
+            detail: `Nothing in ${activeDocument.title} matched this query yet. Try a more specific question or reindex the document if it was recently uploaded.`,
+          });
+        } else {
+          setRuntimeHint({
+            kind: "info",
+            title: "No retrieval evidence yet",
+            detail: "The current query did not match any indexed chunks. Try a more specific question or upload a document first.",
+          });
         }
         if (mode === "stream") {
           await streamChat({
@@ -111,7 +131,7 @@ export function AppShell() {
               },
               onThinking: (delta) => runtimeEvent("thinking", "Thinking state", delta, "running"),
               onRetrieval: (data) => {
-                runtimeEvent("retrieval", "Knowledge retrieval completed", `${String(data.count ?? 0)} chunks matched current query.`, "success");
+                runtimeEvent("retrieval", activeDocument ? "Document retrieval completed" : "Knowledge retrieval completed", `${String(data.count ?? 0)} chunks matched current query.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`, "success");
               },
               onChunk: (data) => {
                 const source = (data.source ?? {}) as Record<string, unknown>;
@@ -128,6 +148,7 @@ export function AppShell() {
                     title: String(source.title ?? source.filename ?? data.document_id ?? "document"),
                   },
                 ]);
+                setRuntimeHint(null);
               },
               onDone: (data) => {
                 runtimeEvent("metrics", "Stream completed", "SSE response closed successfully.", "success");
@@ -135,6 +156,7 @@ export function AppShell() {
               },
               onError: (error) => runtimeEvent("error", "Stream error", error.message, "error"),
             },
+            retrievalOptions: activeDocumentIds.length ? { filters: { document_ids: activeDocumentIds } } : undefined,
           });
           updateMessage(activeSessionId, assistantId, {
             status: "success",
@@ -142,7 +164,7 @@ export function AppShell() {
             tokens: estimateTokens(streamedAssistantText),
           });
         } else {
-          const response = await client.chat(activeSessionId, message);
+          const response = await client.chat(activeSessionId, message, { documentIds: activeDocumentIds });
           updateMessage(activeSessionId, assistantId, {
             content: response.reply,
             status: "success",
@@ -157,16 +179,18 @@ export function AppShell() {
               id: crypto.randomUUID(),
               type: "retrieval",
               title: "Citations attached",
-              detail: `${response.citations.length} sources attached to final answer.`,
+              detail: `${response.citations.length} sources attached to final answer.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
               status: "success",
               timestamp: Date.now(),
             });
+            setRuntimeHint(null);
           }
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error("Request failed");
         updateMessage(activeSessionId, assistantId, { content: err.message, status: "error", latencyMs: performance.now() - startedAt });
         runtimeEvent("error", "Runtime failure", err.message, "error");
+        setRuntimeHint({ kind: "error", title: "Request failed", detail: err.message });
       } finally {
         setStreaming(false);
         abortRef.current = null;
@@ -178,11 +202,29 @@ export function AppShell() {
 
       function seedRuntime(query: string) {
         addRuntimeEvent({ id: crypto.randomUUID(), type: "thinking", title: "Intent router", detail: `Classifying: ${query.slice(0, 90)}`, status: "running", timestamp: Date.now() });
-        addRuntimeEvent({ id: crypto.randomUUID(), type: "retrieval", title: "RAG retrieval queued", detail: "Document knowledge base and memory context are being prepared.", status: "pending", timestamp: Date.now() });
+        addRuntimeEvent({
+          id: crypto.randomUUID(),
+          type: "retrieval",
+          title: "RAG retrieval queued",
+          detail: activeDocument
+            ? `Preparing retrieval for ${activeDocument.title}.`
+            : "Document knowledge base and memory context are being prepared.",
+          status: "pending",
+          timestamp: Date.now(),
+        });
         setRetrievedChunks([]);
+        setRuntimeHint(
+          activeDocument
+            ? {
+                kind: "info",
+                title: "Scoped to current document",
+                detail: `This session is limited to ${activeDocument.title}. Clear the document badge in the header to search across the full knowledge base.`,
+              }
+            : null,
+        );
       }
 
-      function hydrateAgentResult(result: ReactAgentResponse) {
+      function _hydrateAgentResult(result: ReactAgentResponse) {
         addRuntimeEvent({
           id: crypto.randomUUID(),
           type: "thinking",
@@ -212,6 +254,8 @@ export function AppShell() {
       }
     },
     [
+      activeDocument,
+      activeDocumentIds,
       activeSessionId,
       addMessage,
       addRuntimeEvent,
@@ -220,11 +264,11 @@ export function AppShell() {
       appendMessageContent,
       client,
       isStreaming,
-      messages,
       mode,
       resetRuntime,
       setMetrics,
       setRetrievedChunks,
+      setRuntimeHint,
       setStreaming,
       updateMessage,
     ],
@@ -251,6 +295,20 @@ export function AppShell() {
               <div className="text-sm font-semibold">Agent Console</div>
               <div className="text-[11px] text-zinc-500">Runtime mode: {mode}</div>
             </div>
+            {activeDocument ? (
+              <div className="hidden items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 md:flex">
+                <FileText className="h-3.5 w-3.5 text-cyan-200" />
+                <div className="max-w-56 truncate text-xs text-cyan-100">{activeDocument.title}</div>
+                <button
+                  type="button"
+                  className="text-zinc-400 transition hover:text-zinc-200"
+                  onClick={() => setSessionDocument(activeSessionId, null)}
+                  title="Clear document scope"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="mx-4 hidden min-w-0 max-w-xl flex-1 items-center rounded-lg border bg-zinc-950/70 px-3 py-2 text-xs text-zinc-500 2xl:flex">
             <Search className="mr-2 h-3.5 w-3.5 text-zinc-600" />

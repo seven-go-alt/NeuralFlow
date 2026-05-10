@@ -1,5 +1,11 @@
 export type ChatMode = "stream" | "react" | "orchestrate";
 
+export interface ActiveDocumentContext {
+  documentId: string;
+  title: string;
+  status: string;
+}
+
 export type MessageRole = "user" | "assistant" | "system";
 
 export type RuntimeStatus = "pending" | "running" | "success" | "error" | "idle";
@@ -40,6 +46,7 @@ export interface ConversationSession {
   updatedAt: number;
   model: string;
   messageCount: number;
+  activeDocument?: ActiveDocumentContext | null;
 }
 
 export interface RuntimeEvent {
@@ -64,6 +71,12 @@ export interface RetrievedChunk {
   title?: string | null;
 }
 
+export interface RuntimeHint {
+  kind: "info" | "warning" | "error";
+  title: string;
+  detail: string;
+}
+
 export interface ToolCall {
   id: string;
   name: string;
@@ -86,6 +99,7 @@ export interface RuntimeSnapshot {
   retrievedChunks: RetrievedChunk[];
   toolCalls: ToolCall[];
   metrics: RuntimeMetrics;
+  hint?: RuntimeHint | null;
 }
 
 export interface Skill {

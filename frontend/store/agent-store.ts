@@ -4,10 +4,12 @@ import { create } from "zustand";
 
 import { createSessionId } from "@/lib/utils";
 import type {
+  ActiveDocumentContext,
   ChatMessage,
   ChatMode,
   ConversationSession,
   RuntimeEvent,
+  RuntimeHint,
   RuntimeMetrics,
   RuntimeSnapshot,
   ToolCall,
@@ -32,6 +34,8 @@ interface AgentState {
   setApiBaseUrl: (url: string) => void;
   setActiveSession: (id: string) => void;
   createSession: () => string;
+  createSessionWithDocument: (document: ActiveDocumentContext, options?: { initialPrompt?: string }) => string;
+  setSessionDocument: (sessionId: string, document: ActiveDocumentContext | null) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   updateMessage: (sessionId: string, messageId: string, patch: Partial<ChatMessage>) => void;
   appendMessageContent: (sessionId: string, messageId: string, delta: string) => void;
@@ -40,6 +44,7 @@ interface AgentState {
   addToolCall: (toolCall: ToolCall) => void;
   setRetrievedChunks: (chunks: RetrievedChunk[]) => void;
   setMetrics: (metrics: RuntimeMetrics) => void;
+  setRuntimeHint: (hint: RuntimeHint | null) => void;
   resetRuntime: () => void;
   setStreaming: (value: boolean) => void;
   toggleRightPanel: () => void;
@@ -51,6 +56,7 @@ const emptyRuntime = (): RuntimeSnapshot => ({
   retrievedChunks: [],
   toolCalls: [],
   metrics: {},
+  hint: null,
 });
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -62,6 +68,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       updatedAt: Date.now(),
       model: "gpt-5.4",
       messageCount: 0,
+      activeDocument: null,
     },
   ],
   messages: { [initialSessionId]: [] },
@@ -88,6 +95,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           updatedAt: Date.now(),
           model: state.model,
           messageCount: 0,
+          activeDocument: null,
         },
         ...state.sessions,
       ],
@@ -95,6 +103,52 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     }));
     return id;
   },
+  createSessionWithDocument: (document, options) => {
+    const id = createSessionId();
+    const initialPrompt = options?.initialPrompt?.trim();
+    set((state) => ({
+      activeSessionId: id,
+      runtime: emptyRuntime(),
+      sessions: [
+        {
+          id,
+          title: document.title || "Document chat",
+          updatedAt: Date.now(),
+          model: state.model,
+          messageCount: initialPrompt ? 1 : 0,
+          activeDocument: document,
+        },
+        ...state.sessions,
+      ],
+      messages: {
+        ...state.messages,
+        [id]: initialPrompt
+          ? [
+              {
+                id: crypto.randomUUID(),
+                role: "user",
+                content: initialPrompt,
+                createdAt: Date.now(),
+                tokens: Math.max(1, Math.ceil(initialPrompt.length / 4)),
+              },
+            ]
+          : [],
+      },
+    }));
+    return id;
+  },
+  setSessionDocument: (sessionId, document) =>
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              activeDocument: document,
+              updatedAt: Date.now(),
+            }
+          : session,
+      ),
+    })),
   addMessage: (sessionId, message) =>
     set((state) => ({
       messages: {
@@ -136,6 +190,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     })),
   setRetrievedChunks: (retrievedChunks) => set((state) => ({ runtime: { ...state.runtime, retrievedChunks } })),
   setMetrics: (metrics) => set((state) => ({ runtime: { ...state.runtime, metrics: { ...state.runtime.metrics, ...metrics } } })),
+  setRuntimeHint: (hint) => set((state) => ({ runtime: { ...state.runtime, hint } })),
   resetRuntime: () => set({ runtime: emptyRuntime() }),
   setStreaming: (isStreaming) => set({ isStreaming }),
   toggleRightPanel: () => set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
