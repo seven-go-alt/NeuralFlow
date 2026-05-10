@@ -70,6 +70,8 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - runtime panel 检索展示
 - 聊天消息下方 source citations 展示
 - 上传后自动刷新文档列表
+- 文档处理中自动轮询状态
+- 文档详情 / 列表页可直接发起单文档总结与 scoped chat
 
 ### 工程能力
 - SQLAlchemy metadata storage
@@ -132,6 +134,33 @@ User Query
   -> LLM Response
   -> Citations / Sources
 ```
+
+---
+
+## 4.5 推荐演示路径（作品集 / 面试展示）
+
+如果你要把这个项目作为求职作品集，最值得展示的是这条完整链路：
+
+1. 启动 **FastAPI / Celery Worker / Next.js Frontend**
+2. 在 `Documents` 页面上传一份 PDF / Markdown / TXT / DOCX
+3. 观察文档状态从 `queued -> parsing -> chunking -> embedding -> indexing -> ready`
+4. 在文档列表页或详情页点击：
+   - `Summarize this document`
+   - `Chat with this document`
+5. 系统会创建一个**绑定当前 document_id 的新会话**
+6. 在首页 Runtime Console 中继续追问，检索会被限制在该文档范围内
+7. 在右侧 runtime panel 查看：
+   - retrieval 事件
+   - matched chunks
+   - source citations
+
+这条流程能够完整展示：
+
+- 异步文档摄入 pipeline
+- 向量检索 + RAG context assembly
+- 单文档 scoped retrieval
+- Agent / Chat runtime observability
+- 前后端联动的产品闭环
 
 ---
 
@@ -295,7 +324,16 @@ uv run uvicorn app.main:app --reload
 ### 8.3 启动 Celery worker
 
 ```bash
-uv run celery -A worker.celery_app worker --loglevel=info
+cd ~/github/NeuralFlow
+. .venv/bin/activate
+python -m celery -A worker.celery_app worker --loglevel=info
+```
+
+或用 uv run：
+
+```bash
+cd ~/github/NeuralFlow
+uv run python -m celery -A worker.celery_app worker --loglevel=info
 ```
 
 ### 8.4 启动前端
@@ -384,10 +422,27 @@ RAG 相关：
 
 ### Step 1: 启动服务
 
+在三个独立的终端中分别运行：
+
+**终端 1 - 后端 API：**
 ```bash
+cd ~/github/NeuralFlow
 uv run uvicorn app.main:app --reload
-uv run celery -A worker.celery_app worker --loglevel=info
-cd frontend && npm run dev
+```
+
+**终端 2 - Celery Worker（文档处理必需）：**
+```bash
+cd ~/github/NeuralFlow
+. .venv/bin/activate
+python -m celery -A worker.celery_app worker --loglevel=info
+```
+
+⚠️ **注意：Celery Worker 必须运行，否则上传的文件无法处理**
+
+**终端 3 - 前端：**
+```bash
+cd ~/github/NeuralFlow/frontend
+npm run dev
 ```
 
 ### Step 2: 打开 Documents 页面
@@ -402,9 +457,11 @@ cd frontend && npm run dev
 - 产品需求 TXT
 - 培训材料 DOCX
 
+**上传前注意：** 一定要确保 Celery Worker 在后台运行（终端 2），否则文件会卡在 `queued` 状态。
+
 观察点：
 - 文档是否出现在列表里
-- 状态是否从 `queued` 进入后续阶段
+- 状态是否从 `queued` → `parsing` → `chunking` → `embedding` → `indexing` → `ready` 进行
 - chunk 数量是否可见
 
 ### Step 3: 检查文档详情
@@ -414,13 +471,46 @@ cd frontend && npm run dev
 - chunk 已生成
 - page / token / section 信息可见
 
-### Step 4: 回到 Chat Console 提问
+### Step 4: 从文档直接发起总结或问答
 
-示例问题：
+**重要：** 只有当文档状态为 `ready` 时，Chat 才能检索到文档内容。上传后，文件会经过以下处理阶段：
+
+1. `uploaded` - 文件已上传
+2. `queued` - 等待 Celery worker 处理  
+3. `parsing` - 解析文件内容中
+4. `chunking` - 分割成 chunks 中
+5. `embedding` - 生成向量嵌入中
+6. `indexing` - 建立 ChromaDB 索引中
+7. `ready` ✓ - **现在可以检索了**
+
+当状态变为 `ready` 后，你现在有两种推荐方式：
+
+#### 方式 A：在 Documents 列表页直接操作
+- 点击 `Summarize this document`
+- 点击 `Chat with this document`
+
+#### 方式 B：进入文档详情页再操作
+- 查看 chunk
+- 点击 `Summarize this document`
+- 点击 `Chat with this document`
+
+这两个入口都会：
+
+1. 创建一个新的 chat session
+2. 把当前 `document_id` 绑定到该 session
+3. 回到首页 Runtime Console
+4. 后续检索只在这份文档范围内进行
+
+### Step 5: 回到 Chat Console 继续追问
+
+在自动创建的新会话里，你可以继续追问：
 
 - `员工请假制度是什么？`
 - `这份规范里对代码评审有什么要求？`
+- `把这份文档总结成 5 条重点`
 - `根据知识库，总结一下 onboarding 流程。`
+
+如果当前 session 是从文档页发起的，那么这些问题会自动限定在该文档范围内，而不是在整个知识库里做无约束检索。
 
 观察点：
 - Runtime Panel 中是否出现 retrieved chunks
