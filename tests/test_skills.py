@@ -128,7 +128,8 @@ def test_chat_endpoint_invokes_whitelisted_skills_and_includes_results(monkeypat
 
     client = TestClient(app)
     response = client.post(
-        "/chat", json={"session_id": "s1", "message": "帮我规划并顺手查一下历史"}
+        "/chat",
+        json={"session_id": "s1", "message": "帮我规划并顺手查一下历史", "use_retrieval": False},
     )
 
     assert response.status_code == 200
@@ -164,7 +165,7 @@ def test_chat_endpoint_passes_tenant_context_to_mcp_payload(monkeypatch) -> None
     response = client.post(
         "/chat",
         headers={"X-Tenant-ID": "tenant-alpha", "X-Tenant-Roles": "reader"},
-        json={"session_id": "s1", "message": "帮我规划并顺手查一下历史"},
+        json={"session_id": "s1", "message": "帮我规划并顺手查一下历史", "use_retrieval": False},
     )
 
     assert response.status_code == 200
@@ -196,7 +197,8 @@ def test_chat_endpoint_emits_mcp_discovery_and_call_duration_logs(monkeypatch) -
 
     client = TestClient(app)
     response = client.post(
-        "/chat", json={"session_id": "s-log", "message": "帮我规划并顺手查一下历史"}
+        "/chat",
+        json={"session_id": "s-log", "message": "帮我规划并顺手查一下历史", "use_retrieval": False},
     )
 
     assert response.status_code == 200
@@ -223,7 +225,8 @@ def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch
 
     client = TestClient(app)
     response = client.post(
-        "/chat", json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史"}
+        "/chat",
+        json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史", "use_retrieval": False},
     )
 
     assert response.status_code == 200

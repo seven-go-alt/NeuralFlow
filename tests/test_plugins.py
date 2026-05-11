@@ -64,7 +64,7 @@ def test_chat_endpoint_runs_on_response_generated_plugin(monkeypatch, tmp_path, 
     response = client.post(
         "/chat",
         headers={"X-Tenant-ID": "tenant-hook"},
-        json={"session_id": "plugin-session", "message": "hello"},
+        json={"session_id": "plugin-session", "message": "hello", "use_retrieval": False},
     )
 
     assert response.status_code == 200
