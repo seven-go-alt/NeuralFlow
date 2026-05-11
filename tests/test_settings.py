@@ -16,7 +16,7 @@ def test_settings_exposes_redis_and_chroma_helpers(monkeypatch) -> None:
     assert settings.redis_url == "redis://localhost:6379/0"
     assert settings.celery_broker_url == "redis://localhost:6379/0"
     assert settings.celery_result_backend == "redis://localhost:6379/1"
-    assert settings.chroma_api_url == "http://localhost:8000"
+    assert settings.chroma_api_url == "http://127.0.0.1:8000"
     assert settings.token_budget_encoding == "cl100k_base"
     assert settings.max_context_tokens_soft == 6000
     assert settings.max_context_tokens == 8000

@@ -1,6 +1,7 @@
 import asyncio
 
 from celery import Celery
+from kombu import Queue
 
 from app.config import get_settings
 from app.core.llm import LLMClient
@@ -17,6 +18,11 @@ celery_app = Celery(
 celery_app.conf.task_routes = {
     "neuralflow.ingest_document": {"queue": "documents"},
 }
+celery_app.conf.task_default_queue = "celery"
+celery_app.conf.task_queues = (
+    Queue("celery", routing_key="celery"),
+    Queue("documents", routing_key="documents"),
+)
 
 # Import shared tasks after celery_app initialization to avoid circular import
 from app.ingestion.tasks import ingest_document_task  # noqa: E402,F401

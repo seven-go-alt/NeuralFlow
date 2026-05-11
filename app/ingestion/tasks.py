@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from celery import shared_task
+from celery import current_app
 
 from app.ingestion.pipeline import IngestionPipeline
 
 
-@shared_task(name="neuralflow.ingest_document")
+@current_app.task(name="neuralflow.ingest_document")
 def ingest_document_task(
     tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
 ) -> dict:

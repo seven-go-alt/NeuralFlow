@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from kombu.exceptions import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -14,10 +15,23 @@ from app.documents.schemas import (
     DocumentUploadResponse,
 )
 from app.documents.service import DocumentService, DocumentValidationError
-from app.ingestion.tasks import ingest_document_task
 from app.retrieval.chroma_store import ChromaDocumentStore
+from worker import celery_app
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+
+def _enqueue_ingestion(*, tenant_id: str, document_id: str) -> None:
+    try:
+        celery_app.send_task(
+            "neuralflow.ingest_document",
+            kwargs={"tenant_id": tenant_id, "document_id": document_id},
+        )
+    except (OperationalError, ConnectionError, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Document ingestion queue is unavailable",
+        ) from exc
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -36,7 +50,7 @@ async def upload_document(
         )
     except DocumentValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    ingest_document_task.delay(tenant_id=tenant_id, document_id=record.document_id)
+    _enqueue_ingestion(tenant_id=tenant_id, document_id=record.document_id)
     refreshed = DocumentRepository(db).get_document(
         tenant_id=tenant_id, document_id=record.document_id
     )
@@ -108,7 +122,7 @@ def delete_document(document_id: str, request: Request, db: Session = Depends(ge
     ok = repo.soft_delete(tenant_id=tenant_id, document_id=document_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Document not found")
-    ChromaDocumentStore().delete_document(tenant_id=tenant_id, document_id=document_id)
+    ChromaDocumentStore(allow_in_memory=True).delete_document(tenant_id=tenant_id, document_id=document_id)
     return {"ok": True, "document_id": document_id}
 
 
@@ -119,5 +133,5 @@ async def reindex_document(document_id: str, request: Request, db: Session = Dep
     record = repo.get_document(tenant_id=tenant_id, document_id=document_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    ingest_document_task.delay(tenant_id=tenant_id, document_id=document_id)
+    _enqueue_ingestion(tenant_id=tenant_id, document_id=document_id)
     return {"ok": True, "document_id": document_id, "status": "queued"}

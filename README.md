@@ -323,17 +323,19 @@ uv run uvicorn app.main:app --reload
 
 ### 8.3 启动 Celery worker
 
+> macOS / 本地演示环境建议使用 `--pool=solo`，避免 prefork 在文档摄入时出现子进程崩溃。
+
 ```bash
 cd ~/github/NeuralFlow
 . .venv/bin/activate
-python -m celery -A worker.celery_app worker --loglevel=info
+python -m celery -A worker.celery_app worker --loglevel=info --pool=solo
 ```
 
 或用 uv run：
 
 ```bash
 cd ~/github/NeuralFlow
-uv run python -m celery -A worker.celery_app worker --loglevel=info
+uv run python -m celery -A worker.celery_app worker --loglevel=info --pool=solo
 ```
 
 ### 8.4 启动前端

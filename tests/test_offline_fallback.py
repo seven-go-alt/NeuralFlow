@@ -58,7 +58,12 @@ def test_chat_endpoint_returns_non_500_rule_fallback_when_llm_fails(monkeypatch)
 
     client = TestClient(app, raise_server_exceptions=False)
     response = client.post(
-        "/chat", json={"session_id": "s-offline", "message": "帮我总结 Redis 和 Chroma 的隔离差异"}
+        "/chat",
+        json={
+            "session_id": "s-offline",
+            "message": "帮我总结 Redis 和 Chroma 的隔离差异",
+            "use_retrieval": False,
+        },
     )
 
     assert response.status_code != 500
@@ -84,6 +89,7 @@ async def test_chat_stream_endpoint_returns_rule_fallback_event_when_llm_fails(m
             json={
                 "session_id": "s-offline-stream",
                 "message": "帮我总结 Redis 和 Chroma 的隔离差异",
+                "use_retrieval": False,
             },
         ) as response:
             assert response.status_code == 200

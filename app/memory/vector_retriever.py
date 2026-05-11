@@ -232,7 +232,7 @@ class VectorRetriever:
         for index, content in enumerate(documents):
             metadata = metadatas[index] if index < len(metadatas) else {}
             distance = distances[index] if index < len(distances) else 0.0
-            score = max(0.0, 1.0 - float(distance))
+            score = 1.0 / (1.0 + max(0.0, float(distance)))
             normalized.append(
                 asdict(
                     RetrievedDocument(

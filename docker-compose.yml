@@ -11,7 +11,7 @@ services:
 
   worker:
     build: .
-    command: uv run celery -A worker.celery_app worker --loglevel=info
+    command: uv run celery -A worker.celery_app worker --loglevel=info --pool=solo
     env_file:
       - .env.example
     depends_on:

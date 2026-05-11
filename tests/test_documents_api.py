@@ -12,12 +12,12 @@ from app.main import app
 async def test_documents_upload_list_detail_and_delete(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("DOCUMENTS_STORAGE_DIR", str(tmp_path / "uploads"))
 
-    class DummyTask:
+    class DummyTaskApp:
         @staticmethod
-        def delay(*args, **kwargs):
+        def send_task(*args, **kwargs):
             return {"queued": True}
 
-    monkeypatch.setattr("app.api.documents.ingest_document_task", DummyTask)
+    monkeypatch.setattr("app.api.documents.celery_app", DummyTaskApp)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

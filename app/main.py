@@ -34,6 +34,7 @@ from app.retrieval.service import RetrievalService
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
 from app.utils.observability import configure_structured_logging, create_observability
+from app.utils.vector_client import VectorStoreUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -487,6 +488,11 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
             rag_results = [item.model_dump() for item in retrieval_response.results]
             rag_citations = rag_build.citations
             rag_context = rag_build.context
+        except VectorStoreUnavailableError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Knowledge base vector store is unavailable",
+            ) from exc
         except Exception:
             logger.warning("rag retrieval failed", exc_info=True)
         finally:

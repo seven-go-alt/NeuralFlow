@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from chromadb import HttpClient
 from chromadb.api import ClientAPI
 
@@ -56,13 +58,21 @@ class InMemoryVectorClient:
         return self.collections.setdefault(name, InMemoryCollection())
 
 
-def get_vector_client() -> ClientAPI | InMemoryVectorClient:
+class VectorStoreUnavailableError(RuntimeError):
+    pass
+
+
+def get_vector_client(*, allow_in_memory: bool = True) -> ClientAPI | InMemoryVectorClient:
     settings = get_settings()
     try:
         client = HttpClient(host=settings.chroma_host, port=settings.chroma_port)
         client.heartbeat()
         return client
-    except Exception:
+    except Exception as exc:
+        if not allow_in_memory:
+            raise VectorStoreUnavailableError(
+                f"ChromaDB unavailable at {settings.chroma_host}:{settings.chroma_port}"
+            ) from exc
         import logging
 
         logging.getLogger(__name__).warning(

@@ -51,6 +51,11 @@ class StubStore(ChromaDocumentStore):
         self.upserts.append(chunks)
 
 
+class DummyStore:
+    def upsert_chunks(self, chunks: list[dict]) -> None:
+        return None
+
+
 def test_recursive_chunk_splitter_produces_chunk_metadata() -> None:
     splitter = RecursiveChunkSplitter(chunk_size=40, chunk_overlap=10)
     doc = ParsedDocument(
@@ -118,6 +123,7 @@ async def test_ingestion_pipeline_indexes_document(monkeypatch, tmp_path: Path) 
 
     stub_store = StubStore()
     monkeypatch.setattr("app.ingestion.pipeline.ParserFactory.create", lambda path: StubParser())
+    monkeypatch.setattr("app.ingestion.pipeline.ChromaDocumentStore", lambda *args, **kwargs: DummyStore())
 
     pipeline = IngestionPipeline()
     pipeline.embedding_service = StubEmbeddingService()

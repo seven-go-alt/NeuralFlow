@@ -93,7 +93,7 @@ async def test_chat_stream_endpoint_returns_sse_events(monkeypatch) -> None:
         async with client.stream(
             "POST",
             "/chat/stream?include_thinking=true",
-            json={"session_id": "s-stream", "message": "你好"},
+            json={"session_id": "s-stream", "message": "你好", "use_retrieval": False},
         ) as response:
             assert response.status_code == 200
             body = [line async for line in response.aiter_lines() if line]

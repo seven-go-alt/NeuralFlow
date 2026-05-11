@@ -18,7 +18,7 @@ class RetrievalService:
 
     async def search(self, tenant_id: str, request: RetrievalRequest) -> RetrievalResponse:
         where = self._build_where(tenant_id=tenant_id, filters=request.filters.model_dump())
-        response = self.store.query(query_text=request.query, top_k=request.top_k, where=where)
+        response = await self.store.query(query_text=request.query, top_k=request.top_k, where=where)
         documents = (response.get("documents") or [[]])[0]
         metadatas = (response.get("metadatas") or [[]])[0]
         ids = (response.get("ids") or [[]])[0]
@@ -26,7 +26,8 @@ class RetrievalService:
         results: list[RetrievalResult] = []
         for idx, content in enumerate(documents):
             metadata = metadatas[idx] if idx < len(metadatas) else {}
-            score = max(0.0, 1.0 - float(distances[idx] if idx < len(distances) else 0.0))
+            distance = float(distances[idx] if idx < len(distances) else 0.0)
+            score = 1.0 / (1.0 + max(0.0, distance))
             if score < request.score_threshold:
                 continue
             results.append(
