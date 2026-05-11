@@ -17,6 +17,10 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -28,18 +32,29 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
-  api:
-    build: .
+  # 预构建镜像，api 和 worker 共用
+  api: &api-base
+    image: neuralflow-api:latest
+    build:
+      context: .
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     env_file:
       - .env.production
     environment:
       REDIS_HOST: redis
       CHROMA_HOST: chroma
       DOCUMENTS_STORAGE_DIR: /data/uploads
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend}
     expose:
       - "8000"
     volumes:
@@ -52,29 +67,22 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/healthz"]
-      interval: 30s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   worker:
-    build: .
-    command: sh -c "uv run celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}"
-    env_file:
-      - .env.production
-    environment:
-      REDIS_HOST: redis
-      CHROMA_HOST: chroma
-      DOCUMENTS_STORAGE_DIR: /data/uploads
-    volumes:
-      - uploads_data:/data/uploads
-    depends_on:
-      redis:
-        condition: service_started
-      chroma:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+    <<: *api-base
+    command: sh -c "celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}"
+    expose: []
+    healthcheck:
+      test: ["CMD", "celery", "-A", "worker.celery_app", "inspect", "ping", "--timeout", "5"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -83,9 +91,9 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   chroma:
     image: chromadb/chroma:1.0.20
@@ -93,9 +101,10 @@ services:
       - chroma_data:/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/api/v2/heartbeat"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   postgres:
     image: postgres:16-alpine
@@ -107,9 +116,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U neuralflow -d neuralflow"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
 volumes:
   uploads_data:

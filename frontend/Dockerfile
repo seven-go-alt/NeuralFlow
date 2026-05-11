@@ -1,4 +1,7 @@
 FROM node:22-alpine AS deps
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

@@ -1,0 +1,46 @@
+.git
+.github
+.gitignore
+.DS_Store
+
+# Python 缓存
+__pycache__
+*.pyc
+*.pyo
+.mypy_cache
+.ruff_cache
+.pytest_cache
+
+# 虚拟环境和锁文件（运行时不需要）
+.venv
+*.egg-info
+
+# 开发配置
+.env
+.env.example
+.pre-commit-config.yaml
+mypy.ini
+ruff.toml
+
+# 数据目录
+data
+var
+chroma_data
+redis_data
+uploads_data
+
+# 前端（单独构建）
+frontend
+
+# 文档
+docs
+README.md
+CHANGELOG.md
+LICENSE
+
+# 测试（生产镜像不需要）
+tests
+
+# IDE
+.vscode
+.idea
