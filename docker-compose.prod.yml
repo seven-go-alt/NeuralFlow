@@ -1,0 +1,120 @@
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_started
+      api:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_BASE: http://api:8000
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    env_file:
+      - .env.production
+    environment:
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      DOCUMENTS_STORAGE_DIR: /data/uploads
+    expose:
+      - "8000"
+    volumes:
+      - uploads_data:/data/uploads
+    depends_on:
+      redis:
+        condition: service_started
+      chroma:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: .
+    command: sh -c "uv run celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}"
+    env_file:
+      - .env.production
+    environment:
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      DOCUMENTS_STORAGE_DIR: /data/uploads
+    volumes:
+      - uploads_data:/data/uploads
+    depends_on:
+      redis:
+        condition: service_started
+      chroma:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:1.0.20
+    volumes:
+      - chroma_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/api/v2/heartbeat"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: neuralflow
+      POSTGRES_USER: neuralflow
+      POSTGRES_PASSWORD: change-me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuralflow -d neuralflow"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  uploads_data:
+  redis_data:
+  chroma_data:
+  postgres_data:
+  caddy_data:
+  caddy_config:

@@ -352,6 +352,23 @@ npm run dev
 docker compose up --build
 ```
 
+### 8.6 生产部署骨架
+
+仓库已提供：
+
+- `.env.production.example`
+- `docker-compose.prod.yml`
+- `deploy/Caddyfile`
+
+推荐流程：
+
+```bash
+cp .env.production.example .env.production
+# 填好域名、数据库、LLM、Embedding 配置
+
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
 ---
 
 ## 9. 环境变量
@@ -374,8 +391,18 @@ docker compose up --build
 RAG 相关：
 
 - `EMBEDDING_MODEL`（代码默认 `text-embedding-3-small`）
+- `EMBEDDING_API_BASE`（建议与 chat LLM 分开配置）
+- `EMBEDDING_API_KEY`
 - `rag_default_top_k`
 - `rag_score_threshold`
+
+生产环境建议：
+
+- 将 `LLM_API_BASE` / `LLM_API_KEY` 与 `EMBEDDING_API_BASE` / `EMBEDDING_API_KEY` 分开配置，避免某些代理只支持 chat 不支持 embeddings。
+- 将 `OFFLINE_FALLBACK_ENABLED=false`，避免线上静默降级。
+- `CORS_ALLOW_ORIGINS` 设置为明确域名，不要保留 `*`。
+- 优先使用 PostgreSQL，而不是默认 SQLite。
+- Linux 服务器如果稳定可尝试 `CELERY_WORKER_POOL=prefork`；首版上线建议先用 `solo`。
 
 ---
 

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     app_env: str = "development"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+    cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")
 
     redis_host: str = "localhost"
     redis_port: int = 6379
@@ -60,8 +62,11 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     llm_api_base: str | None = Field(default=None, alias="LLM_API_BASE")
     llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
+    embedding_api_base: str | None = Field(default=None, alias="EMBEDDING_API_BASE")
+    embedding_api_key: str | None = Field(default=None, alias="EMBEDDING_API_KEY")
     offline_fallback_enabled: bool = True
     ollama_fallback_model: str | None = "ollama/qwen2.5:7b"
+    celery_worker_pool: str = Field(default="solo", alias="CELERY_WORKER_POOL")
 
     mcp_base_url: str = "http://localhost:9000"
     mcp_code_server_url: str | None = Field(default=None, alias="MCP_CODE_SERVER_URL")

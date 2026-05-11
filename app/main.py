@@ -43,10 +43,12 @@ audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.l
 observability = create_observability()
 app = FastAPI(title=settings.app_name)
 init_db()
+allowed_origins = [item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()]
+allow_all_origins = allowed_origins == ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all_origins else allowed_origins,
+    allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

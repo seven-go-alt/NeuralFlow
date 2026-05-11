@@ -11,7 +11,7 @@ services:
 
   worker:
     build: .
-    command: uv run celery -A worker.celery_app worker --loglevel=info --pool=solo
+    command: sh -c "uv run celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}"
     env_file:
       - .env.example
     depends_on:
