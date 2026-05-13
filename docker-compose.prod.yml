@@ -1,6 +1,7 @@
 services:
   caddy:
     image: caddy:2
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -15,12 +16,8 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        HTTP_PROXY: ${HTTP_PROXY:-}
-        HTTPS_PROXY: ${HTTPS_PROXY:-}
-        NO_PROXY: ${NO_PROXY:-}
+    image: ${NEURALFLOW_FRONTEND_IMAGE}
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -37,15 +34,9 @@ services:
       retries: 5
       start_period: 30s
 
-  # 预构建镜像，api 和 worker 共用
   api: &api-base
-    image: neuralflow-api:latest
-    build:
-      context: .
-      args:
-        HTTP_PROXY: ${HTTP_PROXY:-}
-        HTTPS_PROXY: ${HTTPS_PROXY:-}
-        NO_PROXY: ${NO_PROXY:-}
+    image: ${NEURALFLOW_API_IMAGE}
+    restart: unless-stopped
     env_file:
       - .env.production
     environment:
@@ -86,6 +77,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -97,6 +89,7 @@ services:
 
   chroma:
     image: chromadb/chroma:1.0.20
+    restart: unless-stopped
     volumes:
       - chroma_data:/data
     healthcheck:
@@ -108,10 +101,11 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: neuralflow
       POSTGRES_USER: neuralflow
-      POSTGRES_PASSWORD: change-me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
