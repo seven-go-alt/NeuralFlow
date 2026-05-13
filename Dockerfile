@@ -3,6 +3,14 @@ FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# --- 阶段 1: 安装 uv 和依赖（仅在 pyproject.toml/uv.lock 变化时重建）---
+FROM base AS deps
+
+# 传递代理环境变量（构建时生效）
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -12,14 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# --- 阶段 1: 安装 uv 和依赖（仅在 pyproject.toml/uv.lock 变化时重建）---
-FROM base AS deps
-
-# 传递代理环境变量（构建时生效）
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG NO_PROXY
 
 WORKDIR /app
 

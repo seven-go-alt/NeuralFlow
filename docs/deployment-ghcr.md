@@ -53,6 +53,27 @@ docker compose --env-file .env.images -f docker-compose.prod.yml pull
 docker compose --env-file .env.images -f docker-compose.prod.yml up -d
 ```
 
+## Local verification before release
+
+Before pushing release-oriented build changes or cutting a production tag, run local verification first:
+
+```bash
+cd /opt/neuralflow
+bash scripts/verify-local.sh
+```
+
+The script is source-aware for domestic network conditions and defaults to:
+
+- `UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
+- `PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
+- `UV_HTTP_TIMEOUT=180`
+- `UV_CONCURRENT_DOWNLOADS=1`
+- `HTTP_PROXY=http://127.0.0.1:7890`
+- `HTTPS_PROXY=http://127.0.0.1:7890`
+- `ALL_PROXY=http://127.0.0.1:7890`
+
+Do not push release pipeline changes until local verification passes.
+
 ## Notes
 
 - Do not rely on `docker compose up --build` on the production host as a long-term workflow.

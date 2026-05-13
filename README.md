@@ -88,6 +88,24 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 
 ---
 
+## 本地验证（发布前）
+
+发布前建议先做一轮本地验证：
+
+```bash
+bash scripts/verify-local.sh
+```
+
+默认会：
+- 使用 `uv` 同步后端依赖
+- 运行 `pytest`
+- 执行前端 `npm ci` / `lint` / `typecheck` / `build`
+- 在国内网络环境默认优先使用清华 PyPI 镜像并提高超时时间
+
+本地验证未通过前，不应推送发布链路相关改动。
+
+---
+
 ## 3. 技术栈
 
 ### Backend

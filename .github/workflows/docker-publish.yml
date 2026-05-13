@@ -1,11 +1,10 @@
 name: Build and Publish Docker Images
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
     tags:
       - 'v*'
-  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -13,8 +12,62 @@ env:
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/neuralflow-frontend
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install uv
+        env:
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+          PIP_TRUSTED_HOST: pypi.tuna.tsinghua.edu.cn
+        run: pip install --no-cache-dir -U pip uv
+
+      - name: Sync Python dependencies
+        env:
+          UV_HTTP_TIMEOUT: "180"
+          UV_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+        run: uv sync --frozen --no-dev
+
+      - name: Run backend tests
+        env:
+          UV_HTTP_TIMEOUT: "180"
+          UV_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+        run: uv run pytest
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run frontend typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: verify
     permissions:
       contents: read
       packages: write
@@ -42,7 +95,6 @@ jobs:
         with:
           images: ${{ env.IMAGE_API }}
           tags: |
-            type=ref,event=branch
             type=ref,event=tag
             type=sha
 
@@ -52,7 +104,6 @@ jobs:
         with:
           images: ${{ env.IMAGE_FRONTEND }}
           tags: |
-            type=ref,event=branch
             type=ref,event=tag
             type=sha
 
@@ -64,6 +115,8 @@ jobs:
           push: true
           tags: ${{ steps.meta_api.outputs.tags }}
           labels: ${{ steps.meta_api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Frontend image
         uses: docker/build-push-action@v6
@@ -73,3 +126,5 @@ jobs:
           push: true
           tags: ${{ steps.meta_frontend.outputs.tags }}
           labels: ${{ steps.meta_frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
