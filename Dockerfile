@@ -3,6 +3,16 @@ FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    gcc \
+    g++ \
+    pkg-config \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # --- 阶段 1: 安装 uv 和依赖（仅在 pyproject.toml/uv.lock 变化时重建）---
 FROM base AS deps
 
@@ -16,8 +26,8 @@ WORKDIR /app
 # 只复制依赖定义文件，利用层缓存
 COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir uv \
-    && uv sync --frozen --no-dev
+RUN pip install --no-cache-dir -U pip uv \
+    && uv sync --frozen --no-dev --verbose
 
 # --- 阶段 2: 最终镜像 ---
 FROM base AS runtime
