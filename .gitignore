@@ -9,3 +9,7 @@ var/
 *.pyc
 data/neuralflow.db
 data/uploads/
+
+.env.production
+.env.images
+.env
