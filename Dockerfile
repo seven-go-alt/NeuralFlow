@@ -35,8 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# 只复制依赖定义文件，利用层缓存
-COPY pyproject.toml uv.lock ./
+# 先复制依赖定义和最小打包元数据，避免在安装依赖时因缺少本地包源码而构建失败
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
 
 RUN pip install --no-cache-dir -U pip uv \
     && uv sync --frozen --no-dev --verbose
