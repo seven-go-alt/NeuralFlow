@@ -117,6 +117,14 @@ jobs:
           labels: ${{ steps.meta_api.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+            PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+            UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+            UV_HTTP_TIMEOUT=180
+            HTTP_PROXY=${{ secrets.HTTP_PROXY }}
+            HTTPS_PROXY=${{ secrets.HTTPS_PROXY }}
+            NO_PROXY=${{ secrets.NO_PROXY }}
 
       - name: Build and push Frontend image
         uses: docker/build-push-action@v6

@@ -6,10 +6,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # --- 阶段 1: 安装 uv 和依赖（仅在 pyproject.toml/uv.lock 变化时重建）---
 FROM base AS deps
 
-# 传递代理环境变量（构建时生效）
+# 传递代理和包源配置（构建时生效）
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
+ARG PIP_INDEX_URL
+ARG PIP_TRUSTED_HOST
+ARG UV_INDEX_URL
+ARG UV_HTTP_TIMEOUT=180
+
+ENV HTTP_PROXY=${HTTP_PROXY:-} \
+    HTTPS_PROXY=${HTTPS_PROXY:-} \
+    NO_PROXY=${NO_PROXY:-} \
+    PIP_INDEX_URL=${PIP_INDEX_URL:-} \
+    PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST:-} \
+    UV_INDEX_URL=${UV_INDEX_URL:-} \
+    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -37,6 +49,10 @@ ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
 
+ENV HTTP_PROXY=${HTTP_PROXY:-} \
+    HTTPS_PROXY=${HTTPS_PROXY:-} \
+    NO_PROXY=${NO_PROXY:-}
+
 WORKDIR /app
 
 # 从 deps 阶段复制已安装的依赖
@@ -44,11 +60,6 @@ COPY --from=deps /app/.venv /app/.venv
 
 # 确保 .venv/bin 在 PATH 中
 ENV PATH="/app/.venv/bin:$PATH"
-
-# 代理环境变量（运行时可通过 docker-compose 覆盖）
-ENV HTTP_PROXY=${HTTP_PROXY:-}
-ENV HTTPS_PROXY=${HTTPS_PROXY:-}
-ENV NO_PROXY=${NO_PROXY:-}
 
 # 复制应用代码（代码变化只影响这一层）
 COPY app ./app
