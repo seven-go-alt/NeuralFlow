@@ -54,7 +54,7 @@ services:
       redis:
         condition: service_started
       chroma:
-        condition: service_healthy
+        condition: service_started
       postgres:
         condition: service_healthy
     healthcheck:
@@ -66,14 +66,14 @@ services:
 
   worker:
     <<: *api-base
-    command: sh -c "celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}"
+    command: sh -lc '/app/.venv/bin/celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}'
     expose: []
     healthcheck:
-      test: ["CMD", "celery", "-A", "worker.celery_app", "inspect", "ping", "--timeout", "5"]
+      test: ["CMD-SHELL", "/app/.venv/bin/celery -A worker.celery_app inspect ping --timeout 5 || exit 1"]
       interval: 15s
-      timeout: 10s
+      timeout: 20s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -92,12 +92,6 @@ services:
     restart: unless-stopped
     volumes:
       - chroma_data:/data
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/api/v2/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   postgres:
     image: postgres:16-alpine
