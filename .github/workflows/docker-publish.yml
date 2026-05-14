@@ -3,6 +3,8 @@ name: Build and Publish Docker Images
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
