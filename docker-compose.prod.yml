@@ -22,9 +22,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       API_BASE: http://api:8000
-      NEXT_PUBLIC_API_BASE_URL: http://160.202.254.29:20004
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
     ports:
-      - "3001:3000"
+      - "${FRONTEND_PUBLISHED_PORT:-3001}:3000"
     expose:
       - "3000"
     depends_on:
@@ -50,7 +50,7 @@ services:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend}
     ports:
-      - "8001:8000"
+      - "${API_PUBLISHED_PORT:-8001}:8000"
     expose:
       - "8000"
     volumes:
