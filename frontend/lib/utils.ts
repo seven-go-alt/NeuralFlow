@@ -16,6 +16,17 @@ export function compactNumber(value?: number) {
   return Intl.NumberFormat("en", { notation: "compact" }).format(value);
 }
 
+function randomId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function createSessionId() {
-  return `sess_${crypto.randomUUID().slice(0, 8)}`;
+  return `sess_${randomId().slice(0, 8)}`;
+}
+
+export function createId() {
+  return randomId();
 }

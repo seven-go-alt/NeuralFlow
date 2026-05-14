@@ -9,6 +9,7 @@ import { ChatComposer } from "@/features/chat/chat-composer";
 import { MessageList } from "@/features/chat/message-list";
 import { RuntimePanel } from "@/features/runtime/runtime-panel";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { createId } from "@/lib/utils";
 import { apiClient } from "@/services/api-client";
 import { searchRetrieval } from "@/services/retrieval";
 import { streamChat } from "@/services/streaming";
@@ -56,14 +57,14 @@ export function AppShell() {
       if (!message || isStreaming) return;
 
       const startedAt = performance.now();
-      const assistantId = crypto.randomUUID();
+      const assistantId = createId();
       let streamedAssistantText = "";
       abortRef.current = new AbortController();
       resetRuntime();
       setStreaming(true);
 
       addMessage(activeSessionId, {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: "user",
         content: message,
         createdAt: Date.now(),
@@ -82,7 +83,7 @@ export function AppShell() {
         const retrieval = await searchRetrieval(message, { documentIds: activeDocumentIds }).catch(() => null);
         if (retrieval?.results?.length) {
           addRuntimeEvent({
-            id: crypto.randomUUID(),
+            id: createId(),
             type: "retrieval",
             title: activeDocument ? `Document retrieval completed` : "Knowledge retrieval completed",
             detail: `${retrieval.results.length} chunks matched current query.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
@@ -138,7 +139,7 @@ export function AppShell() {
                 setRetrievedChunks([
                   ...useAgentStore.getState().runtime.retrievedChunks,
                   {
-                    id: String(data.chunk_id ?? crypto.randomUUID()),
+                    id: String(data.chunk_id ?? createId()),
                     source: String(source.filename ?? data.document_id ?? "document"),
                     score: Number(data.score ?? 0),
                     text: String(data.content ?? ""),
@@ -176,7 +177,7 @@ export function AppShell() {
           });
           if (response.citations?.length) {
             addRuntimeEvent({
-              id: crypto.randomUUID(),
+              id: createId(),
               type: "retrieval",
               title: "Citations attached",
               detail: `${response.citations.length} sources attached to final answer.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
@@ -197,13 +198,13 @@ export function AppShell() {
       }
 
       function runtimeEvent(type: RuntimeEvent["type"], title: string, detail: string, status: RuntimeEvent["status"]) {
-        addRuntimeEvent({ id: crypto.randomUUID(), type, title, detail, status, timestamp: Date.now() });
+        addRuntimeEvent({ id: createId(), type, title, detail, status, timestamp: Date.now() });
       }
 
       function seedRuntime(query: string) {
-        addRuntimeEvent({ id: crypto.randomUUID(), type: "thinking", title: "Intent router", detail: `Classifying: ${query.slice(0, 90)}`, status: "running", timestamp: Date.now() });
+        addRuntimeEvent({ id: createId(), type: "thinking", title: "Intent router", detail: `Classifying: ${query.slice(0, 90)}`, status: "running", timestamp: Date.now() });
         addRuntimeEvent({
-          id: crypto.randomUUID(),
+          id: createId(),
           type: "retrieval",
           title: "RAG retrieval queued",
           detail: activeDocument
@@ -226,7 +227,7 @@ export function AppShell() {
 
       function _hydrateAgentResult(result: ReactAgentResponse) {
         addRuntimeEvent({
-          id: crypto.randomUUID(),
+          id: createId(),
           type: "thinking",
           title: result.route ? `Routed to ${result.route}` : "ReAct loop complete",
           detail: result.route_reason ?? `${result.total_iterations} iterations executed.`,
@@ -238,16 +239,16 @@ export function AppShell() {
           const type = String(step.type ?? "");
           if (type.includes("tool")) {
             const call: ToolCall = {
-              id: crypto.randomUUID(),
+              id: createId(),
               name: toolName,
               status: "success",
               input: step.input ?? step.arguments,
               output: step.observation,
             };
             addToolCall(call);
-            addRuntimeEvent({ id: crypto.randomUUID(), type: "tool_call", title: toolName, detail: JSON.stringify(step.observation ?? step, null, 2).slice(0, 260), status: "success", timestamp: Date.now() });
+            addRuntimeEvent({ id: createId(), type: "tool_call", title: toolName, detail: JSON.stringify(step.observation ?? step, null, 2).slice(0, 260), status: "success", timestamp: Date.now() });
           } else {
-            addRuntimeEvent({ id: crypto.randomUUID(), type: "thinking", title: type || `Iteration ${index + 1}`, detail: JSON.stringify(step).slice(0, 260), status: "success", timestamp: Date.now() });
+            addRuntimeEvent({ id: createId(), type: "thinking", title: type || `Iteration ${index + 1}`, detail: JSON.stringify(step).slice(0, 260), status: "success", timestamp: Date.now() });
           }
         });
         setMetrics({ latencyMs: performance.now() - startedAt, toolMs: result.total_iterations * 220, tokensOut: estimateTokens(result.final_answer) });

@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:20004` : "http://localhost:8000");
 
 export function DocumentUpload({ onUploaded }: { onUploaded?: () => void }) {
   const router = useRouter();

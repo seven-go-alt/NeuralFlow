@@ -1,5 +1,5 @@
-import { AppShell } from "@/features/layout/app-shell";
+import { AppShellClient } from "@/components/app-shell-client";
 
 export default function Home() {
-  return <AppShell />;
+  return <AppShellClient />;
 }

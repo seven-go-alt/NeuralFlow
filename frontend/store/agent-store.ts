@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { createSessionId } from "@/lib/utils";
+import { createId, createSessionId } from "@/lib/utils";
 import type {
   ActiveDocumentContext,
   ChatMessage,
@@ -75,7 +75,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   runtime: emptyRuntime(),
   mode: "stream",
   model: "gpt-5.4",
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:20004` : "http://localhost:8000"),
   rightPanelOpen: true,
   sidebarOpen: false,
   isStreaming: false,
@@ -125,7 +125,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         [id]: initialPrompt
           ? [
               {
-                id: crypto.randomUUID(),
+                id: createId(),
                 role: "user",
                 content: initialPrompt,
                 createdAt: Date.now(),
