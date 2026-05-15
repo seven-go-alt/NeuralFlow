@@ -12,6 +12,14 @@ export function DocumentsClient({ initialItems }: { initialItems: DocumentItem[]
   const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState(false);
 
+  if (items !== initialItems && !loading) {
+    const currentIds = items.map((item) => item.document_id).join(",");
+    const nextIds = initialItems.map((item) => item.document_id).join(",");
+    if (currentIds !== nextIds) {
+      setItems(initialItems);
+    }
+  }
+
   const hasProcessingItems = useMemo(
     () => items.some((item) => isDocumentProcessing(item.status)),
     [items],
@@ -26,10 +34,6 @@ export function DocumentsClient({ initialItems }: { initialItems: DocumentItem[]
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
 
   useEffect(() => {
     if (!hasProcessingItems) return;

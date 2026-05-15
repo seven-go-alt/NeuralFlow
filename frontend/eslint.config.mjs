@@ -1,5 +1,5 @@
 import js from "@eslint/js";
-import nextPlugin from "@next/eslint-plugin-next";
+import nextVitals from "eslint-config-next/core-web-vitals";
 import tseslint from "typescript-eslint";
 
 const browserGlobals = {
@@ -23,11 +23,9 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  ...nextVitals,
   {
     files: ["**/*.{ts,tsx}"],
-    plugins: {
-      "@next/next": nextPlugin,
-    },
     languageOptions: {
       globals: {
         ...browserGlobals,
@@ -35,8 +33,6 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs["core-web-vitals"].rules,
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "no-undef": "off",
     },

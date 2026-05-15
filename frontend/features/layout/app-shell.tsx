@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Boxes, Database, FileText, GitBranch, Menu, PanelRightOpen, Search, Server, Sparkles, X } from "lucide-react";
 
@@ -45,7 +45,10 @@ export function AppShell() {
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
   const activeDocument = activeSession?.activeDocument ?? null;
-  const activeDocumentIds = activeDocument ? [activeDocument.documentId] : [];
+  const activeDocumentIds = useMemo(
+    () => (activeDocument ? [activeDocument.documentId] : []),
+    [activeDocument],
+  );
 
   const client = apiClient(apiBaseUrl);
   const { data: health, isError } = useQuery({ queryKey: ["health", apiBaseUrl], queryFn: () => client.health(), refetchInterval: 15_000 });
