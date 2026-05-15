@@ -53,9 +53,26 @@ cp .env.production.example .env.production
 
 ## 5. 首次启动
 
+如果你走 **预构建镜像 / GHCR** 路线，优先用：
+
+```bash
+docker compose --env-file .env.images -f docker-compose.prod.yml pull
+docker compose --env-file .env.images -f docker-compose.prod.yml up -d
+```
+
+如果你是在服务器本机直接构建，再用：
+
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+如果服务器出网需要代理，先看：
+- `deploy/proxy-guide.md`
+
+尤其要分清三层：
+- Docker daemon 拉基础镜像
+- build args 处理 `npm ci` / `uv sync`
+- 运行时环境变量处理模型 API 访问
 
 查看状态：
 

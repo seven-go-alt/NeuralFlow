@@ -74,6 +74,29 @@ The script is source-aware for domestic network conditions and defaults to:
 
 Do not push release pipeline changes until local verification passes.
 
+## Build-time proxy notes
+
+When the CI runner or local build host needs a proxy:
+
+- API image build passes `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` into the root `Dockerfile`
+- Frontend image build also passes `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` into `frontend/Dockerfile`
+- `frontend/.dockerignore` excludes `node_modules` and `.next` to keep Docker build context small
+
+This matters because frontend failures often look like a generic `npm ci` hang, while the actual cause is either:
+- missing build args in CI, or
+- an oversized Docker context slowing everything to a crawl
+
+If you need details, see `deploy/proxy-guide.md`.
+
+## Recommended validation before tagging
+
+For build-pipeline changes, verify in this order:
+
+1. `cd frontend && npm run lint`
+2. `cd frontend && npm run build`
+3. Run the local verification script
+4. Trigger the GitHub Actions workflow and confirm both API and frontend images publish successfully
+
 ## Notes
 
 - Do not rely on `docker compose up --build` on the production host as a long-term workflow.

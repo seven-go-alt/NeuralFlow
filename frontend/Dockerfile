@@ -7,8 +7,9 @@ ENV HTTP_PROXY=${HTTP_PROXY:-} \
     NO_PROXY=${NO_PROXY:-}
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm config set proxy "${HTTP_PROXY}" \
-    && npm config set https-proxy "${HTTPS_PROXY}" \
+RUN if [ -n "$HTTP_PROXY" ]; then npm config set proxy "$HTTP_PROXY"; fi \
+    && if [ -n "$HTTPS_PROXY" ]; then npm config set https-proxy "$HTTPS_PROXY"; fi \
+    && if [ -n "$NO_PROXY" ]; then npm config set noproxy "$NO_PROXY"; fi \
     && npm ci
 
 FROM node:22-alpine AS builder

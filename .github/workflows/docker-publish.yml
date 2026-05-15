@@ -140,3 +140,7 @@ jobs:
           labels: ${{ steps.meta_frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            HTTP_PROXY=${{ secrets.HTTP_PROXY }}
+            HTTPS_PROXY=${{ secrets.HTTPS_PROXY }}
+            NO_PROXY=${{ secrets.NO_PROXY }}
