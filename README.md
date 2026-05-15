@@ -96,6 +96,8 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 bash scripts/verify-local.sh
 ```
 
+注意：这个脚本使用 `bash` 特性（例如 `set -euo pipefail`），**不要用 `sh scripts/verify-local.sh`**，否则会直接报错。
+
 默认会：
 - 使用 `uv` 同步后端依赖
 - 运行 `pytest`
