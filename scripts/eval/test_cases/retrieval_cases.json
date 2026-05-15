@@ -1,0 +1,27 @@
+[
+  {
+    "id": "retrieval_leave_policy_001",
+    "type": "retrieval",
+    "query": "请假制度",
+    "top_k": 5,
+    "score_threshold": 0.2,
+    "filters": {},
+    "expected": {
+      "min_results": 1,
+      "must_hit_titles": ["员工手册"]
+    },
+    "tags": ["rag", "policy", "cn"]
+  },
+  {
+    "id": "retrieval_no_result_001",
+    "type": "retrieval",
+    "query": "完全不存在的虚构术语 ZXQ-NEURALFLOW-VOID",
+    "top_k": 5,
+    "score_threshold": 0.8,
+    "filters": {},
+    "expected": {
+      "max_results": 0
+    },
+    "tags": ["rag", "empty", "guardrail"]
+  }
+]

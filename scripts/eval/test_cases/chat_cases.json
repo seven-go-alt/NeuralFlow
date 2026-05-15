@@ -1,0 +1,26 @@
+[
+  {
+    "id": "chat_leave_policy_001",
+    "type": "chat",
+    "session_id": "eval-chat-leave-policy-001",
+    "message": "请假制度是什么？",
+    "use_retrieval": true,
+    "expected": {
+      "answer_keywords": ["请假", "申请"],
+      "min_citations": 1
+    },
+    "tags": ["rag", "citations", "policy", "cn"]
+  },
+  {
+    "id": "chat_no_context_fallback_001",
+    "type": "chat",
+    "session_id": "eval-chat-no-context-001",
+    "message": "请根据知识库说明 ZXQ-NEURALFLOW-VOID 的制度",
+    "use_retrieval": true,
+    "expected": {
+      "forbidden_keywords": ["员工手册第", "根据文档"],
+      "max_citations": 0
+    },
+    "tags": ["rag", "fallback", "guardrail"]
+  }
+]
