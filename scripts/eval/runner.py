@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -13,13 +13,10 @@ from typing import Any
 
 import httpx
 
+from scripts.eval.evaluator import AgentEvaluator
+
 ROOT = Path(__file__).resolve().parents[2]
 EVAL_DIR = Path(__file__).resolve().parent
-
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from scripts.eval.evaluator import AgentEvaluator
 DEFAULT_BASE_URL = os.getenv("EVAL_BASE_URL", "http://127.0.0.1:8001")
 DEFAULT_TIMEOUT = float(os.getenv("EVAL_HTTP_TIMEOUT", "30"))
 
@@ -309,6 +306,4 @@ async def _main() -> int:
 
 
 if __name__ == "__main__":
-    import asyncio
-
     raise SystemExit(asyncio.run(_main()))
