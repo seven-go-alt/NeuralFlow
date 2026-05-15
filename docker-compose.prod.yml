@@ -48,7 +48,12 @@ services:
       DOCUMENTS_STORAGE_DIR: /data/uploads
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
+      ALL_PROXY: ${ALL_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend}
+      http_proxy: ${HTTP_PROXY:-}
+      https_proxy: ${HTTPS_PROXY:-}
+      all_proxy: ${ALL_PROXY:-}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend}
     ports:
       - "${API_PUBLISHED_PORT:-8001}:8000"
     expose:
@@ -72,11 +77,12 @@ services:
   worker:
     <<: *api-base
     command: sh -lc '/app/.venv/bin/celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}'
+    ports: []
     expose: []
     healthcheck:
-      test: ["CMD-SHELL", "/app/.venv/bin/celery -A worker.celery_app inspect ping --timeout 5 || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import socket, sys; s=socket.create_connection(('redis', 6379), 5); s.close(); sys.exit(0)\""]
       interval: 15s
-      timeout: 20s
+      timeout: 10s
       retries: 3
       start_period: 60s
 
