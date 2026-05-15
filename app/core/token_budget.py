@@ -35,6 +35,19 @@ class TokenTrimResult:
         return "\n---\n".join(segment.text for segment in self.segments if segment.text)
 
 
+class FallbackTokenEncoder:
+    def encode(self, text: str) -> list[int]:
+        if not text:
+            return []
+        words = text.split()
+        if words:
+            return list(range(len(words)))
+        return list(range(len(text)))
+
+    def decode(self, tokens: list[int]) -> str:
+        return " ".join("x" for _ in tokens)
+
+
 class TokenBudgetManager:
     def __init__(
         self,
@@ -97,9 +110,17 @@ class TokenBudgetManager:
     def _get_encoder(self) -> TokenEncoder:
         if self._encoder is not None:
             return self._encoder
-        import tiktoken
+        try:
+            import tiktoken
 
-        self._encoder = tiktoken.get_encoding(self.encoding_name)
+            self._encoder = tiktoken.get_encoding(self.encoding_name)
+        except Exception:
+            logger.warning(
+                "failed to initialize tiktoken encoder, falling back to simple token counting",
+                extra={"encoding_name": self.encoding_name},
+                exc_info=True,
+            )
+            self._encoder = FallbackTokenEncoder()
         return self._encoder
 
     def _total_tokens(self, segments: list[ContextSegment]) -> int:
