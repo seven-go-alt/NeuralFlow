@@ -33,7 +33,7 @@ _trace_id_var: ContextVar[str] = ContextVar("trace_id", default="")
 _intent_var: ContextVar[str] = ContextVar("intent", default="unknown")
 _registry_lock = Lock()
 _logger_lock = Lock()
-_cached_observability: dict[int, "Observability"] = {}
+_cached_observability: dict[int, Observability] = {}
 _configured_loggers: set[str] = set()
 
 

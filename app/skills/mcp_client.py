@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
@@ -71,7 +72,7 @@ class MCPClient:
             pass
 
         # Additional tool servers from routes
-        for tool_name, base in self.tool_routes.items():
+        for _tool_name, base in self.tool_routes.items():
             if base in seen_bases:
                 continue
             seen_bases.add(base)

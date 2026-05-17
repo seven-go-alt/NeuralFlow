@@ -7,5 +7,10 @@ extend-exclude = [
 ]
 
 [lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
 ignore = ["E501"]
+
+[lint.per-file-ignores]
+"tests/*" = ["N802", "N803", "SIM117"]
+"app/api/*" = ["B008"]
+"app/main.py" = ["B008"]

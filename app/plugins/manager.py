@@ -19,12 +19,12 @@ class PluginManager:
         self._plugins = plugins or []
 
     @classmethod
-    def from_env(cls) -> "PluginManager":
+    def from_env(cls) -> PluginManager:
         plugin_dir = os.getenv("NEURALFLOW_PLUGIN_DIR", "plugins")
         return cls.load_from_dir(Path(plugin_dir))
 
     @classmethod
-    def load_from_dir(cls, plugin_dir: Path) -> "PluginManager":
+    def load_from_dir(cls, plugin_dir: Path) -> PluginManager:
         if not plugin_dir.exists() or not plugin_dir.is_dir():
             return cls([])
 

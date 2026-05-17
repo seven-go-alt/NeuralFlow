@@ -28,7 +28,7 @@ class RuntimeConfig(BaseModel):
     model_routing_strategy: str = Field(default="primary")
 
     @model_validator(mode="after")
-    def validate_token_limits(self) -> "RuntimeConfig":
+    def validate_token_limits(self) -> RuntimeConfig:
         if self.max_context_tokens_soft > self.max_context_tokens:
             raise ValueError("max_context_tokens_soft cannot exceed max_context_tokens")
         return self
@@ -47,10 +47,10 @@ class AsyncRWLock:
         self._readers = 0
         self._writer = False
 
-    def read_lock(self) -> "_ReadLock":
+    def read_lock(self) -> _ReadLock:
         return _ReadLock(self)
 
-    def write_lock(self) -> "_WriteLock":
+    def write_lock(self) -> _WriteLock:
         return _WriteLock(self)
 
     async def acquire_read(self) -> None:

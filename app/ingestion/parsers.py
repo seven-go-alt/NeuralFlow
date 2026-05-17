@@ -57,7 +57,7 @@ class MarkdownParser:
     def parse(
         self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
     ) -> ParsedDocument:
-        with open(source_path, "r", encoding="utf-8") as f:
+        with open(source_path, encoding="utf-8") as f:
             text = f.read()
         tokens = self.md.parse(text)
         sections: list[ParsedSection] = []
@@ -113,7 +113,7 @@ class TXTParser:
     def parse(
         self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
     ) -> ParsedDocument:
-        with open(source_path, "r", encoding="utf-8") as f:
+        with open(source_path, encoding="utf-8") as f:
             text = f.read()
         return ParsedDocument(
             document_id=document_id,

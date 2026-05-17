@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Protocol, Sequence, cast
+from collections.abc import Sequence
+from typing import Any, Protocol, cast
 
 from app.embeddings.service import EmbeddingService
 from app.utils.vector_client import get_vector_client

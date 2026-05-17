@@ -23,7 +23,7 @@ class RecursiveChunkSplitter:
             for text in self._split_text(section.content):
                 token_count = len(self.encoding.encode(text))
                 digest = hashlib.sha1(
-                    f"{document.document_id}:{chunk_index}:{text[:64]}".encode("utf-8")
+                    f"{document.document_id}:{chunk_index}:{text[:64]}".encode()
                 ).hexdigest()[:24]
                 chunks.append(
                     ChunkRecord(
