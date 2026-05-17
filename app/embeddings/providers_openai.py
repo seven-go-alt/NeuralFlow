@@ -15,15 +15,9 @@ class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
     def __init__(self) -> None:
         settings = get_settings()
         self.api_base = (
-            settings.embedding_api_base
-            or settings.llm_api_base
-            or "https://api.openai.com/v1"
+            settings.embedding_api_base or settings.llm_api_base or "https://api.openai.com/v1"
         ).rstrip("/")
-        self.api_key = (
-            settings.embedding_api_key
-            or settings.llm_api_key
-            or settings.openai_api_key
-        )
+        self.api_key = settings.embedding_api_key or settings.llm_api_key or settings.openai_api_key
         self.offline_fallback_enabled = settings.offline_fallback_enabled
 
     async def embed_texts(self, texts: list[str], model: str) -> list[list[float]]:

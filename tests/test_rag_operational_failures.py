@@ -10,7 +10,9 @@ from app.utils.vector_client import VectorStoreUnavailableError
 
 
 @pytest.mark.asyncio
-async def test_document_upload_returns_503_when_ingestion_queue_unavailable(monkeypatch, tmp_path: Path) -> None:
+async def test_document_upload_returns_503_when_ingestion_queue_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("DOCUMENTS_STORAGE_DIR", str(tmp_path / "uploads"))
 
     class BrokenTaskApp:
@@ -31,7 +33,9 @@ async def test_document_upload_returns_503_when_ingestion_queue_unavailable(monk
 
 
 @pytest.mark.asyncio
-async def test_reindex_returns_503_when_ingestion_queue_unavailable(monkeypatch, tmp_path: Path) -> None:
+async def test_reindex_returns_503_when_ingestion_queue_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("DOCUMENTS_STORAGE_DIR", str(tmp_path / "uploads"))
 
     class FailingTaskApp:
@@ -64,7 +68,9 @@ async def test_reindex_returns_503_when_ingestion_queue_unavailable(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_chat_reports_vector_store_unavailable_instead_of_silent_empty_retrieval(monkeypatch) -> None:
+async def test_chat_reports_vector_store_unavailable_instead_of_silent_empty_retrieval(
+    monkeypatch,
+) -> None:
     class StubRouter:
         async def detect(self, text: str):
             from app.core.intent_router import IntentDetectionResult, IntentPolicy
@@ -73,7 +79,9 @@ async def test_chat_reports_vector_store_unavailable_instead_of_silent_empty_ret
                 intents=["general"],
                 primary_intent="general",
                 used_fallback=False,
-                policies={"general": IntentPolicy(memory_strategy="working_only", skill_whitelist=[])},
+                policies={
+                    "general": IntentPolicy(memory_strategy="working_only", skill_whitelist=[])
+                },
             )
 
     class StubWorkingMemory:
@@ -87,7 +95,9 @@ async def test_chat_reports_vector_store_unavailable_instead_of_silent_empty_ret
             return [{"role": role, "content": content} for role, content in self.messages]
 
     class StubContextBuilder:
-        def __init__(self, session_id: str, working_mem=None, tenant_id: str | None = None, **kwargs) -> None:
+        def __init__(
+            self, session_id: str, working_mem=None, tenant_id: str | None = None, **kwargs
+        ) -> None:
             self.session_id = session_id
 
         async def build_prompt(self, user_query: str, intent: str, **kwargs) -> str:

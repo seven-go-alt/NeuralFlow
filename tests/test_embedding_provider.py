@@ -11,7 +11,9 @@ class FakeResponse:
         raise httpx.HTTPStatusError(
             "404 Not Found",
             request=httpx.Request("POST", "https://example.test/v1/embeddings"),
-            response=httpx.Response(404, request=httpx.Request("POST", "https://example.test/v1/embeddings")),
+            response=httpx.Response(
+                404, request=httpx.Request("POST", "https://example.test/v1/embeddings")
+            ),
         )
 
 
@@ -30,7 +32,9 @@ class FakeAsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_embedding_provider_falls_back_to_fake_vectors_when_remote_endpoint_fails(monkeypatch) -> None:
+async def test_embedding_provider_falls_back_to_fake_vectors_when_remote_endpoint_fails(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr("app.embeddings.providers_openai.httpx.AsyncClient", FakeAsyncClient)
 
     provider = OpenAICompatibleEmbeddingProvider()
@@ -46,7 +50,9 @@ async def test_embedding_provider_falls_back_to_fake_vectors_when_remote_endpoin
 
 
 @pytest.mark.asyncio
-async def test_embedding_provider_raises_when_remote_endpoint_fails_and_fallback_disabled(monkeypatch) -> None:
+async def test_embedding_provider_raises_when_remote_endpoint_fails_and_fallback_disabled(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr("app.embeddings.providers_openai.httpx.AsyncClient", FakeAsyncClient)
 
     provider = OpenAICompatibleEmbeddingProvider()

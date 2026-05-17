@@ -25,7 +25,7 @@ from prometheus_client import (
 try:
     from prometheus_client import multiprocess as _multiprocess_module
 except ImportError:  # pragma: no cover
-    _multiprocess_module = None  # type: ignore[assignment]
+    _multiprocess_module = None
 
 
 _session_id_var: ContextVar[str] = ContextVar("session_id", default="anonymous")

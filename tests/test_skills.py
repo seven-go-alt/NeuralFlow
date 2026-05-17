@@ -226,7 +226,11 @@ def test_chat_endpoint_degrades_gracefully_when_redis_is_unavailable(monkeypatch
     client = TestClient(app)
     response = client.post(
         "/chat",
-        json={"session_id": "s-redis-down", "message": "帮我规划并顺手查一下历史", "use_retrieval": False},
+        json={
+            "session_id": "s-redis-down",
+            "message": "帮我规划并顺手查一下历史",
+            "use_retrieval": False,
+        },
     )
 
     assert response.status_code == 200

@@ -37,7 +37,10 @@ class TokenResponse(BaseModel):
 @router.post("/token", response_model=TokenResponse)
 async def login(request: TokenRequest):
     settings = get_settings()
-    if request.username != settings.auth_admin_username or request.password != settings.auth_admin_password:
+    if (
+        request.username != settings.auth_admin_username
+        or request.password != settings.auth_admin_password
+    ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     now = datetime.utcnow()

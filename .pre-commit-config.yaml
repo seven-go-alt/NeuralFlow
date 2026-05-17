@@ -24,3 +24,4 @@ repos:
           - httpx>=0.28.1
           - pydantic-settings>=2.13.1
           - tenacity>=9.1.4
+          - types-aiofiles>=24.1.0

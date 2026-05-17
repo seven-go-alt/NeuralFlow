@@ -123,7 +123,9 @@ async def test_ingestion_pipeline_indexes_document(monkeypatch, tmp_path: Path) 
 
     stub_store = StubStore()
     monkeypatch.setattr("app.ingestion.pipeline.ParserFactory.create", lambda path: StubParser())
-    monkeypatch.setattr("app.ingestion.pipeline.ChromaDocumentStore", lambda *args, **kwargs: DummyStore())
+    monkeypatch.setattr(
+        "app.ingestion.pipeline.ChromaDocumentStore", lambda *args, **kwargs: DummyStore()
+    )
 
     pipeline = IngestionPipeline()
     pipeline.embedding_service = StubEmbeddingService()

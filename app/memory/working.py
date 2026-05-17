@@ -54,7 +54,7 @@ class WorkingMemory(MemoryStore):
         try:
             self.client.lpush(self.key, json.dumps(payload, ensure_ascii=False))
 
-            raw_items: list[str] = self.client.lrange(self.key, 0, -1)  # type: ignore[assignment]
+            raw_items: list[str] = self.client.lrange(self.key, 0, -1)
             overflow = raw_items[self.max_turns :]
             if overflow:
                 for item in reversed(overflow):
@@ -70,7 +70,7 @@ class WorkingMemory(MemoryStore):
             return [item.copy() for item in self._fallback_history]
 
         try:
-            raw_data: list[str] = self.client.lrange(self.key, 0, -1)  # type: ignore[assignment]
+            raw_data: list[str] = self.client.lrange(self.key, 0, -1)
             return [json.loads(item) for item in reversed(raw_data)]
         except redis.RedisError as exc:
             self._enable_fallback(exc)
@@ -97,7 +97,7 @@ class WorkingMemory(MemoryStore):
             return [item.copy() for item in self._fallback_archive[:limit]]
 
         try:
-            raw_data: list[str] = self.client.lrange(self.archive_key, 0, limit - 1)  # type: ignore[assignment]
+            raw_data: list[str] = self.client.lrange(self.archive_key, 0, limit - 1)
             return [json.loads(item) for item in reversed(raw_data)]
         except redis.RedisError as exc:
             self._enable_fallback(exc)

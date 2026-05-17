@@ -38,7 +38,7 @@ class ChromaDocumentStore:
                 ids=ids,
                 documents=documents,
                 metadatas=metadatas,
-                embeddings=embeddings,  # type: ignore[arg-type]
+                embeddings=embeddings,
             )
         except AttributeError:
             self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
@@ -51,7 +51,7 @@ class ChromaDocumentStore:
         )
         query_vectors: Sequence[Sequence[float]] = query_embedding
         result = self.collection.query(
-            query_embeddings=query_vectors,  # type: ignore[arg-type]
+            query_embeddings=query_vectors,
             n_results=top_k,
             where=where,
         )
@@ -62,4 +62,4 @@ class ChromaDocumentStore:
     def delete_document(self, tenant_id: str, document_id: str) -> None:
         where = {"$and": [{"tenant_id": tenant_id}, {"document_id": document_id}]}
         if hasattr(self.collection, "delete"):
-            self.collection.delete(where=where)  # type: ignore[arg-type]
+            self.collection.delete(where=where)

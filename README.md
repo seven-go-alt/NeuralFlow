@@ -525,7 +525,7 @@ npm run dev
 **重要：** 只有当文档状态为 `ready` 时，Chat 才能检索到文档内容。上传后，文件会经过以下处理阶段：
 
 1. `uploaded` - 文件已上传
-2. `queued` - 等待 Celery worker 处理  
+2. `queued` - 等待 Celery worker 处理
 3. `parsing` - 解析文件内容中
 4. `chunking` - 分割成 chunks 中
 5. `embedding` - 生成向量嵌入中

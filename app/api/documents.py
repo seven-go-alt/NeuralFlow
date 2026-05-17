@@ -122,7 +122,9 @@ def delete_document(document_id: str, request: Request, db: Session = Depends(ge
     ok = repo.soft_delete(tenant_id=tenant_id, document_id=document_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Document not found")
-    ChromaDocumentStore(allow_in_memory=True).delete_document(tenant_id=tenant_id, document_id=document_id)
+    ChromaDocumentStore(allow_in_memory=True).delete_document(
+        tenant_id=tenant_id, document_id=document_id
+    )
     return {"ok": True, "document_id": document_id}
 
 

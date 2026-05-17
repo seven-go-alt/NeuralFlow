@@ -18,7 +18,9 @@ class RetrievalService:
 
     async def search(self, tenant_id: str, request: RetrievalRequest) -> RetrievalResponse:
         where = self._build_where(tenant_id=tenant_id, filters=request.filters.model_dump())
-        response = await self.store.query(query_text=request.query, top_k=request.top_k, where=where)
+        response = await self.store.query(
+            query_text=request.query, top_k=request.top_k, where=where
+        )
         documents = (response.get("documents") or [[]])[0]
         metadatas = (response.get("metadatas") or [[]])[0]
         ids = (response.get("ids") or [[]])[0]

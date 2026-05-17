@@ -26,10 +26,12 @@ def compare_summary(current: dict[str, Any], baseline: dict[str, Any]) -> list[s
 
     base_citation = baseline_summary.get("citation_coverage")
     curr_citation = current_summary.get("citation_coverage")
-    if base_citation is not None and curr_citation is not None and curr_citation < base_citation - 0.05:
-        failures.append(
-            f"citation_coverage regressed: {base_citation} -> {curr_citation}"
-        )
+    if (
+        base_citation is not None
+        and curr_citation is not None
+        and curr_citation < base_citation - 0.05
+    ):
+        failures.append(f"citation_coverage regressed: {base_citation} -> {curr_citation}")
 
     base_keyword = baseline_summary.get("avg_keyword_score")
     curr_keyword = current_summary.get("avg_keyword_score")

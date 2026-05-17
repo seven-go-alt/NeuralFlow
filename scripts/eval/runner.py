@@ -106,7 +106,9 @@ async def run_retrieval_case(
     missing_doc_ids = [
         item for item in expected.get("must_hit_document_ids", []) if item not in document_ids
     ]
-    missing_chunk_ids = [item for item in expected.get("must_hit_chunk_ids", []) if item not in chunk_ids]
+    missing_chunk_ids = [
+        item for item in expected.get("must_hit_chunk_ids", []) if item not in chunk_ids
+    ]
     missing_titles = [item for item in expected.get("must_hit_titles", []) if item not in titles]
     if missing_doc_ids:
         failures.append(f"missing document ids: {missing_doc_ids}")
@@ -136,7 +138,9 @@ async def run_retrieval_case(
     )
 
 
-async def run_chat_case(client: httpx.AsyncClient, base_url: str, case: dict[str, Any]) -> CaseResult:
+async def run_chat_case(
+    client: httpx.AsyncClient, base_url: str, case: dict[str, Any]
+) -> CaseResult:
     payload = {
         "session_id": case.get("session_id", f"eval-{case['id']}"),
         "message": case["message"],
@@ -182,11 +186,17 @@ async def run_chat_case(client: httpx.AsyncClient, base_url: str, case: dict[str
     citation_pages = [item.get("page_number") for item in citations]
 
     missing_cite_doc_ids = [
-        item for item in expected.get("must_cite_document_ids", []) if item not in citation_document_ids
+        item
+        for item in expected.get("must_cite_document_ids", [])
+        if item not in citation_document_ids
     ]
-    missing_cite_titles = [item for item in expected.get("must_cite_titles", []) if item not in citation_titles]
+    missing_cite_titles = [
+        item for item in expected.get("must_cite_titles", []) if item not in citation_titles
+    ]
     missing_cite_pages = [
-        item for item in expected.get("must_reference_page_numbers", []) if item not in citation_pages
+        item
+        for item in expected.get("must_reference_page_numbers", [])
+        if item not in citation_pages
     ]
     if missing_cite_doc_ids:
         failures.append(f"missing cited document ids: {missing_cite_doc_ids}")
@@ -200,9 +210,13 @@ async def run_chat_case(client: httpx.AsyncClient, base_url: str, case: dict[str
         "keyword_score": keyword_score,
         "keyword_hits": hits,
         "citation_count": len(citations),
-        "citation_hit_document": not missing_cite_doc_ids if expected.get("must_cite_document_ids") else None,
+        "citation_hit_document": not missing_cite_doc_ids
+        if expected.get("must_cite_document_ids")
+        else None,
         "citation_hit_title": not missing_cite_titles if expected.get("must_cite_titles") else None,
-        "citation_hit_page": not missing_cite_pages if expected.get("must_reference_page_numbers") else None,
+        "citation_hit_page": not missing_cite_pages
+        if expected.get("must_reference_page_numbers")
+        else None,
     }
 
     return CaseResult(
@@ -225,7 +239,11 @@ def summarize(results: list[CaseResult], suite: str) -> dict[str, Any]:
     total = len(results)
     passed = sum(1 for item in results if item.status == "passed")
     failed = total - passed
-    latencies = [item.metrics.get("latency_ms") for item in results if item.metrics.get("latency_ms") is not None]
+    latencies = [
+        item.metrics.get("latency_ms")
+        for item in results
+        if item.metrics.get("latency_ms") is not None
+    ]
     avg_latency_ms = round(sum(latencies) / len(latencies), 2) if latencies else None
 
     summary: dict[str, Any] = {
@@ -240,22 +258,48 @@ def summarize(results: list[CaseResult], suite: str) -> dict[str, Any]:
         chat_results = [item for item in results if item.suite == "chat"]
         if chat_results:
             keyword_scores = [item.metrics.get("keyword_score", 0.0) for item in chat_results]
-            citation_cases = [item for item in chat_results if item.metrics.get("citation_count") is not None]
-            citation_covered = [item for item in citation_cases if (item.metrics.get("citation_count") or 0) > 0]
+            citation_cases = [
+                item for item in chat_results if item.metrics.get("citation_count") is not None
+            ]
+            citation_covered = [
+                item for item in citation_cases if (item.metrics.get("citation_count") or 0) > 0
+            ]
             summary["avg_keyword_score"] = round(sum(keyword_scores) / len(keyword_scores), 4)
-            summary["citation_coverage"] = round(
-                len(citation_covered) / len(citation_cases), 4
-            ) if citation_cases else None
+            summary["citation_coverage"] = (
+                round(len(citation_covered) / len(citation_cases), 4) if citation_cases else None
+            )
 
     if suite in {"retrieval", "all"}:
         retrieval_results = [item for item in results if item.suite == "retrieval"]
         if retrieval_results:
-            doc_checks = [item.metrics.get("document_hit") for item in retrieval_results if item.metrics.get("document_hit") is not None]
-            chunk_checks = [item.metrics.get("chunk_hit") for item in retrieval_results if item.metrics.get("chunk_hit") is not None]
-            title_checks = [item.metrics.get("title_hit") for item in retrieval_results if item.metrics.get("title_hit") is not None]
-            summary["document_hit_rate"] = round(sum(1 for x in doc_checks if x) / len(doc_checks), 4) if doc_checks else None
-            summary["chunk_hit_rate"] = round(sum(1 for x in chunk_checks if x) / len(chunk_checks), 4) if chunk_checks else None
-            summary["title_hit_rate"] = round(sum(1 for x in title_checks if x) / len(title_checks), 4) if title_checks else None
+            doc_checks = [
+                item.metrics.get("document_hit")
+                for item in retrieval_results
+                if item.metrics.get("document_hit") is not None
+            ]
+            chunk_checks = [
+                item.metrics.get("chunk_hit")
+                for item in retrieval_results
+                if item.metrics.get("chunk_hit") is not None
+            ]
+            title_checks = [
+                item.metrics.get("title_hit")
+                for item in retrieval_results
+                if item.metrics.get("title_hit") is not None
+            ]
+            summary["document_hit_rate"] = (
+                round(sum(1 for x in doc_checks if x) / len(doc_checks), 4) if doc_checks else None
+            )
+            summary["chunk_hit_rate"] = (
+                round(sum(1 for x in chunk_checks if x) / len(chunk_checks), 4)
+                if chunk_checks
+                else None
+            )
+            summary["title_hit_rate"] = (
+                round(sum(1 for x in title_checks if x) / len(title_checks), 4)
+                if title_checks
+                else None
+            )
 
     return summary
 
