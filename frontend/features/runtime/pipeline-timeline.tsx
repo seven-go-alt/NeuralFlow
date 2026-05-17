@@ -40,10 +40,10 @@ export function PipelineTimeline({ events }: { events: RuntimeEvent[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-sm font-medium text-zinc-100">{event.title}</div>
+                  <div className="truncate text-sm font-medium text-zinc-100 font-mono">{event.title}</div>
                   <Badge tone={event.status === "error" ? "rose" : event.status === "running" ? "cyan" : "zinc"}>{event.status}</Badge>
                 </div>
-                {event.detail && <div className="mt-1 line-clamp-3 text-xs leading-5 text-zinc-500">{event.detail}</div>}
+                {event.detail && <div className="mt-1 line-clamp-3 text-xs leading-5 text-zinc-500 font-mono">{event.detail}</div>}
               </div>
             </div>
           </div>

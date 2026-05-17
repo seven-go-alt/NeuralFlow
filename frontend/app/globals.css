@@ -25,6 +25,8 @@
   --destructive-foreground: 210 40% 98%;
   --ring: 186 88% 43%;
   --radius: 0.5rem;
+
+  font-family: var(--font-display), system-ui, sans-serif;
 }
 
 * {
@@ -51,6 +53,7 @@ body::before {
     linear-gradient(120deg, rgb(8 47 73 / 0.18), transparent 32%),
     linear-gradient(245deg, rgb(88 28 135 / 0.16), transparent 34%),
     radial-gradient(circle at 52% 0%, rgb(20 184 166 / 0.1), transparent 28%);
+  z-index: 0;
 }
 
 button,
@@ -101,9 +104,98 @@ input {
   background-image: linear-gradient(90deg, transparent, rgb(34 211 238 / 0.45), transparent);
 }
 
+/* ---------- Typography ---------- */
+
+.font-mono {
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px hsl(186 88% 43% / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 14px hsl(186 88% 43% / 0.35);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bg-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+.animate-bg-shift {
+  background-size: 200% 200%;
+  animation: bg-shift 8s ease-in-out infinite;
+}
+
+/* Stagger children: used on parent */
+.stagger-children > * {
+  animation: fade-in-up 0.35s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.10s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.14s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.22s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.26s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.30s; }
+.stagger-children > *:nth-child(9) { animation-delay: 0.34s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.38s; }
+
+/* ---------- Markdown ---------- */
+
 .markdown {
   font-size: 0.9rem;
   line-height: 1.7;
+  font-family: var(--font-display), system-ui, sans-serif;
 }
 
 .markdown p {
@@ -131,6 +223,7 @@ input {
   background: hsl(var(--muted));
   padding: 0.1rem 0.35rem;
   font-size: 0.82em;
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
 }
 
 .markdown pre {
@@ -140,6 +233,11 @@ input {
   border: 1px solid hsl(var(--border));
   background: #090d14;
   padding: 0.9rem;
+}
+
+.markdown pre code {
+  font-family: var(--font-mono), "JetBrains Mono", monospace;
+  font-size: 0.82rem;
 }
 
 .markdown blockquote {

@@ -296,8 +296,8 @@ export function AppShell() {
               <Sparkles className="h-4 w-4 text-cyan-200" />
             </div>
             <div>
-              <div className="text-sm font-semibold">Agent Console</div>
-              <div className="text-[11px] text-zinc-500">Runtime mode: {mode}</div>
+              <div className="text-sm font-semibold font-mono">Agent Console</div>
+              <div className="text-[11px] text-zinc-500 font-mono">Runtime mode: {mode}</div>
             </div>
             {activeDocument ? (
               <div className="hidden items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 md:flex">

@@ -89,9 +89,13 @@ export function MessageList({ messages, onRetry }: { messages: ChatMessage[]; on
 
   return (
     <div ref={ref} className="flex-1 space-y-6 overflow-y-auto px-4 py-6 md:px-8">
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} onRetry={onRetry} />
-      ))}
+      <div className="stagger-children">
+        {messages.map((message) => (
+          <div key={message.id} className="mb-6">
+            <MessageBubble message={message} onRetry={onRetry} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

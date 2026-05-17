@@ -44,7 +44,7 @@ export function ChatComposer({
           </span>
         </div>
         <div className="flex gap-2">
-        <Button type="button" variant="outline" size="icon" title="Attach context">
+        <Button type="button" variant="outline" size="icon" title="Attach context (coming soon)" disabled>
           <Paperclip className="h-4 w-4" />
         </Button>
         <div className="relative flex-1">

@@ -21,9 +21,9 @@ export function ToolCallList({ toolCalls }: { toolCalls: ToolCall[] }) {
           </div>
         )}
         {toolCalls.map((call) => (
-          <div key={call.id} className="rounded-lg border bg-zinc-950/50 p-3">
+          <div key={call.id} className="rounded-lg border bg-zinc-950/50 p-3 animate-fade-in-up">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-100">{call.name}</span>
+              <span className="text-sm font-medium text-zinc-100 font-mono">{call.name}</span>
               <Badge tone={call.status === "error" ? "rose" : call.status === "success" ? "emerald" : "amber"}>{call.status}</Badge>
             </div>
             <div className="mt-1 text-[11px] text-zinc-500">{formatLatency(call.latencyMs)}</div>

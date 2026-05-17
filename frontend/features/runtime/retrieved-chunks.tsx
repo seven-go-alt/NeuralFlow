@@ -38,12 +38,12 @@ export function RetrievedChunks({ chunks }: { chunks: RetrievedChunk[] }) {
           </div>
         )}
         {chunks.map((chunk) => (
-          <div key={chunk.id} className="rounded-lg border bg-zinc-950/50 p-3">
+          <div key={chunk.id} className="rounded-lg border bg-zinc-950/50 p-3 animate-fade-in-up">
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-xs font-medium text-zinc-300">{chunk.title || chunk.source}</span>
+              <span className="truncate text-xs font-medium text-zinc-300 font-mono">{chunk.title || chunk.source}</span>
               <Badge tone="emerald">{Math.round(chunk.score * 100)}%</Badge>
             </div>
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-500">
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
               <span>{chunk.source}</span>
               {chunk.pageNumber ? <span>· p.{chunk.pageNumber}</span> : null}
               {chunk.documentId ? (

@@ -16,11 +16,17 @@ const tones: Record<BadgeTone, string> = {
 export function Badge({
   className,
   tone = "zinc",
+  pulse,
   ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { tone?: BadgeTone }) {
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: BadgeTone; pulse?: boolean }) {
   return (
     <span
-      className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium", tones[tone], className)}
+      className={cn(
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium font-mono",
+        pulse && "animate-pulse-glow",
+        tones[tone],
+        className,
+      )}
       {...props}
     />
   );

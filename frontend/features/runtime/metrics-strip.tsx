@@ -21,7 +21,7 @@ export function MetricsStrip({ metrics }: { metrics: RuntimeMetrics }) {
             <Icon className={`h-3.5 w-3.5 ${tone}`} />
             {label}
           </div>
-          <div className="mt-1 text-sm font-semibold text-zinc-100">{value}</div>
+          <div className="mt-1 text-sm font-semibold text-zinc-100 font-mono">{value}</div>
         </div>
       ))}
     </div>
