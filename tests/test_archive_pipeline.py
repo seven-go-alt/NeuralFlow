@@ -41,7 +41,7 @@ async def test_context_builder_uses_memory_strategy_and_skill_whitelist() -> Non
         working_mem=type(
             "WM", (), {"get_messages": lambda self: [{"role": "user", "content": "hello"}]}
         )(),
-        long_mem=FakeLongTermMemory(),  # type: ignore[arg-type]
+        long_mem=FakeLongTermMemory(),
     )
 
     prompt = await builder.build_prompt(

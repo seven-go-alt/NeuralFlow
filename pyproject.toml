@@ -55,6 +55,3 @@ dev = [
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disable_error_code = ["assignment", "arg-type"]

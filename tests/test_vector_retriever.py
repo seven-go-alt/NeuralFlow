@@ -50,7 +50,7 @@ class SpyCollection:
 
     def get(self, where=None, include=None):
         self.get_calls.append({"where": where, "include": include})
-        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]  # type: ignore[arg-type]
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
         return {
             "documents": [item["document"] for item in matched],
             "metadatas": [item["metadata"] for item in matched],
@@ -127,7 +127,7 @@ class StrictChromaCollection(SpyCollection):
         if where and "$and" not in where and len(where) > 1:
             raise ValueError(f"Expected where to have exactly one operator, got {where}")
         self.get_calls.append({"where": where, "include": include})
-        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]  # type: ignore[arg-type]
+        matched = [item for item in self.documents if self._matches_where(item["metadata"], where)]
         return {
             "documents": [item["document"] for item in matched],
             "metadatas": [item["metadata"] for item in matched],
@@ -170,7 +170,7 @@ async def test_vector_retriever_falls_back_to_keyword_search_when_vector_query_f
     def raise_query(*args, **kwargs):
         raise RuntimeError("chroma unavailable")
 
-    collection.query = raise_query  # type: ignore[method-assign]
+    collection.query = raise_query
     retriever = VectorRetriever(
         collection=collection, cache_client=FakeRedis(), cache_ttl_seconds=300
     )
