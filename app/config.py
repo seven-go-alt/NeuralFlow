@@ -77,6 +77,11 @@ class Settings(BaseSettings):
 
     tenant_default_id: str = "public"
 
+    auth_enabled: bool = False
+    auth_admin_username: str = "admin"
+    auth_admin_password: str = "admin123"
+    auth_jwt_secret: str = "neuralflow-dev-secret-change-in-prod"
+
     token_budget_encoding: str = "cl100k_base"
     max_context_tokens_soft: int = 6000
     max_context_tokens: int = 8000

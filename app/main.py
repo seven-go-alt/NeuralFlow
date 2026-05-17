@@ -18,6 +18,7 @@ from app.agents.react import ReActAgent
 from app.api.documents import router as documents_router
 from app.api.retrieval import router as retrieval_router
 from app.api.streaming import StreamTaskRegistry, create_sse_response
+from app.auth import router as auth_router
 from app.config import get_settings
 from app.config_manager import ConfigManager
 from app.core.context import ContextBuilder
@@ -54,6 +55,7 @@ app.add_middleware(
 )
 app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
+app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(retrieval_router)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)

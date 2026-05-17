@@ -17,6 +17,7 @@ dependencies = [
     "litellm>=1.83.7",
     "markdown-it-py>=4.0.0",
     "prometheus-client>=0.22.1,<1.0.0",
+    "pyjwt>=2.8.0",
     "psycopg[binary]>=3.2.12",
     "pydantic-settings>=2.13.1",
     "pymupdf>=1.26.5",
