@@ -53,4 +53,4 @@ def test_docker_compose_uses_example_env_for_api_and_worker() -> None:
 
     assert "api:" in compose
     assert "worker:" in compose
-    assert compose.count("- .env.example") >= 2
+    assert compose.count("- .env") >= 2

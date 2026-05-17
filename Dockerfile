@@ -40,7 +40,10 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 
 RUN pip install --no-cache-dir -U pip uv \
-    && uv sync --frozen --no-dev --verbose
+    && uv sync --frozen --no-dev --verbose \
+    && rm -rf /root/.cache/pip /root/.cache/uv \
+    && find /app/.venv -name "*.pyc" -delete \
+    && find /app/.venv -type d -name "__pycache__" -delete
 
 # --- 阶段 2: 最终镜像 ---
 FROM base AS runtime
