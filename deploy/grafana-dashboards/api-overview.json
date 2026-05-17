@@ -1,0 +1,44 @@
+{
+  "title": "NeuralFlow API",
+  "tags": ["neuralflow"],
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "panels": [
+    {
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{
+        "expr": "rate(prometheus_http_requests_total{job=\"api\"}[5m])",
+        "legendFormat": "{{handler}}"
+      }]
+    },
+    {
+      "title": "Request Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{
+        "expr": "rate(prometheus_http_request_duration_seconds_sum{job=\"api\"}[5m]) / rate(prometheus_http_request_duration_seconds_count{job=\"api\"}[5m])",
+        "legendFormat": "{{handler}}"
+      }]
+    },
+    {
+      "title": "Active Workers",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 8 },
+      "targets": [{
+        "expr": "sum(uvicorn_workers{job=\"api\"})"
+      }]
+    },
+    {
+      "title": "Python GC Objects",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [{
+        "expr": "python_gc_objects_collected_total{job=\"api\"}"
+      }]
+    }
+  ]
+}

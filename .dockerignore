@@ -32,10 +32,12 @@ uploads_data
 # 前端（单独构建）
 frontend
 
-# 文档
+# 部署配置
+deploy
 docs
 CHANGELOG.md
 LICENSE
+docker-compose*.yml
 
 # 测试（生产镜像不需要）
 tests
