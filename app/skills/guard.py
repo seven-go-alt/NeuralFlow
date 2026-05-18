@@ -63,10 +63,9 @@ def validate_skill_call(
     max_param_length: int = 10_000,
 ) -> GuardResult:
     """Validate a skill call against permission and parameter constraints."""
-    if not read_only:
-        if skill_name == "terminal":
-            cmd = params.get("command", "")
-            return validate_terminal_command(cmd)
+    if not read_only and skill_name == "terminal":
+        cmd = params.get("command", "")
+        return validate_terminal_command(cmd)
 
     for key, value in params.items():
         if isinstance(value, str) and len(value) > max_param_length:
@@ -92,15 +91,15 @@ def contains_sensitive_data(text: str) -> bool:
     """Check if text contains potential sensitive information patterns."""
     patterns = [
         (r"-----BEGIN (RSA |EC )?PRIVATE KEY-----", "Private key"),
-        (r"(?:^|\s)(?:export|set)\s+\w*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)\s*=", "Credential export"),
+        (
+            r"(?:^|\s)(?:export|set)\s+\w*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)\s*=",
+            "Credential export",
+        ),
         (r"(?:^|\s)(?:ghp|gho|github_pat)_[a-zA-Z0-9]{36}", "GitHub token"),
         (r"sk-[a-zA-Z0-9]{20,}", "OpenAI-style API key"),
         (r"(?:\b|_)AKIA[0-9A-Z]{16}\b", "AWS access key"),
     ]
-    for pattern, label in patterns:
-        if re.search(pattern, text):
-            return True
-    return False
+    return any(re.search(pattern, text) for pattern, _ in patterns)
 
 
 class RateLimiter:
