@@ -1,10 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 from app.retrieval.keyword_store import KeywordResult, KeywordStore
 from app.retrieval.reranker import heuristic_rerank
 from app.retrieval.schemas import RetrievalRequest, RetrievalResponse, RetrievalResult
+
+
+class VectorStore(Protocol):
+    async def query(
+        self,
+        query_text: str,
+        top_k: int,
+        where: dict[str, Any],
+    ) -> dict[str, Any]: ...
 
 
 class HybridRetrievalService:
@@ -27,10 +36,10 @@ class HybridRetrievalService:
 
     def __init__(
         self,
-        vector_store: object,
+        vector_store: VectorStore,
         keyword_store: KeywordStore | None = None,
     ) -> None:
-        self._vector_store = vector_store
+        self._vector_store: VectorStore = vector_store
         self._keyword_store = keyword_store or KeywordStore()
 
     async def search(
@@ -84,9 +93,7 @@ class HybridRetrievalService:
         )
         kw_results_filtered = self._kw_to_retrieval_results(kw_results, 0.0)
 
-        merged = self._merge_results(
-            vector_response.results, kw_results_filtered
-        )
+        merged = self._merge_results(vector_response.results, kw_results_filtered)
         reranked = heuristic_rerank(merged, request.query)
 
         if request.score_threshold > 0:
@@ -130,9 +137,7 @@ class HybridRetrievalService:
             )
         return results
 
-    def _build_where(
-        self, tenant_id: str, filters: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _build_where(self, tenant_id: str, filters: dict[str, Any]) -> dict[str, Any]:
         clauses: list[dict[str, Any]] = [{"tenant_id": tenant_id}]
         document_ids = filters.get("document_ids") or []
         if len(document_ids) == 1:
