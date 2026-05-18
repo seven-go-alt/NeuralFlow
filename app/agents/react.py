@@ -81,6 +81,7 @@ class ReActAgent:
         mcp_client: MCPClient,
         max_iterations: int = 5,
         max_reflections: int = 2,
+        local_handlers: dict[str, Any] | None = None,
     ) -> None:
         settings = get_settings()
         self.model = settings.litellm_model
@@ -89,6 +90,7 @@ class ReActAgent:
         self.mcp = mcp_client
         self.max_iterations = max_iterations
         self.max_reflections = max_reflections
+        self.local_handlers = local_handlers or {}
 
     async def _call_llm(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None
@@ -178,11 +180,14 @@ class ReActAgent:
                             }
                         )
                     try:
-                        obs_result = await self.mcp.call_tool(
-                            skill.tool_name,
-                            payload,
-                            read_only=skill.read_only,
-                        )
+                        if tool_name in self.local_handlers:
+                            obs_result = await self.local_handlers[tool_name](payload)
+                        else:
+                            obs_result = await self.mcp.call_tool(
+                                skill.tool_name,
+                                payload,
+                                read_only=skill.read_only,
+                            )
                         observation = json.dumps(obs_result, ensure_ascii=False)
                     except Exception as e:
                         observation = f"Error executing tool: {e}"
