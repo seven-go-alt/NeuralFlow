@@ -16,8 +16,8 @@ from app.evals.metrics import (
 )
 from app.evals.runner import build_eval_report, run_eval
 
-
 # --- datasets ---
+
 
 def test_load_cases(tmp_path: Path) -> None:
     f = tmp_path / "cases.jsonl"
@@ -47,6 +47,7 @@ def test_load_cases_file_not_found() -> None:
 
 
 # --- metrics ---
+
 
 class TestComputeRetrievalHit:
     def test_hit(self) -> None:
@@ -92,18 +93,13 @@ class TestComputeKeywordCoverage:
         assert compute_keyword_coverage("hello world foo", ("hello", "world")) == 1.0
 
     def test_partial(self) -> None:
-        assert (
-            compute_keyword_coverage("hello world", ("hello", "missing"))
-            == 0.5
-        )
+        assert compute_keyword_coverage("hello world", ("hello", "missing")) == 0.5
 
     def test_empty_keywords(self) -> None:
         assert compute_keyword_coverage("anything", ()) == 1.0
 
     def test_case_insensitive(self) -> None:
-        assert (
-            compute_keyword_coverage("Hello World", ("hello", "world")) == 1.0
-        )
+        assert compute_keyword_coverage("Hello World", ("hello", "world")) == 1.0
 
     def test_no_match(self) -> None:
         assert compute_keyword_coverage("hello", ("world",)) == 0.0
@@ -176,6 +172,7 @@ class TestAggregateMetrics:
 
 # --- runner ---
 
+
 @pytest.mark.asyncio
 async def test_run_eval_with_mock_fns(tmp_path: Path) -> None:
     f = tmp_path / "cases.jsonl"
@@ -221,6 +218,7 @@ async def test_run_eval_should_not_answer(tmp_path: Path) -> None:
 
 
 # --- report ---
+
 
 def test_build_eval_report() -> None:
     results = [
