@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.skills.mcp_client import MCPClient, MCPToolExecutionError
+from app.skills.mcp_client import MCPClient, MCPToolDescriptor, MCPToolExecutionError
 
 
 class HttpxClientFactory:
@@ -84,3 +84,91 @@ async def test_mcp_client_marks_transport_failures_as_offline_fallback_candidate
     assert exc_info.value.is_retryable is True
     assert exc_info.value.should_trigger_fallback is True
     assert exc_info.value.status_code == 503
+
+
+class TestMCPToolDescriptor:
+    def test_defaults(self) -> None:
+        d = MCPToolDescriptor(name="test", description="desc")
+        assert d.read_only is True
+        assert d.input_schema == {}
+
+
+class TestMCPToolExecutionError:
+    def test_defaults(self) -> None:
+        e = MCPToolExecutionError("msg")
+        assert e.status_code == 502
+        assert e.is_retryable is False
+        assert e.should_trigger_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_mcp_client_call_tool_non_dict_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code=200, json="plain string")
+
+    client = MCPClient(
+        base_url="http://mcp.test",
+        client_factory=HttpxClientFactory(httpx.MockTransport(handler)),
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    result = await client.call_tool("tool", {}, read_only=True)
+    assert result == {"result": "plain string"}
+
+
+@pytest.mark.asyncio
+async def test_mcp_client_call_tool_retryable_status() -> None:
+    attempts = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        attempts["count"] += 1
+        return httpx.Response(status_code=502, json={"detail": "bad gateway"})
+
+    client = MCPClient(
+        base_url="http://mcp.test",
+        client_factory=HttpxClientFactory(httpx.MockTransport(handler)),
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    with pytest.raises(MCPToolExecutionError) as exc_info:
+        await client.call_tool("tool", {}, read_only=True)
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.is_retryable is True
+
+
+@pytest.mark.asyncio
+async def test_mcp_client_call_tool_error_status() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code=404, json={"detail": "not found"})
+
+    client = MCPClient(
+        base_url="http://mcp.test",
+        client_factory=HttpxClientFactory(httpx.MockTransport(handler)),
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    with pytest.raises(MCPToolExecutionError) as exc_info:
+        await client.call_tool("tool", {}, read_only=True)
+    assert exc_info.value.is_retryable is False
+
+
+@pytest.mark.asyncio
+async def test_mcp_client_invalid_json_response() -> None:
+    """JSON decode failure is non-retryable with status 502."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status_code=200, text="not json")
+
+    client = MCPClient(
+        base_url="http://mcp.test",
+        client_factory=HttpxClientFactory(httpx.MockTransport(handler)),
+        retry_attempts=1,
+        retry_backoff_seconds=0,
+    )
+
+    with pytest.raises(MCPToolExecutionError) as exc_info:
+        await client.call_tool("tool", {}, read_only=True)
+    assert exc_info.value.status_code == 502
