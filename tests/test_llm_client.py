@@ -220,6 +220,51 @@ def test_llm_client_extract_delta_edge_cases() -> None:
     assert client._extract_delta(dict_chunk) == "from dict"
 
 
+@pytest.mark.asyncio
+async def test_stream_generate_falls_back_to_fallback_model(monkeypatch) -> None:
+    """stream_generate yields fallback model chunks when primary _stream_once fails."""
+
+    async def fake_stream_once(self, prompt, model, include_thinking=False):
+        if "primary" in model:
+            raise RuntimeError("primary stream failed")
+        for chunk in [
+            {"event": "message", "data": "fallback "},
+            {"event": "message", "data": "reply"},
+        ]:
+            yield chunk
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.fallback_model = "ollama/qwen2.5:7b"
+    client.offline_fallback_enabled = True
+
+    chunks = [chunk async for chunk in client.stream_generate("hello")]
+    assert len(chunks) == 2
+    assert chunks[0]["data"] == "fallback "
+    assert chunks[1]["data"] == "reply"
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_rule_based_when_all_streams_fail(monkeypatch) -> None:
+    """stream_generate yields rule-based reply when both primary and fallback fail."""
+
+    async def fake_stream_once(self, prompt, model, include_thinking=False):
+        raise RuntimeError(f"{model} stream failed")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.fallback_model = "ollama/qwen2.5:7b"
+    client.offline_fallback_enabled = True
+
+    chunks = [chunk async for chunk in client.stream_generate("test query")]
+    assert len(chunks) == 1
+    assert chunks[0]["event"] == "message"
+    assert "离线兜底摘要" in chunks[0]["data"]
+
+
 def test_llm_client_extract_thinking() -> None:
     client = LLMClient(model="test-model")
 

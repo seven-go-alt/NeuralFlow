@@ -33,17 +33,16 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install uv
-        env:
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-          PIP_TRUSTED_HOST: pypi.tuna.tsinghua.edu.cn
-        run: pip install --no-cache-dir -U pip uv
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
       - name: Sync Python dependencies
         env:
           UV_HTTP_TIMEOUT: "180"
           UV_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-        run: uv sync --frozen --no-dev
+        run: uv sync --frozen
 
       - name: Run backend tests
         env:
