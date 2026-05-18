@@ -16,6 +16,7 @@ data/uploads/
 node_modules/
 frontend/chroma/
 
+
 # coverage
 .coverage
 coverage.lcov
