@@ -15,6 +15,9 @@ data/uploads/
 .env
 node_modules/
 frontend/chroma/
+
+
+# coverage
 .coverage
 coverage.lcov
 frontend/.coverage
