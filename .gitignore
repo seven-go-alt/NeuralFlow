@@ -13,3 +13,5 @@ data/uploads/
 .env.production
 .env.images
 .env
+node_modules/
+frontend/chroma/

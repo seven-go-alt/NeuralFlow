@@ -34,6 +34,7 @@ from app.plugins.manager import PluginManager
 from app.retrieval.service import RetrievalService
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
+from app.skills.terminal_exec import execute_command
 from app.utils.observability import configure_structured_logging, create_observability
 from app.utils.vector_client import VectorStoreUnavailableError
 
@@ -344,7 +345,8 @@ async def chat_react(http_request: Request, request: ChatRequest):
     selected_skills = skill_registry.get_allowed_skills(primary_policy.skill_whitelist)
 
     # 3. 初始化并运行 ReAct Agent
-    agent = ReActAgent(mcp_client=mcp_client)
+    terminal_handler = {"terminal": _handle_terminal_tool} if settings.terminal_enabled else {}
+    agent = ReActAgent(mcp_client=mcp_client, local_handlers=terminal_handler)
 
     # 执行循环
     result = await agent.execute(
@@ -559,6 +561,16 @@ async def _run_skills(
 ) -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
     for skill in skills:
+        # Terminal skill is only meaningful in ReAct mode where the LLM
+        # decides when to invoke it. Skip it in the non-ReAct flow.
+        if skill.name == "terminal":
+            results.append(
+                {
+                    "skill": skill.name,
+                    "result": {"note": "terminal skill is only available in ReAct mode"},
+                }
+            )
+            continue
         payload: dict[str, Any] = {
             "session_id": session_id,
             "intent": intent,

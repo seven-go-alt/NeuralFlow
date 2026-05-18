@@ -82,11 +82,9 @@ export function DocumentUpload({ onUploaded }: { onUploaded?: () => void }) {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="file-input">
-            <Button type="button" variant="secondary" disabled={uploading} className="whitespace-nowrap">
-              Choose file
-            </Button>
-          </label>
+          <Button type="button" variant="secondary" disabled={uploading} className="whitespace-nowrap" onClick={() => inputRef.current?.click()}>
+            Choose file
+          </Button>
           <Button
             type="button"
             disabled={uploading || !selectedFile}

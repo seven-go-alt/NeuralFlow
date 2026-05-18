@@ -47,6 +47,7 @@ export interface ConversationSession {
   model: string;
   messageCount: number;
   activeDocument?: ActiveDocumentContext | null;
+  pendingPrompt?: string;
 }
 
 export interface RuntimeEvent {
