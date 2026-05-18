@@ -327,6 +327,36 @@ async def chat_stream(
     return await create_sse_response(request.session_id, event_source, stream_registry)
 
 
+async def _handle_terminal_tool(payload: dict[str, Any]) -> dict[str, Any]:
+    """Execute a terminal command locally and return a structured result."""
+    command = (payload.get("input") or "").strip()
+    if not command:
+        return {
+            "error": "No command provided",
+            "stdout": "",
+            "stderr": "input is required",
+            "return_code": 1,
+        }
+    if not settings.terminal_enabled:
+        return {
+            "error": "Terminal execution is disabled",
+            "stdout": "",
+            "stderr": "",
+            "return_code": -1,
+        }
+    result = await execute_command(
+        command,
+        timeout=settings.terminal_timeout_seconds,
+        cwd=settings.terminal_working_dir,
+    )
+    return {
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "return_code": result.return_code,
+        "timed_out": result.timed_out,
+    }
+
+
 @app.post("/api/v1/chat/react")
 async def chat_react(http_request: Request, request: ChatRequest):
     """
