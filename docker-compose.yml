@@ -6,8 +6,16 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-      - chroma
+      redis:
+        condition: service_started
+      chroma:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   worker:
     build: .
@@ -22,6 +30,11 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   chroma:
     image: chromadb/chroma:1.0.20

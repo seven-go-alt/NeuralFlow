@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from app.config import get_settings
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 ALGORITHM = "HS256"
 
 

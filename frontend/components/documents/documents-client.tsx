@@ -11,6 +11,7 @@ import type { DocumentItem } from "@/types/documents";
 export function DocumentsClient({ initialItems }: { initialItems: DocumentItem[] }) {
   const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (items !== initialItems && !loading) {
     const currentIds = items.map((item) => item.document_id).join(",");
@@ -30,6 +31,9 @@ export function DocumentsClient({ initialItems }: { initialItems: DocumentItem[]
     try {
       const data = await listDocuments();
       setItems(data.items);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to refresh documents");
     } finally {
       setLoading(false);
     }
@@ -47,6 +51,7 @@ export function DocumentsClient({ initialItems }: { initialItems: DocumentItem[]
     <div className="space-y-6">
       <DocumentUpload onUploaded={refresh} />
       {loading ? <div className="text-xs text-zinc-500">Refreshing documents…</div> : null}
+      {error ? <div className="rounded-md border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-xs text-rose-200">{error}</div> : null}
       {hasProcessingItems ? (
         <div className="text-xs text-amber-300">Documents are still being processed. This page auto-refreshes every 3 seconds until they become ready.</div>
       ) : null}

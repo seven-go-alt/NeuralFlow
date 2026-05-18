@@ -119,7 +119,8 @@ async def test_chat_returns_citations(monkeypatch) -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
-            "/chat", json={"session_id": "s1", "message": "请假制度是什么？", "use_retrieval": True}
+            "/api/v1/chat",
+            json={"session_id": "s1", "message": "请假制度是什么？", "use_retrieval": True},
         )
 
     assert response.status_code == 200
@@ -143,7 +144,7 @@ async def test_chat_stream_emits_retrieval_and_chunk_events(monkeypatch) -> None
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         async with client.stream(
             "POST",
-            "/chat/stream",
+            "/api/v1/chat/stream",
             json={"session_id": "s2", "message": "请假制度是什么？", "use_retrieval": True},
         ) as response:
             assert response.status_code == 200

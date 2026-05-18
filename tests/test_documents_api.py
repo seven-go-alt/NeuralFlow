@@ -23,29 +23,29 @@ async def test_documents_upload_list_detail_and_delete(monkeypatch, tmp_path: Pa
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         files = {"file": ("handbook.txt", b"leave policy\nsubmit request first", "text/plain")}
         data = {"title": "Employee Handbook"}
-        upload_response = await client.post("/api/documents/upload", files=files, data=data)
+        upload_response = await client.post("/api/v1/documents/upload", files=files, data=data)
         assert upload_response.status_code == 200, upload_response.text
         uploaded = upload_response.json()
         assert uploaded["document_id"].startswith("doc_")
         assert uploaded["status"] in {"queued", "ready"}
 
-        list_response = await client.get("/api/documents")
+        list_response = await client.get("/api/v1/documents")
         assert list_response.status_code == 200
         listed = list_response.json()
         assert listed["total"] >= 1
         document_id = listed["items"][0]["document_id"]
 
-        detail_response = await client.get(f"/api/documents/{document_id}")
+        detail_response = await client.get(f"/api/v1/documents/{document_id}")
         assert detail_response.status_code == 200
         detail = detail_response.json()
         assert detail["title"] == "Employee Handbook"
         assert detail["original_filename"] == "handbook.txt"
 
-        chunks_response = await client.get(f"/api/documents/{document_id}/chunks")
+        chunks_response = await client.get(f"/api/v1/documents/{document_id}/chunks")
         assert chunks_response.status_code == 200
         chunks = chunks_response.json()
         assert "items" in chunks
 
-        delete_response = await client.delete(f"/api/documents/{document_id}")
+        delete_response = await client.delete(f"/api/v1/documents/{document_id}")
         assert delete_response.status_code == 200
         assert delete_response.json()["ok"] is True

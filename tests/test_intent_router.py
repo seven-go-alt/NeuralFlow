@@ -116,7 +116,7 @@ def test_intent_detect_endpoint_returns_structured_result(monkeypatch) -> None:
     monkeypatch.setattr("app.main.intent_router", StubRouter())
     client = TestClient(app)
 
-    response = client.post("/api/intent/detect", json={"message": "帮我查一下之前的代码"})
+    response = client.post("/api/v1/intent/detect", json={"message": "帮我查一下之前的代码"})
 
     assert response.status_code == 200
     assert response.json() == {

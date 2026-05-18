@@ -8,20 +8,20 @@ export class ApiClient {
   }
 
   async skills() {
-    const data = await this.get<{ skills: Skill[] }>("/api/skills");
+    const data = await this.get<{ skills: Skill[] }>("/api/v1/skills");
     return data.skills;
   }
 
   async models() {
-    return this.get<ModelsResponse>("/api/models");
+    return this.get<ModelsResponse>("/api/v1/models");
   }
 
   async switchModel(model: string) {
-    return this.post<{ model: string; message: string }>("/api/models/switch", { model });
+    return this.post<{ model: string; message: string }>("/api/v1/models/switch", { model });
   }
 
   async chat(sessionId: string, message: string, options?: { documentIds?: string[] }) {
-    return this.post<ChatResponse>("/chat", {
+    return this.post<ChatResponse>("/api/v1/chat", {
       session_id: sessionId,
       message,
       use_retrieval: true,
@@ -30,11 +30,11 @@ export class ApiClient {
   }
 
   async react(sessionId: string, message: string) {
-    return this.post<ReactAgentResponse>("/chat/react", { session_id: sessionId, message });
+    return this.post<ReactAgentResponse>("/api/v1/chat/react", { session_id: sessionId, message });
   }
 
   async orchestrate(sessionId: string, message: string) {
-    return this.post<ReactAgentResponse>("/chat/orchestrate", { session_id: sessionId, message });
+    return this.post<ReactAgentResponse>("/api/v1/chat/orchestrate", { session_id: sessionId, message });
   }
 
   private async get<T>(path: string): Promise<T> {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.llm import LLMClient
+from app.core.llm import LLMClient, build_rule_based_fallback_reply
 
 
 class FakeChoice:
@@ -53,3 +53,202 @@ async def test_llm_client_returns_rule_based_summary_when_all_models_fail(monkey
     assert "离线兜底摘要" in reply
     assert "Redis" in reply
     assert "Chroma" in reply
+
+
+def test_build_rule_based_fallback_reply_with_error() -> None:
+    prompt = "用户问：介绍一下请假制度"
+    result = build_rule_based_fallback_reply(prompt, error=RuntimeError("LLM connection refused"))
+    assert "离线兜底摘要" in result
+    assert "LLM connection refused" in result
+    assert "请假制度" in result
+
+
+def test_build_rule_based_fallback_reply_without_error() -> None:
+    result = build_rule_based_fallback_reply("帮我总结一下")
+    assert "离线兜底摘要" in result
+    assert "帮我总结一下" in result
+
+
+@pytest.mark.asyncio
+async def test_generate_raises_when_fallback_disabled(monkeypatch) -> None:
+    async def fake_acompletion(**kwargs):
+        raise RuntimeError("primary failed")
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = False
+
+    with pytest.raises(RuntimeError, match="primary failed"):
+        await client.generate("hello")
+
+
+@pytest.mark.asyncio
+async def test_generate_fallback_no_model_returns_rule_based(monkeypatch) -> None:
+    """When fallback_model is not set but fallback is enabled, return rule-based reply."""
+
+    async def fake_acompletion(**kwargs):
+        raise RuntimeError("primary failed")
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = True
+    client.fallback_model = None
+
+    reply = await client.generate("test query")
+    assert "离线兜底摘要" in reply
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_raises_when_fallback_disabled(monkeypatch) -> None:
+    """stream_generate raises when primary fails and offline_fallback_enabled=False."""
+
+    async def fake_stream_once(self, prompt, model, include_thinking=False):
+        raise RuntimeError("stream failed")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = False
+
+    with pytest.raises(RuntimeError, match="stream failed"):
+        async for _ in client.stream_generate("hello"):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_fallback_no_model(monkeypatch) -> None:
+    """stream_generate falls back to rule-based when no fallback model is set."""
+
+    async def fake_stream_once(self, prompt, model, include_thinking=False):
+        raise RuntimeError("stream failed")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = True
+    client.fallback_model = None
+
+    chunks = [chunk async for chunk in client.stream_generate("test query")]
+    assert len(chunks) == 1
+    assert chunks[0]["event"] == "message"
+    assert "离线兜底摘要" in chunks[0]["data"]
+
+
+@pytest.mark.asyncio
+async def test_generate_once_passes_api_base_and_key(monkeypatch) -> None:
+    """_generate_once passes api_base and api_key to acompletion when configured."""
+
+    captured: dict = {}
+
+    async def fake_acompletion(**kwargs):
+        captured.update(kwargs)
+        msg = type("Msg", (), {"content": "ok"})()
+        choice = type("Choice", (), {"message": msg})()
+        return type("Resp", (), {"choices": [choice]})()
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="test-model")
+    client.api_base = "https://custom.api/v1"
+    client.api_key = "sk-custom"
+
+    reply = await client._generate_once("prompt", "test-model")
+
+    assert reply == "ok"
+    assert captured["api_base"] == "https://custom.api/v1"
+    assert captured["api_key"] == "sk-custom"
+
+
+def test_extract_delta_from_dict_choice_edge_case() -> None:
+    client = LLMClient(model="test-model")
+    # Dict-style choice where delta is None
+    chunk = {"choices": [{"delta": None}]}
+    assert client._extract_delta(chunk) == ""
+
+    class ChoiceWithContent:
+        delta = {"content": None}
+
+    class ChunkWithNoneContent:
+        choices = [ChoiceWithContent()]
+
+    assert client._extract_delta(ChunkWithNoneContent()) == ""
+
+
+def test_llm_client_first_choice_returns_none() -> None:
+    client = LLMClient(model="test-model")
+
+    class EmptyChunk:
+        choices = []
+
+    assert client._first_choice(EmptyChunk()) is None
+
+    class DictChunk:
+        choices = None
+
+    assert client._first_choice(DictChunk()) is None
+
+    assert client._first_choice(object()) is None
+
+
+def test_llm_client_extract_delta_edge_cases() -> None:
+    client = LLMClient(model="test-model")
+
+    # Dict delta with content
+    class DictChoice:
+        delta = {"content": "hello"}
+
+    class DictChunk:
+        choices = [DictChoice()]
+
+    assert client._extract_delta(DictChunk()) == "hello"
+
+    # No delta
+    class NoDeltaChoice:
+        delta = None
+
+    class NoDeltaChunk:
+        choices = [NoDeltaChoice()]
+
+    assert client._extract_delta(NoDeltaChunk()) == ""
+
+    # Dict-style chunk
+    dict_chunk = {"choices": [{"delta": {"content": "from dict"}}]}
+    assert client._extract_delta(dict_chunk) == "from dict"
+
+
+def test_llm_client_extract_thinking() -> None:
+    client = LLMClient(model="test-model")
+
+    # reasoning_content from object delta
+    class ThinkingDelta:
+        reasoning_content = "let me think..."
+
+    class ThinkingChoice:
+        delta = ThinkingDelta()
+
+    class ThinkingChunk:
+        choices = [ThinkingChoice()]
+
+    thinking = client._extract_thinking(ThinkingChunk())
+    assert thinking == "let me think..."
+
+    # reasoning from dict delta
+    dict_chunk: dict = {"choices": [{"delta": {"reasoning": "step by step..."}}]}
+    thinking = client._extract_thinking(dict_chunk)
+    assert thinking == "step by step..."
+
+    # No thinking content
+    class NoThinkingDelta:
+        content = "direct reply"
+
+    class NoThinkingChoice:
+        delta = NoThinkingDelta()
+
+    class NoThinkingChunk:
+        choices = [NoThinkingChoice()]
+
+    assert client._extract_thinking(NoThinkingChunk()) == ""
