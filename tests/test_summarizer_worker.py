@@ -1,3 +1,5 @@
+import pytest
+
 from app.memory.summarizer import Summarizer
 from worker import compress_and_archive
 
@@ -62,3 +64,83 @@ def test_compress_and_archive_saves_summary_with_metadata() -> None:
         "message_count": 2,
         "source": "archive",
     }
+
+
+def test_summarize_empty_returns_no_content() -> None:
+    assert Summarizer().summarize("") == "空会话，无需归档。"
+
+
+def test_summarize_short_text() -> None:
+    result = Summarizer().summarize("hello world")
+    assert result == "摘要: hello world"
+
+
+def test_summarize_long_text_truncates() -> None:
+    long_text = "a" * 300
+    result = Summarizer().summarize(long_text)
+    assert result == "摘要: " + "a" * 237 + "..."
+
+
+def test_summarize_messages_empty() -> None:
+    result = Summarizer().summarize_messages("s1", [])
+    assert result == "session=s1\n对话为空。"
+
+
+@pytest.mark.asyncio
+async def test_summarize_messages_async_empty() -> None:
+    result = await Summarizer().summarize_messages_async("s1", [])
+    assert result == "session=s1\n对话为空。"
+
+
+@pytest.mark.asyncio
+async def test_summarize_messages_async_llm_fallback(monkeypatch) -> None:
+    from app.core.llm import LLMClient
+
+    async def fake_generate(self: LLMClient, prompt: str) -> str:
+        raise RuntimeError("LLM unavailable")
+
+    monkeypatch.setattr(LLMClient, "generate", fake_generate)
+
+    s = Summarizer(llm_client=LLMClient())
+    result = await s.summarize_messages_async(
+        "s1",
+        [{"role": "user", "content": "hi"}],
+    )
+    assert "session=s1" in result
+    assert "user: hi" in result
+
+
+@pytest.mark.asyncio
+async def test_summarize_messages_async_llm_success(monkeypatch) -> None:
+    from app.core.llm import LLMClient
+
+    async def fake_generate(self: LLMClient, prompt: str) -> str:
+        return "用户问了关于性能的问题"
+
+    monkeypatch.setattr(LLMClient, "generate", fake_generate)
+
+    s = Summarizer(llm_client=LLMClient())
+    result = await s.summarize_messages_async(
+        "s1",
+        [{"role": "user", "content": "帮我优化性能"}],
+    )
+    assert "session=s1" in result
+    assert "用户问了关于性能的问题" in result
+
+
+@pytest.mark.asyncio
+async def test_summarize_messages_async_llm_returns_fallback_summary(monkeypatch) -> None:
+    from app.core.llm import LLMClient
+
+    async def fake_generate(self: LLMClient, prompt: str) -> str:
+        return "离线兜底摘要（原因：LLM不可用）"
+
+    monkeypatch.setattr(LLMClient, "generate", fake_generate)
+
+    s = Summarizer(llm_client=LLMClient())
+    result = await s.summarize_messages_async(
+        "s1",
+        [{"role": "user", "content": "hi"}],
+    )
+    assert "session=s1" in result
+    assert "user: hi" in result  # Falls back to sync summarize_messages
