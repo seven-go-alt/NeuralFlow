@@ -79,9 +79,7 @@ def compute_citation_match(
     return any(doc_id.lower() in answer.lower() for doc_id in cited_set)
 
 
-def compute_keyword_coverage(
-    all_retrieved_text: str, expected_keywords: tuple[str, ...]
-) -> float:
+def compute_keyword_coverage(all_retrieved_text: str, expected_keywords: tuple[str, ...]) -> float:
     if not expected_keywords:
         return 1.0
     lower_text = all_retrieved_text.lower()
@@ -89,9 +87,7 @@ def compute_keyword_coverage(
     return matched / len(expected_keywords)
 
 
-def compute_no_answer_correct(
-    should_answer: bool, actual_answer: str | None
-) -> bool | None:
+def compute_no_answer_correct(should_answer: bool, actual_answer: str | None) -> bool | None:
     if should_answer:
         return actual_answer is not None
     return actual_answer is None
