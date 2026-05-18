@@ -326,3 +326,85 @@ async def test_stream_once_skips_empty_delta(monkeypatch) -> None:
     collected = [chunk async for chunk in client._stream_once("prompt", "test-model")]
 
     assert collected == [{"event": "message", "data": "real"}]
+
+
+def test_extract_delta_empty_choices() -> None:
+    """_extract_delta returns empty string when chunk has no choices."""
+    client = LLMClient(model="test-model")
+
+    class EmptyChunk:
+        choices = []
+
+    assert client._extract_delta(EmptyChunk()) == ""
+
+
+def test_extract_thinking_empty_choices() -> None:
+    """_extract_thinking returns empty string when chunk has no choices."""
+    client = LLMClient(model="test-model")
+
+    class EmptyChunk:
+        choices = []
+
+    assert client._extract_thinking(EmptyChunk()) == ""
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_success(monkeypatch) -> None:
+    """stream_generate yields chunks from primary _stream_once."""
+
+    async def fake_stream_once(self, prompt: str, model: str, include_thinking: bool = False):
+        yield {"event": "message", "data": "hello "}
+        yield {"event": "message", "data": "world"}
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="test-model")
+    chunks = [chunk async for chunk in client.stream_generate("test")]
+
+    assert chunks == [
+        {"event": "message", "data": "hello "},
+        {"event": "message", "data": "world"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_primary_fails_fallback_succeeds(monkeypatch) -> None:
+    """stream_generate falls back to fallback model when primary fails."""
+
+    async def fake_stream_once(self, prompt: str, model: str, include_thinking: bool = False):
+        count = getattr(self, "_stream_call_count", 0) + 1
+        self._stream_call_count = count
+        if count == 1:
+            raise RuntimeError(f"{model} failed")
+            yield  # pragma: no cover
+        yield {"event": "message", "data": "fallback reply by " + model}
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = True
+    client.fallback_model = "fallback-model"
+
+    chunks = [chunk async for chunk in client.stream_generate("test")]
+    assert len(chunks) == 1
+    assert "fallback reply" in chunks[0]["data"]
+
+
+@pytest.mark.asyncio
+async def test_stream_generate_both_models_fail(monkeypatch) -> None:
+    """Both primary and fallback fail, returns rule-based summary."""
+
+    async def fake_stream_once(self, prompt: str, model: str, include_thinking: bool = False):
+        raise RuntimeError(f"{model} failed")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(LLMClient, "_stream_once", fake_stream_once)
+
+    client = LLMClient(model="primary-model")
+    client.offline_fallback_enabled = True
+    client.fallback_model = "fallback-model"
+
+    chunks = [chunk async for chunk in client.stream_generate("test")]
+    assert len(chunks) == 1
+    assert chunks[0]["event"] == "message"
+    assert "离线兜底摘要" in chunks[0]["data"]
