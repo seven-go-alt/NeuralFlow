@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 
 class CircuitState(Enum):
@@ -23,7 +24,10 @@ class CircuitBreaker:
 
     @property
     def state(self) -> CircuitState:
-        if self._state is CircuitState.OPEN and time.monotonic() - self._last_failure_time > self.recovery_timeout:
+        if (
+            self._state is CircuitState.OPEN
+            and time.monotonic() - self._last_failure_time > self.recovery_timeout
+        ):
             self._state = CircuitState.HALF_OPEN
         return self._state
 
@@ -68,7 +72,7 @@ RT = TypeVar("RT")
 
 
 async def retry(
-    fn: Callable[[], RT],
+    fn: Callable[[], Awaitable[RT]],
     max_attempts: int = 3,
     base_delay: float = 0.5,
     max_delay: float = 10.0,
