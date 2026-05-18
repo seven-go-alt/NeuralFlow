@@ -2,7 +2,32 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ingestion.parsers import MarkdownParser, TXTParser
+import fitz
+from docx import Document as DocxDocument
+
+from app.ingestion.parsers import DOCXParser, MarkdownParser, PDFParser, TXTParser
+
+
+def _make_pdf(tmp_path: Path, pages: list[str]) -> str:
+    """Generate a multi-page PDF with given page texts using PyMuPDF."""
+    doc = fitz.open()
+    for text in pages:
+        page = doc.new_page()
+        page.insert_text(fitz.Point(72, 72), text, fontsize=12)
+    path = tmp_path / "test.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+def _make_docx(tmp_path: Path, paragraphs: list[str]) -> str:
+    """Generate a DOCX with given paragraphs using python-docx."""
+    doc = DocxDocument()
+    for text in paragraphs:
+        doc.add_paragraph(text)
+    path = tmp_path / "test.docx"
+    doc.save(str(path))
+    return str(path)
 
 
 def test_txt_parser_reads_content(tmp_path: Path) -> None:
@@ -63,3 +88,66 @@ def test_markdown_parser_inline_without_heading_sets_section_heading(tmp_path: P
     assert len(result.sections) >= 1
     assert result.sections[0].heading == "First paragraph before any heading."
     assert result.sections[0].content == "Second line."
+
+
+def test_pdf_parser_reads_single_page(tmp_path: Path) -> None:
+    source = _make_pdf(tmp_path, ["Hello PDF World"])
+    result = PDFParser().parse("doc_p1", "public", source, title="PDF Test")
+
+    assert result.document_id == "doc_p1"
+    assert result.source_type == "pdf"
+    assert result.title == "PDF Test"
+    assert result.extracted_text == "Hello PDF World"
+    assert len(result.sections) == 1
+    assert result.sections[0].page_number == 1
+    assert result.sections[0].heading == "Page 1"
+
+
+def test_pdf_parser_multi_page(tmp_path: Path) -> None:
+    source = _make_pdf(tmp_path, ["Page one content", "Page two content"])
+    result = PDFParser().parse("doc_p2", "tenant-a", source)
+
+    assert result.document_id == "doc_p2"
+    assert len(result.sections) == 2
+    assert result.sections[0].page_number == 1
+    assert result.sections[1].page_number == 2
+    assert result.sections[0].content == "Page one content"
+    assert result.sections[1].content == "Page two content"
+    assert result.metadata == {"page_count": 2}
+
+
+def test_pdf_parser_produces_extracted_text(tmp_path: Path) -> None:
+    source = _make_pdf(tmp_path, ["Page one", "Page two"])
+    result = PDFParser().parse("doc_p4", "public", source)
+    assert result.extracted_text == "Page one\n\nPage two"
+
+
+def test_pdf_parser_skips_empty_pages(tmp_path: Path) -> None:
+    source = _make_pdf(tmp_path, ["Has content", "", "Also content"])
+    result = PDFParser().parse("doc_p3", "public", source)
+
+    assert len(result.sections) == 2  # empty page 2 is skipped
+    assert result.sections[0].page_number == 1
+    assert result.sections[1].page_number == 3
+
+
+def test_docx_parser_reads_paragraphs(tmp_path: Path) -> None:
+    source = _make_docx(tmp_path, ["First paragraph", "Second paragraph"])
+    result = DOCXParser().parse("doc_d1", "public", source, title="DOCX Test")
+
+    assert result.document_id == "doc_d1"
+    assert result.source_type == "docx"
+    assert result.title == "DOCX Test"
+    assert result.metadata == {"paragraph_count": 2}
+    assert "First paragraph" in result.extracted_text
+    assert "Second paragraph" in result.extracted_text
+    assert len(result.sections) == 1
+
+
+def test_docx_parser_skips_empty_paragraphs(tmp_path: Path) -> None:
+    source = _make_docx(tmp_path, ["First", "", "Third"])
+    result = DOCXParser().parse("doc_d2", "public", source)
+
+    assert result.metadata == {"paragraph_count": 2}  # empty paragraph excluded
+    assert "First" in result.extracted_text
+    assert "Third" in result.extracted_text
