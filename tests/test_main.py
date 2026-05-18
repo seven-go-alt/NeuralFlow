@@ -73,7 +73,6 @@ def test_extract_admin_secret_empty_bearer() -> None:
 
 @pytest.mark.asyncio
 async def test_handle_terminal_no_command() -> None:
-
     result = await _handle_terminal_tool({"input": ""})
     assert result["error"] == "No command provided"
     assert result["return_code"] == 1
@@ -81,7 +80,6 @@ async def test_handle_terminal_no_command() -> None:
 
 @pytest.mark.asyncio
 async def test_handle_terminal_missing_input_key() -> None:
-
     result = await _handle_terminal_tool({})
     assert result["error"] == "No command provided"
     assert result["return_code"] == 1
