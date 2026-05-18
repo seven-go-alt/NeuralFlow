@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-import pytest
-
-from app.rag.citation_verifier import CitationVerificationResult, extract_citations, verify_citations
+from app.rag.citation_verifier import (
+    CitationVerificationResult,
+    extract_citations,
+    verify_citations,
+)
 
 
 class TestExtractCitations:
@@ -59,7 +61,9 @@ class TestVerifyCitations:
         assert result.invalid_citations == 1
 
     def test_details_contains_all_indices(self) -> None:
-        result = verify_citations("See [1]", [{"index": 1, "label": "doc1"}, {"index": 2, "label": "doc2"}])
+        result = verify_citations(
+            "See [1]", [{"index": 1, "label": "doc1"}, {"index": 2, "label": "doc2"}]
+        )
         indices_in_details = {d["index"] for d in result.details}
         assert indices_in_details == {1, 2}
 
