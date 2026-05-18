@@ -134,3 +134,71 @@ def test_intent_detect_endpoint_returns_structured_result(monkeypatch) -> None:
             },
         },
     }
+
+
+def test_dedupe_preserve_order() -> None:
+    from app.core.intent_router import _dedupe_preserve_order
+
+    assert _dedupe_preserve_order(["a", "b", "a", "c", "b"]) == ["a", "b", "c"]
+    assert _dedupe_preserve_order([]) == []
+    assert _dedupe_preserve_order(["x"]) == ["x"]
+
+
+def test_parse_llm_intents() -> None:
+    from app.core.intent_router import _parse_llm_intents
+
+    assert _parse_llm_intents('["coding", "planning"]') == ["coding", "planning"]
+    assert _parse_llm_intents('["general"]') == ["general"]
+
+
+def test_parse_llm_intents_with_code_fence() -> None:
+    from app.core.intent_router import _parse_llm_intents
+
+    result = _parse_llm_intents('```json\n["query_history"]\n```')
+    assert result == ["query_history"]
+
+
+def test_parse_llm_intents_fail() -> None:
+    import json
+
+    from app.core.intent_router import _parse_llm_intents
+
+    with pytest.raises(json.JSONDecodeError):
+        _parse_llm_intents("not json")
+
+
+def test_build_policy_map() -> None:
+    from app.core.intent_router import IntentPolicy, _build_policy_map
+
+    raw = {
+        "coding": {"memory_strategy": "working_only", "skill_whitelist": ["python"]},
+        "query_history": {"memory_strategy": "long_term", "skill_whitelist": ["memory"]},
+    }
+    policies = _build_policy_map(raw)
+    assert isinstance(policies["coding"], IntentPolicy)
+    assert policies["coding"].memory_strategy == "working_only"
+    assert policies["query_history"].skill_whitelist == ["memory"]
+
+
+def test_build_policy_map_adds_general() -> None:
+    from app.core.intent_router import _build_policy_map
+
+    policies = _build_policy_map({})
+    assert "general" in policies
+    assert policies["general"].memory_strategy == "working_only"
+    assert policies["general"].skill_whitelist == []
+
+
+def test_intent_router_build_result_normalizes_unknown_to_general() -> None:
+    from app.core.intent_router import IntentPolicy, IntentRouter
+
+    router = IntentRouter(
+        llm_classifier=FakeLLMClassifier(["general"]),
+        keyword_rules={},
+        policy_map={
+            "general": IntentPolicy(memory_strategy="working_only", skill_whitelist=[]),
+        },
+    )
+    result = router._build_result(["unknown_intent"], used_fallback=False)
+    assert result.intents == ["general"]
+    assert result.primary_intent == "general"

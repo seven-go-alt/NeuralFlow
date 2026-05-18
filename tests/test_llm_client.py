@@ -252,3 +252,77 @@ def test_llm_client_extract_thinking() -> None:
         choices = [NoThinkingChoice()]
 
     assert client._extract_thinking(NoThinkingChunk()) == ""
+
+
+class _StreamChunk:
+    """Simulate a litellm streaming chunk with choice delta."""
+
+    def __init__(self, content: str = "", reasoning: str = "") -> None:
+        delta = type("Delta", (), {"content": content, "reasoning_content": reasoning})()
+        choice = type("Choice", (), {"delta": delta})()
+        self.choices = [choice]
+
+
+@pytest.mark.asyncio
+async def test_stream_once_yields_message_chunks(monkeypatch) -> None:
+    chunks = [_StreamChunk("hello "), _StreamChunk("world")]
+
+    async def fake_stream():
+        for c in chunks:
+            yield c
+
+    async def fake_acompletion(**kwargs):
+        assert kwargs.get("stream") is True
+        return fake_stream()
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="test-model")
+    collected = [chunk async for chunk in client._stream_once("prompt", "test-model")]
+
+    assert collected == [
+        {"event": "message", "data": "hello "},
+        {"event": "message", "data": "world"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_stream_once_with_thinking(monkeypatch) -> None:
+    chunks = [_StreamChunk("answer", "let me think..."), _StreamChunk(" more")]
+
+    async def fake_stream():
+        for c in chunks:
+            yield c
+
+    async def fake_acompletion(**kwargs):
+        return fake_stream()
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="test-model")
+    collected = [
+        chunk async for chunk in client._stream_once("prompt", "test-model", include_thinking=True)
+    ]
+
+    assert collected == [
+        {"event": "thinking", "data": "let me think..."},
+        {"event": "message", "data": "answer"},
+        {"event": "message", "data": " more"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_stream_once_skips_empty_delta(monkeypatch) -> None:
+    async def fake_stream():
+        yield _StreamChunk("")
+        yield _StreamChunk("real")
+
+    async def fake_acompletion(**kwargs):
+        return fake_stream()
+
+    monkeypatch.setattr("app.core.llm.acompletion", fake_acompletion)
+
+    client = LLMClient(model="test-model")
+    collected = [chunk async for chunk in client._stream_once("prompt", "test-model")]
+
+    assert collected == [{"event": "message", "data": "real"}]
