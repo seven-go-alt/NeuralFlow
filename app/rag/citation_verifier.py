@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -34,10 +35,8 @@ def extract_citations(text: str | None) -> list[int]:
                 except ValueError:
                     pass
             else:
-                try:
+                with contextlib.suppress(ValueError):
                     indices.add(int(part))
-                except ValueError:
-                    pass
     return sorted(indices)
 
 
