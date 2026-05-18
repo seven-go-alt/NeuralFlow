@@ -139,3 +139,68 @@ async def test_context_builder_applies_token_budget_and_exposes_trim_metrics() -
         "hard_limit_exceeded": True,
         "dropped_segment_names": ["retrieved_memory", "early_chat"],
     }
+
+
+@pytest.mark.asyncio
+async def test_context_builder_includes_skill_results() -> None:
+    from app.core.token_budget import TokenBudgetManager
+
+    class _FakeEncoder:
+        def encode(self, text: str) -> list[int]:
+            return list(range(len(text)))
+
+        def decode(self, tokens: list[int]) -> str:
+            return " ".join("x" for _ in tokens)
+
+    builder = ContextBuilder(
+        session_id="demo",
+        working_mem=FakeWorkingMemory(),
+        long_mem=FakeLongTermMemory(),
+        token_budget_manager=TokenBudgetManager(
+            encoding_name="test",
+            soft_limit_tokens=2000,
+            hard_limit_tokens=4000,
+            encoder=_FakeEncoder(),
+        ),
+    )
+
+    prompt = await builder.build_prompt(
+        user_query="你好",
+        intent="general",
+        skill_results=[
+            {"skill": "python", "result": "执行成功"},
+            {"skill": "filesystem", "result": "文件已创建"},
+        ],
+    )
+
+    assert "技能执行结果" in prompt
+    assert "python: 执行成功" in prompt
+    assert "filesystem: 文件已创建" in prompt
+
+
+@pytest.mark.asyncio
+async def test_context_builder_skips_skill_results_when_none() -> None:
+    from app.core.token_budget import TokenBudgetManager
+
+    class _FakeEncoder:
+        def encode(self, text: str) -> list[int]:
+            return list(range(len(text)))
+
+        def decode(self, tokens: list[int]) -> str:
+            return " ".join("x" for _ in tokens)
+
+    builder = ContextBuilder(
+        session_id="demo",
+        working_mem=FakeWorkingMemory(),
+        long_mem=FakeLongTermMemory(),
+        token_budget_manager=TokenBudgetManager(
+            encoding_name="test",
+            soft_limit_tokens=2000,
+            hard_limit_tokens=4000,
+            encoder=_FakeEncoder(),
+        ),
+    )
+
+    prompt = await builder.build_prompt(user_query="你好", intent="general")
+
+    assert "技能执行结果" not in prompt
