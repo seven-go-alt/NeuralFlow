@@ -64,7 +64,9 @@ class TestCostTracker:
         assert tracker.records[0].metadata.get("session_id") == "s1"
 
     def test_custom_cost_config(self) -> None:
-        custom = {"my-model": ModelCostConfig("my-model", input_cost_per_1k=0.1, output_cost_per_1k=0.2)}
+        custom = {
+            "my-model": ModelCostConfig("my-model", input_cost_per_1k=0.1, output_cost_per_1k=0.2)
+        }
         tracker = CostTracker(model_costs=custom)
         tracker.record("my-model", input_tokens=1000, output_tokens=1000)
         assert tracker.total_estimated_cost == pytest.approx(0.3)
