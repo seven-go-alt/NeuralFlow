@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.retrieval.hybrid_service import HybridRetrievalService
-from app.retrieval.keyword_store import KeywordStore, KeywordResult, tokenize
+from app.retrieval.keyword_store import KeywordResult, KeywordStore, tokenize
 from app.retrieval.reranker import heuristic_rerank
 from app.retrieval.schemas import RetrievalRequest, RetrievalResult
 
-
 # --- tokenize ---
+
 
 class TestTokenize:
     def test_english_words(self) -> None:
@@ -33,13 +33,26 @@ class TestTokenize:
 
 # --- KeywordStore ---
 
+
 class TestKeywordStore:
     def test_search_hit(self) -> None:
         store = KeywordStore()
-        store.index([
-            {"chunk_id": "c1", "document_id": "d1", "content": "年假政策 15 天", "tenant_id": "t1"},
-            {"chunk_id": "c2", "document_id": "d2", "content": "考勤制度 迟到 规定", "tenant_id": "t1"},
-        ])
+        store.index(
+            [
+                {
+                    "chunk_id": "c1",
+                    "document_id": "d1",
+                    "content": "年假政策 15 天",
+                    "tenant_id": "t1",
+                },
+                {
+                    "chunk_id": "c2",
+                    "document_id": "d2",
+                    "content": "考勤制度 迟到 规定",
+                    "tenant_id": "t1",
+                },
+            ]
+        )
         results = store.search("年假", top_k=5, tenant_id="t1")
         assert len(results) == 1
         assert results[0].chunk_id == "c1"
@@ -47,9 +60,11 @@ class TestKeywordStore:
 
     def test_search_miss(self) -> None:
         store = KeywordStore()
-        store.index([
-            {"chunk_id": "c1", "document_id": "d1", "content": "年假政策", "tenant_id": "t1"},
-        ])
+        store.index(
+            [
+                {"chunk_id": "c1", "document_id": "d1", "content": "年假政策", "tenant_id": "t1"},
+            ]
+        )
         results = store.search("考勤", top_k=5, tenant_id="t1")
         assert len(results) == 0
 
@@ -61,10 +76,12 @@ class TestKeywordStore:
 
     def test_tenant_filter(self) -> None:
         store = KeywordStore()
-        store.index([
-            {"chunk_id": "c1", "document_id": "d1", "content": "年假", "tenant_id": "t1"},
-            {"chunk_id": "c2", "document_id": "d2", "content": "年假", "tenant_id": "t2"},
-        ])
+        store.index(
+            [
+                {"chunk_id": "c1", "document_id": "d1", "content": "年假", "tenant_id": "t1"},
+                {"chunk_id": "c2", "document_id": "d2", "content": "年假", "tenant_id": "t2"},
+            ]
+        )
         results = store.search("年假", top_k=5, tenant_id="t1")
         assert len(results) == 1
         assert results[0].document_id == "d1"
@@ -77,6 +94,7 @@ class TestKeywordStore:
 
 # --- KeywordResult ---
 
+
 def test_keyword_result_defaults() -> None:
     r = KeywordResult(chunk_id="c1", document_id="d1", content="text", score=0.5)
     assert r.matched_terms == []
@@ -85,6 +103,7 @@ def test_keyword_result_defaults() -> None:
 
 
 # --- reranker ---
+
 
 def _make_result(
     chunk_id: str,
@@ -126,6 +145,7 @@ class TestHeuristicRerank:
 
 # --- HybridRetrievalService ---
 
+
 @pytest.fixture
 def stub_vector_store() -> AsyncMock:
     store = AsyncMock()
@@ -143,9 +163,16 @@ def stub_vector_store() -> AsyncMock:
 @pytest.fixture
 def stub_kw_store() -> KeywordStore:
     store = KeywordStore()
-    store.index([
-        {"chunk_id": "k1", "document_id": "d2", "content": "keyword content", "tenant_id": "t1"},
-    ])
+    store.index(
+        [
+            {
+                "chunk_id": "k1",
+                "document_id": "d2",
+                "content": "keyword content",
+                "tenant_id": "t1",
+            },
+        ]
+    )
     return store
 
 
@@ -189,9 +216,16 @@ class TestHybridRetrievalService:
     ) -> None:
         """When vector and keyword return the same chunk, deduplicate."""
         store = KeywordStore()
-        store.index([
-            {"chunk_id": "v1", "document_id": "d1", "content": "vector content", "tenant_id": "t1"},
-        ])
+        store.index(
+            [
+                {
+                    "chunk_id": "v1",
+                    "document_id": "d1",
+                    "content": "vector content",
+                    "tenant_id": "t1",
+                },
+            ]
+        )
         service = HybridRetrievalService(stub_vector_store, store)
         request = RetrievalRequest(query="vector", top_k=10)
         response = await service.search("t1", request, mode="hybrid")
