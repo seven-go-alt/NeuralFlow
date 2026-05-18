@@ -44,4 +44,8 @@ skill_registry.register("python_exec", "执行 Python 代码并返回输出结�
 skill_registry.register("file_read", "读取沙箱目录中的文件内容")
 skill_registry.register("file_write", "将内容写入沙箱目录中的文件", read_only=False)
 skill_registry.register("file_list", "列出沙箱目录中的文件和子目录")
-skill_registry.register("terminal", "在本地终端中执行 shell 命令（Linux/macOS），返回标准输出、标准错误和退出码", read_only=False)
+skill_registry.register(
+    "terminal",
+    "在本地终端中执行 shell 命令（Linux/macOS），返回标准输出、标准错误和退出码",
+    read_only=False,
+)
