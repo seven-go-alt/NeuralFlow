@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.token_budget import ContextSegment, TokenBudgetManager
+from app.core.token_budget import (
+    ContextSegment,
+    FallbackTokenEncoder,
+    TokenBudgetManager,
+)
 
 
 class FakeEncoder:
@@ -103,3 +107,41 @@ def test_trim_context_marks_soft_limit_without_dropping_when_below_hard_limit() 
     assert trimmed.soft_limit_exceeded
     assert not trimmed.hard_limit_exceeded
     assert trimmed.dropped_segment_names == []
+
+
+def test_count_tokens_with_empty_text_returns_zero() -> None:
+    manager = TokenBudgetManager(
+        encoding_name="test",
+        soft_limit_tokens=10,
+        hard_limit_tokens=20,
+        encoder=FakeEncoder(),
+    )
+    assert manager.count_tokens("") == 0
+    assert manager.count_tokens("   ") == 0
+
+
+def test_token_budget_init_rejects_invalid_limits() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        TokenBudgetManager(soft_limit_tokens=0, hard_limit_tokens=10)
+    with pytest.raises(ValueError, match="positive"):
+        TokenBudgetManager(soft_limit_tokens=-1, hard_limit_tokens=10)
+    with pytest.raises(ValueError, match="cannot exceed"):
+        TokenBudgetManager(soft_limit_tokens=20, hard_limit_tokens=10)
+
+
+def test_fallback_token_encoder_empty_text() -> None:
+    encoder = FallbackTokenEncoder()
+    assert encoder.encode("") == []
+    assert encoder.decode([1, 2, 3]) == "x x x"
+
+
+def test_find_truncation_candidate_empty_segments() -> None:
+    manager = TokenBudgetManager(
+        encoding_name="test",
+        soft_limit_tokens=10,
+        hard_limit_tokens=20,
+        encoder=FakeEncoder(),
+    )
+    result = manager.trim_context([])
+    assert result.dropped_segment_names == []
+    assert result.token_before_trim == 0

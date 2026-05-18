@@ -92,7 +92,7 @@ async def test_chat_stream_endpoint_returns_sse_events(monkeypatch) -> None:
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         async with client.stream(
             "POST",
-            "/chat/stream?include_thinking=true",
+            "/api/v1/chat/stream?include_thinking=true",
             json={"session_id": "s-stream", "message": "你好", "use_retrieval": False},
         ) as response:
             assert response.status_code == 200

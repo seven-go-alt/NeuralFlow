@@ -165,7 +165,7 @@ async def patch_runtime_config(http_request: Request, patch: dict) -> AdminConfi
     return AdminConfigResponse(config=updated.model_dump(), audit_entry=latest_audit)
 
 
-@app.get("/api/skills", response_model=SkillsListResponse)
+@app.get("/api/v1/skills", response_model=SkillsListResponse)
 async def list_skills() -> SkillsListResponse:
     return SkillsListResponse(
         skills=[
@@ -189,7 +189,7 @@ def _ensure_openai_prefix(model: str) -> str:
     return f"openai/{model}"
 
 
-@app.get("/api/models")
+@app.get("/api/v1/models")
 async def list_models():
     """从配置的 LLM 中转站拉取可用模型列表"""
     api_base = settings.llm_api_base
@@ -222,7 +222,7 @@ class ModelSwitchRequest(BaseModel):
     model: str
 
 
-@app.post("/api/models/switch")
+@app.post("/api/v1/models/switch")
 async def switch_model(request: ModelSwitchRequest):
     """运行时切换当前使用的模型（仅内存生效，重启后恢复 .env 配置）"""
     litellm_model = _ensure_openai_prefix(request.model)
@@ -235,7 +235,7 @@ async def switch_model(request: ModelSwitchRequest):
     }
 
 
-@app.post("/api/intent/detect", response_model=IntentDetectResponse)
+@app.post("/api/v1/intent/detect", response_model=IntentDetectResponse)
 async def detect_intent(
     http_request: Request, request: IntentDetectRequest
 ) -> IntentDetectResponse:
@@ -244,7 +244,7 @@ async def detect_intent(
     return _serialize_intent_result(result)
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     http_request.state.session_id = request.session_id
     payload = await _prepare_chat(
@@ -272,7 +272,7 @@ async def chat(http_request: Request, request: ChatRequest) -> ChatResponse:
     )
 
 
-@app.post("/chat/stream")
+@app.post("/api/v1/chat/stream")
 async def chat_stream(
     http_request: Request, request: ChatRequest, include_thinking: bool | None = None
 ):
@@ -357,7 +357,7 @@ async def _handle_terminal_tool(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@app.post("/chat/react")
+@app.post("/api/v1/chat/react")
 async def chat_react(http_request: Request, request: ChatRequest):
     """
     自主 Agent 接口：支持多步思考与工具调用循环 (ReAct 范式)
@@ -421,7 +421,7 @@ async def chat_react(http_request: Request, request: ChatRequest):
     }
 
 
-@app.post("/chat/orchestrate")
+@app.post("/api/v1/chat/orchestrate")
 async def chat_orchestrate(http_request: Request, request: ChatRequest):
     """
     Multi-Agent 编排接口：自动分类路由到 Coder/Planner/General Specialist Agent

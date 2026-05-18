@@ -27,7 +27,7 @@ export function DocumentUpload({ onUploaded }: { onUploaded?: () => void }) {
     setUploading(true);
     setMessage("");
     try {
-      const response = await fetch(`${API_BASE}/api/documents/upload`, { method: "POST", body: form });
+      const response = await fetch(`${API_BASE}/api/v1/documents/upload`, { method: "POST", body: form });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || "Upload failed");

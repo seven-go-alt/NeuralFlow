@@ -8,7 +8,7 @@ from app.documents.repository import DocumentRepository
 from app.retrieval.schemas import RetrievalRequest, RetrievalResponse
 from app.retrieval.service import RetrievalService
 
-router = APIRouter(prefix="/api/retrieval", tags=["retrieval"])
+router = APIRouter(prefix="/api/v1/retrieval", tags=["retrieval"])
 
 
 @router.post("/search", response_model=RetrievalResponse)
