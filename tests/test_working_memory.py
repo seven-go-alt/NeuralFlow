@@ -58,7 +58,9 @@ class TestWorkingMemory:
         assert len(wm.get_messages()) == 1
 
     def test_max_turns_overflow(self, mock_redis_client: MockRedis) -> None:
-        wm = WorkingMemory("session-1", max_turns=2, archive_batch_size=10, client=mock_redis_client)
+        wm = WorkingMemory(
+            "session-1", max_turns=2, archive_batch_size=10, client=mock_redis_client
+        )
         wm.add("user", "msg1")
         wm.add("user", "msg2")
         wm.add("user", "msg3")
