@@ -36,6 +36,7 @@ interface AgentState {
   createSession: () => string;
   createSessionWithDocument: (document: ActiveDocumentContext, options?: { initialPrompt?: string }) => string;
   setSessionDocument: (sessionId: string, document: ActiveDocumentContext | null) => void;
+  clearPendingPrompt: (sessionId: string) => void;
   addMessage: (sessionId: string, message: ChatMessage) => void;
   updateMessage: (sessionId: string, messageId: string, patch: Partial<ChatMessage>) => void;
   appendMessageContent: (sessionId: string, messageId: string, delta: string) => void;
@@ -115,25 +116,13 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           title: document.title || "Document chat",
           updatedAt: Date.now(),
           model: state.model,
-          messageCount: initialPrompt ? 1 : 0,
+          messageCount: 0,
           activeDocument: document,
+          pendingPrompt: initialPrompt || undefined,
         },
         ...state.sessions,
       ],
-      messages: {
-        ...state.messages,
-        [id]: initialPrompt
-          ? [
-              {
-                id: createId(),
-                role: "user",
-                content: initialPrompt,
-                createdAt: Date.now(),
-                tokens: Math.max(1, Math.ceil(initialPrompt.length / 4)),
-              },
-            ]
-          : [],
-      },
+      messages: { ...state.messages, [id]: [] },
     }));
     return id;
   },
@@ -146,6 +135,14 @@ export const useAgentStore = create<AgentState>((set, get) => ({
               activeDocument: document,
               updatedAt: Date.now(),
             }
+          : session,
+      ),
+    })),
+  clearPendingPrompt: (sessionId) =>
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === sessionId
+          ? { ...session, pendingPrompt: undefined }
           : session,
       ),
     })),

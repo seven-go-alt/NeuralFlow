@@ -24,7 +24,7 @@ DEFAULT_INTENT_POLICIES = {
     },
     "coding": {
         "memory_strategy": "working_only",
-        "skill_whitelist": ["python_exec", "file_read", "file_write", "file_list"],
+        "skill_whitelist": ["python_exec", "file_read", "file_write", "file_list", "terminal"],
     },
     "planning": {
         "memory_strategy": "working_only",
@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     mcp_timeout_seconds: float = 15.0
     mcp_retry_attempts: int = 3
     mcp_retry_backoff_seconds: float = 0.5
+
+    terminal_timeout_seconds: float = Field(default=30.0, alias="TERMINAL_TIMEOUT_SECONDS")
+    terminal_working_dir: str | None = Field(default=None, alias="TERMINAL_WORKING_DIR")
+    terminal_enabled: bool = Field(default=True, alias="TERMINAL_ENABLED")
 
     tenant_default_id: str = "public"
 

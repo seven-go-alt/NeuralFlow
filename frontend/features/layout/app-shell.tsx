@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Boxes, Database, FileText, GitBranch, Menu, PanelRightOpen, Search, Server, Sparkles, X } from "lucide-react";
 
@@ -41,6 +41,7 @@ export function AppShell() {
     toggleRightPanel,
     toggleSidebar,
     setSessionDocument,
+    clearPendingPrompt,
   } = useAgentStore();
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
@@ -83,43 +84,71 @@ export function AppShell() {
 
       seedRuntime(message);
       try {
-        const retrieval = await searchRetrieval(message, { documentIds: activeDocumentIds }).catch(() => null);
-        if (retrieval?.results?.length) {
-          addRuntimeEvent({
-            id: createId(),
-            type: "retrieval",
-            title: activeDocument ? `Document retrieval completed` : "Knowledge retrieval completed",
-            detail: `${retrieval.results.length} chunks matched current query.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
+        if (mode === "react") {
+          const response = await client.react(activeSessionId, message);
+          updateMessage(activeSessionId, assistantId, {
+            content: response.final_answer,
             status: "success",
-            timestamp: Date.now(),
+            latencyMs: performance.now() - startedAt,
+            tokens: estimateTokens(response.final_answer),
           });
-          setRetrievedChunks(
-            retrieval.results.map((item) => ({
-              id: item.chunk_id,
-              source: item.source.filename || item.document_id,
-              score: item.score,
-              text: item.content,
-              documentId: item.document_id,
-              chunkId: item.chunk_id,
-              pageNumber: item.source.page_number,
-              title: item.source.title || item.source.filename || item.document_id,
-            })),
-          );
-          setRuntimeHint(null);
-        } else if (activeDocument) {
-          setRuntimeHint({
-            kind: "warning",
-            title: "No matching chunks in current document",
-            detail: `Nothing in ${activeDocument.title} matched this query yet. Try a more specific question or reindex the document if it was recently uploaded.`,
+          response.steps.forEach((step: Record<string, unknown>) => {
+            if (step.type === "tool_call") {
+              addRuntimeEvent({
+                id: createId(),
+                type: "tool_call",
+                title: String(step.tool ?? "tool"),
+                detail: String(step.observation ?? "").slice(0, 260),
+                status: "success",
+                timestamp: Date.now(),
+              });
+            }
+          });
+        } else if (mode === "orchestrate") {
+          const response = await client.orchestrate(activeSessionId, message);
+          updateMessage(activeSessionId, assistantId, {
+            content: response.final_answer,
+            status: "success",
+            latencyMs: performance.now() - startedAt,
+            tokens: estimateTokens(response.final_answer),
           });
         } else {
-          setRuntimeHint({
-            kind: "info",
-            title: "No retrieval evidence yet",
-            detail: "The current query did not match any indexed chunks. Try a more specific question or upload a document first.",
-          });
-        }
-        if (mode === "stream") {
+          const retrieval = await searchRetrieval(message, { documentIds: activeDocumentIds }).catch(() => null);
+          if (retrieval?.results?.length) {
+            addRuntimeEvent({
+              id: createId(),
+              type: "retrieval",
+              title: activeDocument ? `Document retrieval completed` : "Knowledge retrieval completed",
+              detail: `${retrieval.results.length} chunks matched current query.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
+              status: "success",
+              timestamp: Date.now(),
+            });
+            setRetrievedChunks(
+              retrieval.results.map((item) => ({
+                id: item.chunk_id,
+                source: item.source.filename || item.document_id,
+                score: item.score,
+                text: item.content,
+                documentId: item.document_id,
+                chunkId: item.chunk_id,
+                pageNumber: item.source.page_number,
+                title: item.source.title || item.source.filename || item.document_id,
+              })),
+            );
+            setRuntimeHint(null);
+          } else if (activeDocument) {
+            setRuntimeHint({
+              kind: "warning",
+              title: "No matching chunks in current document",
+              detail: `Nothing in ${activeDocument.title} matched this query yet. Try a more specific question or reindex the document if it was recently uploaded.`,
+            });
+          } else {
+            setRuntimeHint({
+              kind: "info",
+              title: "No retrieval evidence yet",
+              detail: "The current query did not match any indexed chunks. Try a more specific question or upload a document first.",
+            });
+          }
           await streamChat({
             baseUrl: apiBaseUrl,
             sessionId: activeSessionId,
@@ -139,15 +168,18 @@ export function AppShell() {
               },
               onChunk: (data) => {
                 const source = (data.source ?? {}) as Record<string, unknown>;
+                const chunkId = String(data.chunk_id ?? createId());
+                const existing = useAgentStore.getState().runtime.retrievedChunks;
+                if (existing.some((c) => c.id === chunkId || c.chunkId === chunkId)) return;
                 setRetrievedChunks([
-                  ...useAgentStore.getState().runtime.retrievedChunks,
+                  ...existing,
                   {
-                    id: String(data.chunk_id ?? createId()),
+                    id: chunkId,
                     source: String(source.filename ?? data.document_id ?? "document"),
                     score: Number(data.score ?? 0),
                     text: String(data.content ?? ""),
                     documentId: String(data.document_id ?? ""),
-                    chunkId: String(data.chunk_id ?? ""),
+                    chunkId,
                     pageNumber: source.page_number ? Number(source.page_number) : null,
                     title: String(source.title ?? source.filename ?? data.document_id ?? "document"),
                   },
@@ -167,28 +199,6 @@ export function AppShell() {
             latencyMs: performance.now() - startedAt,
             tokens: estimateTokens(streamedAssistantText),
           });
-        } else {
-          const response = await client.chat(activeSessionId, message, { documentIds: activeDocumentIds });
-          updateMessage(activeSessionId, assistantId, {
-            content: response.reply,
-            status: "success",
-            latencyMs: performance.now() - startedAt,
-            intent: response.intent,
-            tokens: estimateTokens(response.reply),
-            usedSkills: response.used_skills,
-            citations: response.citations,
-          });
-          if (response.citations?.length) {
-            addRuntimeEvent({
-              id: createId(),
-              type: "retrieval",
-              title: "Citations attached",
-              detail: `${response.citations.length} sources attached to final answer.${activeDocument ? ` Scoped to ${activeDocument.title}.` : ""}`,
-              status: "success",
-              timestamp: Date.now(),
-            });
-            setRuntimeHint(null);
-          }
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error("Request failed");
@@ -282,6 +292,19 @@ export function AppShell() {
     const composer = document.querySelector<HTMLTextAreaElement>("textarea");
     if (composer?.value) submitMessage(composer.value);
   });
+
+  const pendingSentRef = useRef(false);
+  useEffect(() => {
+    if (activeSession?.pendingPrompt && !isStreaming && !pendingSentRef.current) {
+      pendingSentRef.current = true;
+      const prompt = activeSession.pendingPrompt;
+      clearPendingPrompt(activeSession.id);
+      submitMessage(prompt);
+    }
+    if (!isStreaming) {
+      pendingSentRef.current = false;
+    }
+  }, [activeSession?.pendingPrompt, isStreaming, submitMessage, clearPendingPrompt]);
 
   return (
     <main className="console-surface relative flex h-screen text-zinc-100">
