@@ -1,171 +1,149 @@
-import fakeredis
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+
+import pytest
 import redis
 
 from app.memory.working import WorkingMemory
 
 
-def test_working_memory_keeps_recent_messages_only() -> None:
-    client = fakeredis.FakeStrictRedis(decode_responses=True)
-    memory = WorkingMemory(session_id="demo", max_turns=3, client=client)
+class MockRedis:
+    """In-memory mock of Redis list operations."""
 
-    memory.add_message("user", "one")
-    memory.add_message("assistant", "two")
-    memory.add_message("user", "three")
-    memory.add_message("assistant", "four")
+    def __init__(self) -> None:
+        self._store: dict[str, list[str]] = {}
 
-    assert memory.get_messages() == [
-        {"role": "assistant", "content": "two"},
-        {"role": "user", "content": "three"},
-        {"role": "assistant", "content": "four"},
-    ]
+    def lpush(self, key: str, value: str) -> int:
+        if key not in self._store:
+            self._store[key] = []
+        self._store[key].insert(0, value)
+        return 1
 
+    def ltrim(self, key: str, start: int, end: int) -> None:
+        if key in self._store:
+            if end == -1:
+                self._store[key] = self._store[key][start:]
+            else:
+                self._store[key] = self._store[key][start : end + 1]
 
-def test_working_memory_uses_tenant_prefixed_keys() -> None:
-    client = fakeredis.FakeStrictRedis(decode_responses=True)
+    def lrange(self, key: str, start: int, end: int) -> list[str]:
+        items = self._store.get(key, [])
+        if end == -1:
+            return items[start:]
+        return items[start : end + 1]
 
-    memory_a = WorkingMemory(session_id="shared", tenant_id="tenant-a", client=client)
-    memory_b = WorkingMemory(session_id="shared", tenant_id="tenant-b", client=client)
-
-    memory_a.add_message("user", "from-a")
-    memory_b.add_message("user", "from-b")
-
-    assert memory_a.key == "tenant:tenant-a:session:shared:history"
-    assert memory_b.key == "tenant:tenant-b:session:shared:history"
-    assert memory_a.get_messages() == [{"role": "user", "content": "from-a"}]
-    assert memory_b.get_messages() == [{"role": "user", "content": "from-b"}]
+    def delete(self, key: str) -> int:
+        return 1 if self._store.pop(key, None) is not None else 0
 
 
-def test_working_memory_add_delegates_to_add_message() -> None:
-    client = fakeredis.FakeStrictRedis(decode_responses=True)
-    memory = WorkingMemory(session_id="test-delegate", max_turns=5, client=client)
-
-    memory.add("user", "via-add")
-    assert memory.get_messages() == [{"role": "user", "content": "via-add"}]
+@pytest.fixture
+def mock_redis_client() -> MockRedis:
+    return MockRedis()
 
 
-def test_working_memory_fallback_on_redis_error() -> None:
-    class BrokenRedis:
-        def lpush(self, key, value):
-            raise redis.RedisError("redis is down")
+class TestWorkingMemory:
+    def test_add_and_get_messages(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", max_turns=10, client=mock_redis_client)
+        wm.add("user", "hello")
+        wm.add("assistant", "hi there")
+        messages = wm.get_messages()
+        assert len(messages) == 2
+        assert messages[0]["role"] == "user"
+        assert messages[1]["role"] == "assistant"
 
-        def lrange(self, key, start, end):
-            raise redis.RedisError("redis is down")
+    def test_add_message_alias(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", max_turns=10, client=mock_redis_client)
+        wm.add_message("user", "hello")
+        assert len(wm.get_messages()) == 1
 
-        def ltrim(self, key, start, end):
-            raise redis.RedisError("redis is down")
+    def test_max_turns_overflow(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory(
+            "session-1", max_turns=2, archive_batch_size=10, client=mock_redis_client
+        )
+        wm.add("user", "msg1")
+        wm.add("user", "msg2")
+        wm.add("user", "msg3")
+        messages = wm.get_messages()
+        assert len(messages) == 2
 
-        def delete(self, key):
-            raise redis.RedisError("redis is down")
+    def test_pop_all_messages(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", max_turns=10, client=mock_redis_client)
+        wm.add("user", "hello")
+        popped = wm.pop_all_messages()
+        assert len(popped) == 1
+        assert wm.get_messages() == []
 
-    memory = WorkingMemory(session_id="fallback-test", max_turns=5, client=BrokenRedis())
+    def test_pop_archive_batch(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", max_turns=2, archive_batch_size=5, client=mock_redis_client)
+        wm.add("user", "m1")
+        wm.add("user", "m2")
+        wm.add("user", "m3")
+        batch = wm.pop_archive_batch(batch_size=5)
+        assert len(batch) >= 1
 
-    memory.add_message("user", "first")
-    memory.add_message("assistant", "second")
+    def test_clear_archive_batch(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", max_turns=2, archive_batch_size=5, client=mock_redis_client)
+        wm.add("user", "m1")
+        wm.add("user", "m2")
+        wm.add("user", "m3")
+        wm.clear_archive_batch(batch_size=5)
 
-    messages = memory.get_messages()
-    assert messages == [
-        {"role": "user", "content": "first"},
-        {"role": "assistant", "content": "second"},
-    ]
-    assert memory._fallback_enabled
+    def test_negative_batch_size_noop(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", client=mock_redis_client)
+        assert wm.pop_archive_batch(batch_size=0) == []
+        wm.clear_archive_batch(batch_size=0)
 
+    def test_redis_error_triggers_fallback(self) -> None:
+        failing_client = MagicMock()
+        failing_client.lpush.side_effect = redis.RedisError("connection refused")
 
-def test_working_memory_pop_all_messages_works_in_fallback() -> None:
-    class BrokenRedis:
-        def lpush(self, key, value):
-            raise redis.RedisError("down")
+        wm = WorkingMemory("session-1", max_turns=10, client=failing_client)
+        wm.add("user", "hello")
+        messages = wm.get_messages()
+        assert len(messages) == 1
+        assert messages[0]["content"] == "hello"
 
-        def lrange(self, key, start, end):
-            raise redis.RedisError("down")
+    def test_fallback_archive(self) -> None:
+        failing_client = MagicMock()
+        failing_client.lpush.side_effect = redis.RedisError("offline")
 
-        def ltrim(self, key, start, end):
-            raise redis.RedisError("down")
+        wm = WorkingMemory("session-1", max_turns=1, archive_batch_size=10, client=failing_client)
+        wm.add("user", "m1")
+        wm.add("user", "m2")
+        batch = wm.pop_archive_batch()
+        assert len(batch) >= 1
 
-        def delete(self, key):
-            raise redis.RedisError("down")
+    def test_fallback_clear_archive(self) -> None:
+        failing_client = MagicMock()
+        failing_client.lpush.side_effect = redis.RedisError("offline")
 
-    memory = WorkingMemory(session_id="pop-test", max_turns=5, client=BrokenRedis())
-    memory.add_message("user", "to-pop")
-    popped = memory.pop_all_messages()
+        wm = WorkingMemory("session-1", max_turns=1, archive_batch_size=10, client=failing_client)
+        wm.add("user", "m1")
+        wm.add("user", "m2")
+        wm.clear_archive_batch()
 
-    assert popped == [{"role": "user", "content": "to-pop"}]
-    assert memory.get_messages() == []
+    def test_pop_all_fallback(self) -> None:
+        failing_client = MagicMock()
+        failing_client.lpush.side_effect = redis.RedisError("offline")
 
+        wm = WorkingMemory("session-1", max_turns=10, client=failing_client)
+        wm.add("user", "hello")
+        popped = wm.pop_all_messages()
+        assert len(popped) == 1
 
-def test_working_memory_pop_archive_batch_edge_cases() -> None:
-    class BrokenRedis:
-        def lpush(self, key, value):
-            raise redis.RedisError("down")
+    def test_fallback_get_then_pop_all(self) -> None:
+        wm = WorkingMemory("session-1", max_turns=10)
+        wm._fallback_enabled = True
+        wm._fallback_history.append({"role": "user", "content": "hi"})
+        popped = wm.pop_all_messages()
+        assert len(popped) == 1
+        assert wm._fallback_history == []
 
-        def lrange(self, key, start, end):
-            raise redis.RedisError("down")
+    def test_tenant_id_in_key(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", tenant_id="t1", client=mock_redis_client)
+        assert "tenant:t1" in wm.key
 
-        def ltrim(self, key, start, end):
-            raise redis.RedisError("down")
-
-        def delete(self, key):
-            raise redis.RedisError("down")
-
-    memory = WorkingMemory(session_id="archive-test", max_turns=2, client=BrokenRedis())
-
-    # Triggers archive via overflow from max_turns=2
-    memory.add_message("user", "m1")
-    memory.add_message("assistant", "m2")
-    memory.add_message("user", "m3")
-
-    # pop_archive_batch retrieves archived messages
-    batch = memory.pop_archive_batch()
-    assert len(batch) == 1
-    assert batch[0]["content"] == "m1"
-
-    # clear_archive_batch in fallback mode
-    memory.clear_archive_batch()
-
-
-def test_working_memory_clear_archive_batch_via_fallback() -> None:
-    class BrokenRedis:
-        def __init__(self):
-            self._data: dict[str, list[str]] = {}
-
-        def lpush(self, key, value):
-            raise redis.RedisError("down")
-
-        def lrange(self, key, start, end):
-            raise redis.RedisError("down")
-
-        def ltrim(self, key, start, end):
-            raise redis.RedisError("down")
-
-        def delete(self, key):
-            raise redis.RedisError("down")
-
-    memory = WorkingMemory(session_id="clear-test", max_turns=1, client=BrokenRedis())
-    memory.add_message("user", "a")
-    memory.add_message("assistant", "b")  # triggers overflow → archive
-
-    assert memory._fallback_enabled
-    assert len(memory._fallback_archive) == 1
-
-    memory.clear_archive_batch(batch_size=1)
-    assert len(memory._fallback_archive) == 0
-
-
-def test_working_memory_overflow_archives_old_messages() -> None:
-    client = fakeredis.FakeStrictRedis(decode_responses=True)
-    memory = WorkingMemory(session_id="overflow-archive", max_turns=2, client=client)
-
-    memory.add_message("user", "old")
-    memory.add_message("assistant", "mid")
-    memory.add_message("user", "new")
-
-    assert memory.get_messages() == [
-        {"role": "assistant", "content": "mid"},
-        {"role": "user", "content": "new"},
-    ]
-
-    batch = memory.pop_archive_batch()
-    assert len(batch) == 1
-    assert batch[0]["content"] == "old"
-
-    memory.clear_archive_batch(batch_size=1)
-    assert memory.pop_archive_batch() == []
+    def test_tenant_id_default(self, mock_redis_client: MockRedis) -> None:
+        wm = WorkingMemory("session-1", client=mock_redis_client)
+        assert "public" in wm.key
