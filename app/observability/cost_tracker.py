@@ -19,9 +19,13 @@ class ModelCostConfig:
 
 DEFAULT_MODEL_COSTS: dict[str, ModelCostConfig] = {
     "gpt-4o": ModelCostConfig("gpt-4o", input_cost_per_1k=0.0025, output_cost_per_1k=0.01),
-    "gpt-4o-mini": ModelCostConfig("gpt-4o-mini", input_cost_per_1k=0.00015, output_cost_per_1k=0.0006),
+    "gpt-4o-mini": ModelCostConfig(
+        "gpt-4o-mini", input_cost_per_1k=0.00015, output_cost_per_1k=0.0006
+    ),
     "gpt-4": ModelCostConfig("gpt-4", input_cost_per_1k=0.03, output_cost_per_1k=0.06),
-    "gpt-3.5-turbo": ModelCostConfig("gpt-3.5-turbo", input_cost_per_1k=0.0005, output_cost_per_1k=0.0015),
+    "gpt-3.5-turbo": ModelCostConfig(
+        "gpt-3.5-turbo", input_cost_per_1k=0.0005, output_cost_per_1k=0.0015
+    ),
     "claude-sonnet-4-20250514": ModelCostConfig(
         "claude-sonnet-4-20250514", input_cost_per_1k=0.003, output_cost_per_1k=0.015
     ),
@@ -96,7 +100,9 @@ class CostTracker:
             "by_model": {
                 model: {
                     "input_tokens": sum(r.input_tokens for r in self._records if r.model == model),
-                    "output_tokens": sum(r.output_tokens for r in self._records if r.model == model),
+                    "output_tokens": sum(
+                        r.output_tokens for r in self._records if r.model == model
+                    ),
                     "estimated_cost": round(
                         sum(r.estimated_cost for r in self._records if r.model == model), 6
                     ),

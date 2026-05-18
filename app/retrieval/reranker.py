@@ -44,11 +44,7 @@ def heuristic_rerank(
             meta_bonus += 0.2
         if r.source.get("page_number") is not None:
             meta_bonus += 0.05
-        combined = (
-            vector_weight * r.score
-            + keyword_weight * overlap
-            + metadata_weight * meta_bonus
-        )
+        combined = vector_weight * r.score + keyword_weight * overlap + metadata_weight * meta_bonus
         scored.append((combined, idx, r))
 
     scored.sort(key=lambda x: x[0], reverse=True)

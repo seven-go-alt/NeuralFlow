@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 
 from app.rag.prompt_registry import (
+    RAG_SYSTEM_PROMPT,
+    RAG_SYSTEM_PROMPT_NO_CITATION,
     PromptRegistry,
     PromptRenderError,
     PromptTemplate,
-    RAG_SYSTEM_PROMPT,
-    RAG_SYSTEM_PROMPT_NO_CITATION,
 )
 
 

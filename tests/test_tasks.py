@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 from app.ingestion.tasks import ingest_document_task
 
 

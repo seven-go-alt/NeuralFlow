@@ -9,7 +9,6 @@ from app.evals.datasets import load_cases
 from app.evals.metrics import (
     CaseResult,
     EvalMetrics,
-    aggregate_metrics,
     compute_citation_match,
     compute_keyword_coverage,
     compute_no_answer_correct,
@@ -49,18 +48,12 @@ async def run_eval(
                 retrieved_contents=retrieved_contents,
                 answer=answer,
                 latency_ms=latency_ms,
-                retrieval_hit=compute_retrieval_hit(
-                    retrieved_doc_ids, case.expected_doc_ids
-                ),
+                retrieval_hit=compute_retrieval_hit(retrieved_doc_ids, case.expected_doc_ids),
                 citation_match=compute_citation_match(
                     answer, case.expected_doc_ids, retrieved_doc_ids
                 ),
-                keyword_coverage=compute_keyword_coverage(
-                    all_text, case.expected_keywords
-                ),
-                no_answer_correct=compute_no_answer_correct(
-                    case.should_answer, answer
-                ),
+                keyword_coverage=compute_keyword_coverage(all_text, case.expected_keywords),
+                no_answer_correct=compute_no_answer_correct(case.should_answer, answer),
             )
         )
 
@@ -68,7 +61,8 @@ async def run_eval(
 
 
 def build_eval_report(
-    results: list[CaseResult], metrics: EvalMetrics,
+    results: list[CaseResult],
+    metrics: EvalMetrics,
 ) -> str:
     lines: list[str] = []
     lines.append("# RAG Eval Report")
@@ -89,9 +83,7 @@ def build_eval_report(
         "|---------|--------------|---------------|-------------|-------------------|-------------|"
     )
     for r in results:
-        no_ans = (
-            "✓" if r.no_answer_correct else "✗" if r.no_answer_correct is False else "—"
-        )
+        no_ans = "✓" if r.no_answer_correct else "✗" if r.no_answer_correct is False else "—"
         lines.append(
             f"| {r.case_id} "
             f"| {'✓' if r.retrieval_hit else '✗'} "

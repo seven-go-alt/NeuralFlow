@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from app.core.model_router import ModelProfile, ModelRouter
 
 

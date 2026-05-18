@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from app.skills.terminal_exec import TerminalResult, format_terminal_result
 
 

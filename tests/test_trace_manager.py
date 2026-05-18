@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from app.observability.trace_manager import TraceManager, TraceSpan
 
 
