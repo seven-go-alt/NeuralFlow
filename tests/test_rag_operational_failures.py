@@ -10,7 +10,7 @@ from app.utils.vector_client import VectorStoreUnavailableError
 
 
 @pytest.mark.asyncio
-async def test_document_upload_returns_503_when_ingestion_queue_unavailable(
+async def test_document_upload_falls_back_to_sync_when_celery_down(
     monkeypatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("DOCUMENTS_STORAGE_DIR", str(tmp_path / "uploads"))
@@ -22,31 +22,42 @@ async def test_document_upload_returns_503_when_ingestion_queue_unavailable(
 
     monkeypatch.setattr("app.api.documents.celery_app", BrokenTaskApp)
 
+    # Mock the sync pipeline to avoid ChromaDB dependency
+    class FakePipeline:
+        async def run(self, **kwargs):
+            return {"status": "ok"}
+
+    monkeypatch.setattr("app.api.documents.IngestionPipeline", lambda: FakePipeline())
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         files = {"file": ("handbook.txt", b"leave policy\nsubmit request first", "text/plain")}
         data = {"title": "Employee Handbook"}
-        response = await client.post("/api/documents/upload", files=files, data=data)
+        response = await client.post("/api/v1/documents/upload", files=files, data=data)
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Document ingestion queue is unavailable"
+    # Sync fallback processes the document, so we get 200 instead of 503
+    assert response.status_code == 200
+    data = response.json()
+    assert data["document_id"]
 
 
 @pytest.mark.asyncio
-async def test_reindex_returns_503_when_ingestion_queue_unavailable(
-    monkeypatch, tmp_path: Path
-) -> None:
+async def test_reindex_falls_back_to_sync_when_celery_down(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("DOCUMENTS_STORAGE_DIR", str(tmp_path / "uploads"))
+
+    class CreateOnlyTaskApp:
+        @staticmethod
+        def send_task(*args, **kwargs):
+            return {"queued": True}
 
     class FailingTaskApp:
         @staticmethod
         def send_task(*args, **kwargs):
             raise ConnectionError("broker down")
 
-    class CreateOnlyTaskApp:
-        @staticmethod
-        def send_task(*args, **kwargs):
-            return {"queued": True}
+    class FakePipeline:
+        async def run(self, **kwargs):
+            return {"status": "ok"}
 
     monkeypatch.setattr("app.api.documents.celery_app", CreateOnlyTaskApp)
 
@@ -54,17 +65,19 @@ async def test_reindex_returns_503_when_ingestion_queue_unavailable(
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         files = {"file": ("handbook.txt", b"leave policy\nsubmit request first", "text/plain")}
         data = {"title": "Employee Handbook"}
-        upload_response = await client.post("/api/documents/upload", files=files, data=data)
+        upload_response = await client.post("/api/v1/documents/upload", files=files, data=data)
         document_id = upload_response.json()["document_id"]
 
     monkeypatch.setattr("app.api.documents.celery_app", FailingTaskApp)
+    monkeypatch.setattr("app.api.documents.IngestionPipeline", lambda: FakePipeline())
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(f"/api/documents/{document_id}/reindex")
+        response = await client.post(f"/api/v1/documents/{document_id}/reindex")
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "Document ingestion queue is unavailable"
+    # Falls back to sync pipeline instead of returning 503
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
 
 
 @pytest.mark.asyncio
@@ -123,7 +136,7 @@ async def test_chat_reports_vector_store_unavailable_instead_of_silent_empty_ret
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
-            "/chat",
+            "/api/v1/chat",
             json={"session_id": "s-kb", "message": "请总结知识库文档", "use_retrieval": True},
         )
 

@@ -239,11 +239,11 @@ def summarize(results: list[CaseResult], suite: str) -> dict[str, Any]:
     total = len(results)
     passed = sum(1 for item in results if item.status == "passed")
     failed = total - passed
-    latencies = [
-        item.metrics.get("latency_ms")
-        for item in results
-        if item.metrics.get("latency_ms") is not None
-    ]
+    latencies: list[float] = []
+    for item in results:
+        v = item.metrics.get("latency_ms")
+        if isinstance(v, (int, float)):
+            latencies.append(v)
     avg_latency_ms = round(sum(latencies) / len(latencies), 2) if latencies else None
 
     summary: dict[str, Any] = {

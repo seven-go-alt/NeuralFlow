@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from kombu.exceptions import OperationalError
 from sqlalchemy.orm import Session
@@ -15,23 +17,33 @@ from app.documents.schemas import (
     DocumentUploadResponse,
 )
 from app.documents.service import DocumentService, DocumentValidationError
+from app.ingestion.pipeline import IngestionPipeline
 from app.retrieval.chroma_store import ChromaDocumentStore
 from worker import celery_app
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
 
-def _enqueue_ingestion(*, tenant_id: str, document_id: str) -> None:
+async def _enqueue_or_run_sync(*, tenant_id: str, document_id: str) -> None:
+    """Try Celery first; fall back to synchronous processing for local dev."""
     try:
         celery_app.send_task(
             "neuralflow.ingest_document",
             kwargs={"tenant_id": tenant_id, "document_id": document_id},
         )
-    except (OperationalError, ConnectionError, OSError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="Document ingestion queue is unavailable",
-        ) from exc
+        logger.info("dispatched ingestion task for doc=%s via Celery", document_id)
+        return
+    except (OperationalError, ConnectionError, OSError):
+        logger.info("Celery broker unavailable — processing doc=%s synchronously", document_id)
+
+    pipeline = IngestionPipeline()
+    try:
+        await pipeline.run(tenant_id=tenant_id, document_id=document_id)
+    except Exception as exc:
+        logger.error("sync ingestion failed for doc=%s: %s", document_id, exc)
+        raise HTTPException(status_code=500, detail=f"Document ingestion failed: {exc}") from exc
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -50,7 +62,7 @@ async def upload_document(
         )
     except DocumentValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    _enqueue_ingestion(tenant_id=tenant_id, document_id=record.document_id)
+    await _enqueue_or_run_sync(tenant_id=tenant_id, document_id=record.document_id)
     refreshed = DocumentRepository(db).get_document(
         tenant_id=tenant_id, document_id=record.document_id
     )
@@ -135,5 +147,5 @@ async def reindex_document(document_id: str, request: Request, db: Session = Dep
     record = repo.get_document(tenant_id=tenant_id, document_id=document_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    _enqueue_ingestion(tenant_id=tenant_id, document_id=document_id)
+    await _enqueue_or_run_sync(tenant_id=tenant_id, document_id=document_id)
     return {"ok": True, "document_id": document_id, "status": "queued"}

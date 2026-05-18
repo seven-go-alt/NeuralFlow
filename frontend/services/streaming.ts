@@ -23,7 +23,7 @@ export async function streamChat({
   callbacks: StreamCallbacks;
   retrievalOptions?: Record<string, unknown>;
 }) {
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/stream?include_thinking=true`, {
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/chat/stream?include_thinking=true`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
