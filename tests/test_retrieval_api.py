@@ -46,20 +46,22 @@ async def test_retrieval_search_api(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_retrieval_service_build_where_tenant_only() -> None:
+async def test_retrieval_service_build_where_tenant_only(monkeypatch) -> None:
     from app.retrieval.schemas import RetrievalFilters
     from app.retrieval.service import RetrievalService
 
+    monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: None)
     service = RetrievalService(document_repo=None)
     where = service._build_where(tenant_id="public", filters=RetrievalFilters().model_dump())
     assert where == {"tenant_id": "public"}
 
 
 @pytest.mark.asyncio
-async def test_retrieval_service_build_where_with_document_id() -> None:
+async def test_retrieval_service_build_where_with_document_id(monkeypatch) -> None:
     from app.retrieval.schemas import RetrievalFilters
     from app.retrieval.service import RetrievalService
 
+    monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: None)
     service = RetrievalService(document_repo=None)
     where = service._build_where(
         tenant_id="public",
@@ -69,10 +71,11 @@ async def test_retrieval_service_build_where_with_document_id() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retrieval_service_build_where_with_file_type() -> None:
+async def test_retrieval_service_build_where_with_file_type(monkeypatch) -> None:
     from app.retrieval.schemas import RetrievalFilters
     from app.retrieval.service import RetrievalService
 
+    monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: None)
     service = RetrievalService(document_repo=None)
     where = service._build_where(
         tenant_id="tenant-alpha",
@@ -82,10 +85,11 @@ async def test_retrieval_service_build_where_with_file_type() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retrieval_service_build_where_multiple_clauses() -> None:
+async def test_retrieval_service_build_where_multiple_clauses(monkeypatch) -> None:
     from app.retrieval.schemas import RetrievalFilters
     from app.retrieval.service import RetrievalService
 
+    monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: None)
     service = RetrievalService(document_repo=None)
     where = service._build_where(
         tenant_id="public",
@@ -97,10 +101,11 @@ async def test_retrieval_service_build_where_multiple_clauses() -> None:
     assert {"file_type": "pdf"} in where["$and"]
 
 
-def test_retrieval_service_dedupe() -> None:
+def test_retrieval_service_dedupe(monkeypatch) -> None:
     from app.retrieval.schemas import RetrievalResult
     from app.retrieval.service import RetrievalService
 
+    monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: None)
     service = RetrievalService(document_repo=None)
     results = [
         RetrievalResult(chunk_id="c1", document_id="d1", content="a", score=0.9),
