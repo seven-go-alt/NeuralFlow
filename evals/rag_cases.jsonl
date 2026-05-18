@@ -1,0 +1,5 @@
+{"id": "case_001", "question": "公司年假政策是什么？", "expected_keywords": ["年假", "天数", "政策"], "expected_doc_ids": ["doc_hr_001"], "should_answer": true}
+{"id": "case_002", "question": "请介绍我们公司的技术栈", "expected_keywords": ["Python", "FastAPI", "React"], "expected_doc_ids": ["doc_tech_001"], "should_answer": true}
+{"id": "case_003", "question": "今天天气怎么样？", "expected_keywords": [], "expected_doc_ids": [], "should_answer": false}
+{"id": "case_004", "question": "员工考勤制度中关于迟到是如何规定的？", "expected_keywords": ["考勤", "迟到", "规定"], "expected_doc_ids": ["doc_hr_002"], "should_answer": true}
+{"id": "case_005", "question": "我们数据库用的是哪个版本", "expected_keywords": ["PostgreSQL", "版本"], "expected_doc_ids": ["doc_tech_002"], "should_answer": true}
