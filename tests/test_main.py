@@ -12,8 +12,8 @@ from app.main import (
     app,
 )
 
-
 # --- Pure utility functions ---
+
 
 def test_strip_provider_prefix_with_provider() -> None:
     assert _strip_provider_prefix("openai/gpt-4") == "gpt-4"
@@ -70,9 +70,9 @@ def test_extract_admin_secret_empty_bearer() -> None:
 
 # --- _handle_terminal_tool ---
 
+
 @pytest.mark.asyncio
 async def test_handle_terminal_no_command() -> None:
-    from app.main import _handle_terminal_tool
 
     result = await _handle_terminal_tool({"input": ""})
     assert result["error"] == "No command provided"
@@ -81,7 +81,6 @@ async def test_handle_terminal_no_command() -> None:
 
 @pytest.mark.asyncio
 async def test_handle_terminal_missing_input_key() -> None:
-    from app.main import _handle_terminal_tool
 
     result = await _handle_terminal_tool({})
     assert result["error"] == "No command provided"
@@ -91,7 +90,6 @@ async def test_handle_terminal_missing_input_key() -> None:
 @pytest.mark.asyncio
 async def test_handle_terminal_disabled(monkeypatch) -> None:
     monkeypatch.setattr("app.main.settings.terminal_enabled", False)
-    from app.main import _handle_terminal_tool
 
     result = await _handle_terminal_tool({"input": "ls"})
     assert "disabled" in result["error"]
@@ -99,6 +97,7 @@ async def test_handle_terminal_disabled(monkeypatch) -> None:
 
 
 # --- Endpoint tests ---
+
 
 def test_healthz() -> None:
     response = TestClient(app).get("/healthz")
@@ -119,7 +118,9 @@ def test_list_skills(monkeypatch) -> None:
     monkeypatch.setattr(
         skill_registry,
         "list_skills",
-        lambda: [SkillDefinition(name="test-skill", description="A test skill", tool_name="test-tool")],
+        lambda: [
+            SkillDefinition(name="test-skill", description="A test skill", tool_name="test-tool")
+        ],
     )
 
     response = TestClient(app).get("/api/v1/skills")
@@ -163,9 +164,7 @@ def test_list_models_no_api_base_with_key(monkeypatch) -> None:
 def test_switch_model(monkeypatch) -> None:
     monkeypatch.setattr("app.main.settings.litellm_model", "openai/gpt-4")
 
-    response = TestClient(app).post(
-        "/api/v1/models/switch", json={"model": "gpt-5"}
-    )
+    response = TestClient(app).post("/api/v1/models/switch", json={"model": "gpt-5"})
     assert response.status_code == 200
     data = response.json()
     assert "gpt-5" in data["model"]
@@ -253,7 +252,6 @@ def test_list_models_api_error(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_handle_terminal_executes_command(monkeypatch) -> None:
     """_handle_terminal_tool with a valid command returns execution result."""
-    from app.main import _handle_terminal_tool
 
     class FakeResult:
         stdout = "hello\nworld"
@@ -261,9 +259,7 @@ async def test_handle_terminal_executes_command(monkeypatch) -> None:
         return_code = 0
         timed_out = False
 
-    async def fake_execute(
-        command: str, timeout: int, cwd: str
-    ) -> FakeResult:
+    async def fake_execute(command: str, timeout: int, cwd: str) -> FakeResult:
         return FakeResult()
 
     monkeypatch.setattr("app.main.execute_command", fake_execute)
@@ -285,6 +281,7 @@ def test_admin_config_no_secret(monkeypatch) -> None:
 
 # --- serve_frontend ---
 
+
 def test_serve_frontend_with_existing_file(monkeypatch, tmp_path) -> None:
     """serve_frontend returns FileResponse when index.html exists."""
     index = tmp_path / "index.html"
@@ -297,6 +294,7 @@ def test_serve_frontend_with_existing_file(monkeypatch, tmp_path) -> None:
 
 
 # --- chat_react endpoint ---
+
 
 @pytest.mark.asyncio
 async def test_chat_react_endpoint(monkeypatch) -> None:
@@ -328,9 +326,7 @@ async def test_chat_react_endpoint(monkeypatch) -> None:
 
     monkeypatch.setattr("app.main.intent_router", StubRouter())
     monkeypatch.setattr("app.main.ReActAgent", StubAgent)
-    monkeypatch.setattr(
-        "app.main.skill_registry.get_allowed_skills", lambda w: []
-    )
+    monkeypatch.setattr("app.main.skill_registry.get_allowed_skills", lambda w: [])
 
     from httpx import ASGITransport, AsyncClient
 
@@ -379,9 +375,7 @@ async def test_chat_react_with_terminal_enabled(monkeypatch) -> None:
     monkeypatch.setattr("app.main.intent_router", StubRouter())
     monkeypatch.setattr("app.main.ReActAgent", StubAgent)
     monkeypatch.setattr("app.main.settings.terminal_enabled", True)
-    monkeypatch.setattr(
-        "app.main.skill_registry.get_allowed_skills", lambda w: []
-    )
+    monkeypatch.setattr("app.main.skill_registry.get_allowed_skills", lambda w: [])
 
     from httpx import ASGITransport, AsyncClient
 
@@ -437,9 +431,7 @@ async def test_chat_react_failed_working_memory(monkeypatch) -> None:
     monkeypatch.setattr("app.memory.working.WorkingMemory", FailingAddMessageWM)
     monkeypatch.setattr("app.main.intent_router", StubRouter())
     monkeypatch.setattr("app.main.ReActAgent", StubAgent)
-    monkeypatch.setattr(
-        "app.main.skill_registry.get_allowed_skills", lambda w: []
-    )
+    monkeypatch.setattr("app.main.skill_registry.get_allowed_skills", lambda w: [])
 
     from httpx import ASGITransport, AsyncClient
 
@@ -457,9 +449,11 @@ async def test_chat_react_failed_working_memory(monkeypatch) -> None:
 
 # --- chat_orchestrate endpoint ---
 
+
 @pytest.mark.asyncio
 async def test_chat_orchestrate_endpoint(monkeypatch) -> None:
     """chat_orchestrate returns AgentOrchestrator output."""
+
     class StubOrchestrator:
         def __init__(self, **kwargs: object) -> None:
             pass
@@ -493,6 +487,7 @@ async def test_chat_orchestrate_endpoint(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_chat_orchestrate_failed_working_memory(monkeypatch) -> None:
     """chat_orchestrate handles WorkingMemory failure gracefully."""
+
     class StubOrchestrator:
         def __init__(self, **kwargs: object) -> None:
             pass
@@ -535,6 +530,7 @@ async def test_chat_orchestrate_failed_working_memory(monkeypatch) -> None:
 
 # --- _run_skills edge cases ---
 
+
 @pytest.mark.asyncio
 async def test_run_skills_skips_terminal_skill() -> None:
     """_run_skills skips the terminal skill in non-ReAct flow."""
@@ -542,17 +538,17 @@ async def test_run_skills_skips_terminal_skill() -> None:
     from app.skills.registry import SkillDefinition
 
     skills = [
-        SkillDefinition(
-            name="terminal", description="Shell", tool_name="terminal", read_only=True
-        ),
+        SkillDefinition(name="terminal", description="Shell", tool_name="terminal", read_only=True),
     ]
-    result = await _run_skills(
+    result: list[dict[str, object]] = await _run_skills(
         skills, session_id="test", intent="general", user_query="ls"
     )
 
     assert len(result) == 1
     assert result[0]["skill"] == "terminal"
-    assert result[0]["result"]["note"] == "terminal skill is only available in ReAct mode"
+    skill_result = result[0]["result"]
+    assert isinstance(skill_result, dict)
+    assert skill_result["note"] == "terminal skill is only available in ReAct mode"
 
 
 @pytest.mark.asyncio
@@ -567,16 +563,12 @@ async def test_run_skills_skips_terminal_and_runs_others(monkeypatch) -> None:
     monkeypatch.setattr("app.main.mcp_client.call_tool", fake_call_tool)
 
     skills = [
-        SkillDefinition(
-            name="terminal", description="Shell", tool_name="terminal", read_only=True
-        ),
+        SkillDefinition(name="terminal", description="Shell", tool_name="terminal", read_only=True),
         SkillDefinition(
             name="python", description="Python", tool_name="python_exec", read_only=True
         ),
     ]
-    result = await _run_skills(
-        skills, session_id="test", intent="general", user_query="print(1)"
-    )
+    result = await _run_skills(skills, session_id="test", intent="general", user_query="print(1)")
 
     assert len(result) == 2
     assert result[0]["skill"] == "terminal"
@@ -598,14 +590,10 @@ async def test_run_skills_typeerror_read_only_fallback(monkeypatch) -> None:
         nonlocal call_count
         call_count += 1
         if "read_only" in kwargs:
-            raise TypeError(
-                "call_tool() got an unexpected keyword argument 'read_only'"
-            )
+            raise TypeError("call_tool() got an unexpected keyword argument 'read_only'")
         return {"result": "success after retry"}
 
-    monkeypatch.setattr(
-        "app.main.mcp_client.call_tool", failing_then_succeeding_call_tool
-    )
+    monkeypatch.setattr("app.main.mcp_client.call_tool", failing_then_succeeding_call_tool)
 
     skills = [
         SkillDefinition(
@@ -615,9 +603,7 @@ async def test_run_skills_typeerror_read_only_fallback(monkeypatch) -> None:
             read_only=True,
         ),
     ]
-    result = await _run_skills(
-        skills, session_id="test", intent="coding", user_query="print(1)"
-    )
+    result = await _run_skills(skills, session_id="test", intent="coding", user_query="print(1)")
 
     assert result[0]["result"] == {"result": "success after retry"}
     assert call_count == 2
@@ -629,9 +615,7 @@ async def test_run_skills_exception_fallback(monkeypatch) -> None:
     from app.main import _run_skills
     from app.skills.registry import SkillDefinition
 
-    async def failing_call_tool(
-        tool_name: str, payload: dict, **kwargs: object
-    ) -> dict:
+    async def failing_call_tool(tool_name: str, payload: dict, **kwargs: object) -> dict:
         raise RuntimeError("MCP connection refused")
 
     monkeypatch.setattr("app.main.mcp_client.call_tool", failing_call_tool)
@@ -644,15 +628,17 @@ async def test_run_skills_exception_fallback(monkeypatch) -> None:
             read_only=True,
         ),
     ]
-    result = await _run_skills(
+    result: list[dict[str, object]] = await _run_skills(
         skills, session_id="test", intent="coding", user_query="x"
     )
-
-    assert "error" in result[0]["result"]
-    assert "MCP connection refused" in result[0]["result"]["error"]
+    skill_result = result[0]["result"]
+    assert isinstance(skill_result, dict)
+    assert "error" in skill_result
+    assert "MCP connection refused" in skill_result["error"]
 
 
 # --- _discover_remote_tools ---
+
 
 @pytest.mark.asyncio
 async def test_discover_remote_tools_failure(monkeypatch) -> None:
@@ -669,11 +655,13 @@ async def test_discover_remote_tools_failure(monkeypatch) -> None:
 
 # --- _prepare_chat edge cases (via /api/v1/chat) ---
 
+
 @pytest.mark.asyncio
 async def test_chat_working_memory_typeerror_tenant_id(monkeypatch) -> None:
     """_prepare_chat falls back when WorkingMemory rejects tenant_id kwarg."""
-    from app.core.intent_router import IntentDetectionResult, IntentPolicy
     from httpx import ASGITransport, AsyncClient
+
+    from app.core.intent_router import IntentDetectionResult, IntentPolicy
 
     policy = IntentPolicy(memory_strategy="working_only", skill_whitelist=[])
 
@@ -694,8 +682,7 @@ async def test_chat_working_memory_typeerror_tenant_id(monkeypatch) -> None:
         def __init__(self, session_id: str, tenant_id: str | None = None) -> None:
             if tenant_id is not None:
                 raise TypeError(
-                    "WorkingMemory.__init__() got an unexpected keyword "
-                    "argument 'tenant_id'"
+                    "WorkingMemory.__init__() got an unexpected keyword argument 'tenant_id'"
                 )
             self.session_id = session_id
             self.messages: list = []
@@ -718,9 +705,7 @@ async def test_chat_working_memory_typeerror_tenant_id(monkeypatch) -> None:
             self.session_id = session_id
             self.working_mem = working_mem
 
-        async def build_prompt(
-            self, user_query: str, intent: str, **kwargs: object
-        ) -> str:
+        async def build_prompt(self, user_query: str, intent: str, **kwargs: object) -> str:
             return f"prompt::{intent}::{user_query}"
 
     monkeypatch.setattr("app.main.intent_router", StubRouter())
@@ -748,8 +733,9 @@ async def test_chat_working_memory_typeerror_tenant_id(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_chat_context_builder_typeerror_tenant_id(monkeypatch) -> None:
     """_prepare_chat falls back when ContextBuilder rejects tenant_id kwarg."""
-    from app.core.intent_router import IntentDetectionResult, IntentPolicy
     from httpx import ASGITransport, AsyncClient
+
+    from app.core.intent_router import IntentDetectionResult, IntentPolicy
 
     policy = IntentPolicy(memory_strategy="working_only", skill_whitelist=[])
 
@@ -788,15 +774,12 @@ async def test_chat_context_builder_typeerror_tenant_id(monkeypatch) -> None:
         ) -> None:
             if tenant_id is not None:
                 raise TypeError(
-                    "ContextBuilder.__init__() got an unexpected keyword "
-                    "argument 'tenant_id'"
+                    "ContextBuilder.__init__() got an unexpected keyword argument 'tenant_id'"
                 )
             self.session_id = session_id
             self.working_mem = working_mem
 
-        async def build_prompt(
-            self, user_query: str, intent: str, **kwargs: object
-        ) -> str:
+        async def build_prompt(self, user_query: str, intent: str, **kwargs: object) -> str:
             return f"prompt::{intent}::{user_query}"
 
     monkeypatch.setattr("app.main.intent_router", StubRouter())
@@ -824,8 +807,9 @@ async def test_chat_context_builder_typeerror_tenant_id(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_chat_retrieval_exception_fallback(monkeypatch) -> None:
     """_prepare_chat catches generic exceptions in RAG retrieval."""
-    from app.core.intent_router import IntentDetectionResult, IntentPolicy
     from httpx import ASGITransport, AsyncClient
+
+    from app.core.intent_router import IntentDetectionResult, IntentPolicy
 
     policy = IntentPolicy(memory_strategy="working_only", skill_whitelist=[])
 
@@ -864,9 +848,7 @@ async def test_chat_retrieval_exception_fallback(monkeypatch) -> None:
         ) -> None:
             self.session_id = session_id
 
-        async def build_prompt(
-            self, user_query: str, intent: str, **kwargs: object
-        ) -> str:
+        async def build_prompt(self, user_query: str, intent: str, **kwargs: object) -> str:
             return f"prompt::{intent}::{user_query}"
 
     class FailingRetrievalService:
@@ -906,6 +888,7 @@ async def test_chat_retrieval_exception_fallback(monkeypatch) -> None:
 
 # --- Defensive guard raise tests ---
 
+
 @pytest.mark.asyncio
 async def test_run_skills_typeerror_unexpected_raises(monkeypatch) -> None:
     """_run_skills re-raises unexpected TypeError from call_tool."""
@@ -927,15 +910,13 @@ async def test_run_skills_typeerror_unexpected_raises(monkeypatch) -> None:
     ]
 
     with pytest.raises(TypeError, match="Some unexpected type error"):
-        await _run_skills(
-            skills, session_id="test", intent="coding", user_query="x"
-        )
+        await _run_skills(skills, session_id="test", intent="coding", user_query="x")
 
 
 @pytest.mark.asyncio
 async def test_prepare_chat_working_memory_unexpected_typeerror(monkeypatch) -> None:
     """_prepare_chat re-raises unexpected TypeError from WorkingMemory."""
-    from app.main import _prepare_chat, ChatRequest
+    from app.main import ChatRequest, _prepare_chat
 
     class UnexpectedTypeErrorWM:
         def __init__(self, session_id: str, tenant_id: str | None = None) -> None:
@@ -954,7 +935,7 @@ async def test_prepare_chat_working_memory_unexpected_typeerror(monkeypatch) -> 
 @pytest.mark.asyncio
 async def test_prepare_chat_context_builder_unexpected_typeerror(monkeypatch) -> None:
     """_prepare_chat re-raises unexpected TypeError from ContextBuilder."""
-    from app.main import _prepare_chat, ChatRequest
+    from app.main import ChatRequest, _prepare_chat
 
     class StubWorkingMemory:
         def __init__(self, session_id: str, tenant_id: str | None = None) -> None:
