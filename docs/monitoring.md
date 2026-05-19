@@ -134,3 +134,58 @@ curl http://localhost:8000/metrics
 ```
 
 Open Grafana at `http://localhost:3000`, import the dashboard, and observe the panels.
+
+---
+
+## 5. Docker Compose Monitoring Stack
+
+A Docker Compose file is provided to spin up the entire monitoring stack with a single command.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed.
+
+### Starting the stack
+
+```bash
+cd ops && docker compose -f docker-compose.monitoring.yml up -d
+```
+
+This starts three services:
+
+| Service | Container | Port | Purpose |
+|---|---|---|---|
+| **Prometheus** | `prom/prometheus` | `9090` | Metric storage and alert evaluation |
+| **Grafana** | `grafana/grafana` | `3001` | Dashboard visualization |
+| **Node Exporter** | `prom/node-exporter` | `9100` | Host-level metrics (CPU, memory, disk) |
+
+### Accessing the services
+
+| Service | URL |
+|---|---|
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3001 |
+| Node Exporter | http://localhost:9100/metrics |
+
+### Importing the Grafana dashboard
+
+1. Open Grafana at `http://localhost:3001`.
+2. Log in with the default credentials (`admin` / `admin`).
+3. Navigate to **Dashboards > New > Import**.
+4. Upload or paste the contents of `ops/grafana/dashboard.json`.
+5. Select the **Prometheus** datasource (auto-provisioned).
+6. Click **Import**.
+
+The datasource is auto-provisioned from `ops/grafana/datasources.yml`, so no manual datasource setup is needed.
+
+### Stopping the stack
+
+```bash
+cd ops && docker compose -f docker-compose.monitoring.yml down
+```
+
+To also remove the persistent Grafana data:
+
+```bash
+cd ops && docker compose -f docker-compose.monitoring.yml down -v
+```
