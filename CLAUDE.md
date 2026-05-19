@@ -23,6 +23,12 @@ uv run pytest -q
 cd frontend && npm run lint && npm run typecheck && npm test
 ```
 
+启动本地开发环境（API + 前端同时启动）：
+
+```bash
+make dev
+```
+
 ## GitHub 分支保护
 
 main 分支已启用 Ruleset：
