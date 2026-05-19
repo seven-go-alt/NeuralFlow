@@ -101,6 +101,16 @@ class Settings(BaseSettings):
     rag_use_hyde: bool = False
     rag_max_corrections: int = 2
 
+    multimodal_enabled: bool = False
+    vision_model: str = "gpt-4o"
+    vision_prompt_template: str = Field(
+        default="Describe this image in detail, focusing on content relevant to document understanding.",
+        alias="VISION_PROMPT_TEMPLATE",
+    )
+    multimodal_max_images: int = Field(default=20, alias="MULTIMODAL_MAX_IMAGES")
+    multimodal_max_image_size_mb: int = Field(default=5, alias="MULTIMODAL_MAX_IMAGE_SIZE_MB")
+    multimodal_max_tables: int = Field(default=50, alias="MULTIMODAL_MAX_TABLES")
+
     intent_default: str = "general"
     intent_llm_fallback_enabled: bool = True
     intent_keyword_rules_json: str = Field(

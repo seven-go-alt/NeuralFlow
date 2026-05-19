@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class RetrievalFilters(BaseModel):
     document_ids: list[str] = Field(default_factory=list)
     file_types: list[str] = Field(default_factory=list)
+    content_types: list[str] = Field(default_factory=list)
 
 
 class RetrievalRequest(BaseModel):
