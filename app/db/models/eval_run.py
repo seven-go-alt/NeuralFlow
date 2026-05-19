@@ -10,9 +10,7 @@ from app.db.base import Base
 
 class EvalRunORM(Base):
     __tablename__ = "eval_runs"
-    __table_args__ = (
-        Index("ix_eval_runs_created", "created_at"),
-    )
+    __table_args__ = (Index("ix_eval_runs_created", "created_at"),)
 
     run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(128), index=True)

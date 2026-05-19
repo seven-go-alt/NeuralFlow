@@ -10,9 +10,7 @@ from app.db.base import Base
 
 class DocumentORM(Base):
     __tablename__ = "documents"
-    __table_args__ = (
-        Index("ix_documents_tenant_created", "tenant_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_documents_tenant_created", "tenant_id", "created_at"),)
 
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(128), index=True)

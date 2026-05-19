@@ -91,7 +91,9 @@ class ResponseCache:
         self.default_ttl = default_ttl
 
     def _key(self, tenant_id: str, path: str, params: dict | None = None) -> str:
-        raw = json.dumps({"tenant": tenant_id, "path": path, "params": params or {}}, sort_keys=True)
+        raw = json.dumps(
+            {"tenant": tenant_id, "path": path, "params": params or {}}, sort_keys=True
+        )
         return f"{self.prefix}:{hashlib.sha256(raw.encode()).hexdigest()}"
 
     async def get(self, tenant_id: str, path: str, params: dict | None = None) -> dict | None:
