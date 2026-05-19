@@ -76,11 +76,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev --frozen
 
-      - name: Install pytest-xdist
-        run: uv pip install pytest-xdist
-
       - name: Pytest
-        run: uv run pytest -q -n auto
+        run: uv run pytest -q
 
   frontend:
     timeout-minutes: 15
