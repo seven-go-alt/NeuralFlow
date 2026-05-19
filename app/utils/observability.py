@@ -41,10 +41,12 @@ _configured_loggers: set[str] = set()
 class Observability:
     registry: CollectorRegistry
     request_duration: Histogram
+    request_count: Counter
     llm_token_usage: Counter
     memory_cache_hit: Counter
     active_sessions: Gauge
     error_total: Counter
+    error_by_status: Counter
 
     def render_metrics(self) -> bytes:
         return generate_latest(self.registry)
@@ -154,6 +156,12 @@ def create_observability(registry: CollectorRegistry | None = None) -> Observabi
                 "Request duration in seconds.",
                 ("endpoint", "intent"),
             ),
+            request_count=_get_or_create_counter(
+                target_registry,
+                "neuralflow_http_requests_total",
+                "Total HTTP requests by endpoint, method, and status code.",
+                ("endpoint", "method", "status_code"),
+            ),
             llm_token_usage=_get_or_create_counter(
                 target_registry,
                 "neuralflow_llm_token_usage_total",
@@ -176,6 +184,12 @@ def create_observability(registry: CollectorRegistry | None = None) -> Observabi
                 "neuralflow_errors_total",
                 "Unhandled request errors total.",
                 ("endpoint", "intent"),
+            ),
+            error_by_status=_get_or_create_counter(
+                target_registry,
+                "neuralflow_http_errors_total",
+                "HTTP error responses by endpoint and status code.",
+                ("endpoint", "status_code"),
             ),
         )
         _cached_observability[cache_key] = observability
