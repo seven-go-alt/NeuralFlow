@@ -59,7 +59,11 @@ class InMemoryRateLimiter:
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
-        self, app: ASGIApp, max_requests: int = 100, window_seconds: int = 60, use_redis: bool = False
+        self,
+        app: ASGIApp,
+        max_requests: int = 100,
+        window_seconds: int = 60,
+        use_redis: bool = False,
     ) -> None:
         super().__init__(app)
         self._redis_limiter = RedisRateLimiter(max_requests, window_seconds)

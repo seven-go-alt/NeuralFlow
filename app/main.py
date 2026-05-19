@@ -74,7 +74,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(RateLimitMiddleware, max_requests=settings.rate_limit_max_requests, window_seconds=settings.rate_limit_window_seconds)
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=settings.rate_limit_max_requests,
+    window_seconds=settings.rate_limit_window_seconds,
+)
 app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
 app.include_router(auth_router)
