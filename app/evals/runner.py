@@ -3,9 +3,12 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.evals.datasets import load_cases
+
+if TYPE_CHECKING:
+    from app.rag.answer_evaluator import AnswerEvalResult
 from app.evals.metrics import (
     CaseResult,
     EvalMetrics,
@@ -17,6 +20,7 @@ from app.evals.metrics import (
 
 RetrieveFn = Callable[[str, int], list[dict[str, Any]]]
 AnswerFn = Callable[[str, str], str | None]
+AnswerEvalFn = Callable[[str, str, list[str]], "AnswerEvalResult | None"]
 
 
 async def run_eval(
@@ -24,6 +28,7 @@ async def run_eval(
     retrieve_fn: RetrieveFn,
     answer_fn: AnswerFn,
     top_k: int = 5,
+    answer_eval_fn: AnswerEvalFn | None = None,
 ) -> list[CaseResult]:
     cases = load_cases(cases_path)
     results: list[CaseResult] = []
@@ -39,6 +44,10 @@ async def run_eval(
         answer = answer_fn(case.question, all_text)
 
         latency_ms = (time.perf_counter() - start) * 1000
+
+        answer_eval: AnswerEvalResult | None = None
+        if answer_eval_fn is not None and answer is not None:
+            answer_eval = answer_eval_fn(case.question, answer, list(retrieved_contents))
 
         results.append(
             CaseResult(
@@ -56,6 +65,11 @@ async def run_eval(
                 no_answer_correct=compute_no_answer_correct(case.should_answer, answer),
             )
         )
+
+        if answer_eval is not None:
+            results[-1].answer_relevance = answer_eval.relevance
+            results[-1].answer_faithfulness = answer_eval.faithfulness
+            results[-1].answer_completeness = answer_eval.completeness
 
     return results
 
