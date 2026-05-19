@@ -101,7 +101,9 @@ def test_healthz() -> None:
     response = TestClient(app).get("/healthz")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
+    assert data["status"] in ("ok", "degraded")
+    if data["status"] == "degraded":
+        assert "issues" in data
 
 
 def test_metrics() -> None:

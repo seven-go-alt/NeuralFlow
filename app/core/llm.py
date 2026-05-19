@@ -7,6 +7,7 @@ from typing import Any
 from litellm import acompletion
 
 from app.config import get_settings
+from app.utils.retry import retry
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +99,18 @@ class LLMClient:
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": self._build_messages(prompt),
+            "max_retries": 0,
         }
         if self.api_base:
             kwargs["api_base"] = self.api_base
         if self.api_key:
             kwargs["api_key"] = self.api_key
-        response = await acompletion(**kwargs)
+        response = await retry(
+            lambda: acompletion(**kwargs),
+            max_attempts=3,
+            base_delay=1.0,
+            retryable_exceptions=(Exception,),
+        )
         return response.choices[0].message.content or ""
 
     async def describe_image(self, image_base64: str, image_format: str, prompt: str) -> str:

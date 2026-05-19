@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     mcp_retry_attempts: int = 3
     mcp_retry_backoff_seconds: float = 0.5
 
+    llm_request_timeout_seconds: int = 120
+    llm_stream_timeout_seconds: int = 300
+    embedding_request_timeout_seconds: int = 30
+    chroma_request_timeout_seconds: int = 15
+    vector_search_timeout_seconds: int = 15
+    external_http_timeout_seconds: int = 30
+
     terminal_timeout_seconds: float = Field(default=30.0, alias="TERMINAL_TIMEOUT_SECONDS")
     terminal_working_dir: str | None = Field(default=None, alias="TERMINAL_WORKING_DIR")
     terminal_enabled: bool = Field(default=True, alias="TERMINAL_ENABLED")

@@ -90,3 +90,24 @@ async def retry(
                 delay = min(base_delay * (backoff_factor**attempt), max_delay)
                 await asyncio.sleep(delay)
     raise last_exc  # type: ignore[misc]
+
+
+def retry_sync(
+    fn: Callable[[], RT],
+    max_attempts: int = 3,
+    base_delay: float = 0.5,
+    max_delay: float = 10.0,
+    backoff_factor: float = 2.0,
+    retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
+) -> RT:
+    """Retry a sync function with exponential backoff."""
+    last_exc: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except retryable_exceptions as e:
+            last_exc = e
+            if attempt < max_attempts - 1:
+                delay = min(base_delay * (backoff_factor**attempt), max_delay)
+                time.sleep(delay)
+    raise last_exc  # type: ignore[misc]

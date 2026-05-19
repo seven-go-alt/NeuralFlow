@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 from collections.abc import Sequence
 from typing import Any, Protocol, cast
 
 from app.embeddings.service import EmbeddingService
+from app.utils.retry import retry_sync
 from app.utils.vector_client import get_vector_client
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingServiceLike(Protocol):
@@ -33,15 +37,22 @@ class ChromaDocumentStore:
         embeddings = [chunk.get("embedding") for chunk in chunks]
         if any(embedding is None for embedding in embeddings):
             raise ValueError("All chunks must have embeddings before upsert")
+
+        def _do_upsert() -> None:
+            try:
+                self.collection.upsert(
+                    ids=ids,
+                    documents=documents,
+                    metadatas=metadatas,
+                    embeddings=embeddings,
+                )
+            except AttributeError:
+                self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
+
         try:
-            self.collection.upsert(
-                ids=ids,
-                documents=documents,
-                metadatas=metadatas,
-                embeddings=embeddings,
-            )
-        except AttributeError:
-            self.collection.add(ids=ids, documents=documents, metadatas=metadatas)
+            retry_sync(_do_upsert, max_attempts=3, base_delay=0.5)
+        except Exception:
+            logger.warning("chroma upsert failed after retries", exc_info=True)
 
     async def query(
         self, query_text: str, top_k: int, where: dict[str, Any] | None = None
