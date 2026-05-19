@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { createId, createSessionId } from "@/lib/utils";
+import { createSessionId } from "@/lib/utils";
 import type {
   ActiveDocumentContext,
   ChatMessage,

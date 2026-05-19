@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,10 +13,13 @@ from app.db.models.eval_run import EvalRunORM
 from app.db.session import get_db
 from app.evals.metrics import aggregate_metrics
 from app.evals.runner import run_eval
+from app.utils.cache import ResponseCache
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/eval", tags=["eval"])
+
+cache = ResponseCache()
 
 
 class EvalRunRequest(BaseModel):
@@ -87,13 +90,17 @@ async def trigger_eval_run(
     summary="List evaluation runs",
     description="Return the 50 most recent evaluation runs with summary metrics, ordered by creation time descending.",
 )
-def list_eval_runs(db: Session = Depends(get_db)):
+async def list_eval_runs(request: Request, db: Session = Depends(get_db)):
+    tenant_id = getattr(request.state, "tenant_id", "public")
+    cached = await cache.get(tenant_id, request.url.path)
+    if cached:
+        return cached
     records = (
         db.execute(select(EvalRunORM).order_by(EvalRunORM.created_at.desc()).limit(50))
         .scalars()
         .all()
     )
-    return {
+    response_data = {
         "runs": [
             EvalRunSummary(
                 run_id=r.run_id,
@@ -112,6 +119,8 @@ def list_eval_runs(db: Session = Depends(get_db)):
             for r in records
         ]
     }
+    await cache.set(tenant_id, request.url.path, response_data, ttl=30)
+    return response_data
 
 
 @router.get(

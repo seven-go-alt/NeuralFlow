@@ -81,3 +81,66 @@ class CacheManager:
         cache = self._caches.get(name)
         if cache:
             cache.clear()
+
+
+class ResponseCache:
+    """Redis-based async API response cache."""
+
+    def __init__(self, prefix: str = "api_cache", default_ttl: int = 60):
+        self.prefix = prefix
+        self.default_ttl = default_ttl
+
+    def _key(self, tenant_id: str, path: str, params: dict | None = None) -> str:
+        raw = json.dumps(
+            {"tenant": tenant_id, "path": path, "params": params or {}}, sort_keys=True
+        )
+        return f"{self.prefix}:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+    async def get(self, tenant_id: str, path: str, params: dict | None = None) -> dict | None:
+        import redis.asyncio as aioredis
+
+        try:
+            r = aioredis.Redis.from_url("redis://localhost:6379/0")
+            data = await r.get(self._key(tenant_id, path, params))
+            await r.aclose()
+            return json.loads(data) if data else None
+        except Exception:
+            return None
+
+    async def set(
+        self,
+        tenant_id: str,
+        path: str,
+        data: Any,
+        params: dict | None = None,
+        ttl: int | None = None,
+    ) -> None:
+        import redis.asyncio as aioredis
+
+        try:
+            r = aioredis.Redis.from_url("redis://localhost:6379/0")
+            await r.setex(
+                self._key(tenant_id, path, params),
+                ttl or self.default_ttl,
+                json.dumps(data, default=str),
+            )
+            await r.aclose()
+        except Exception:
+            pass
+
+    async def invalidate(self, tenant_id: str, path_prefix: str) -> None:
+        """Invalidate all cache keys with a given path prefix."""
+        import redis.asyncio as aioredis
+
+        try:
+            r = aioredis.Redis.from_url("redis://localhost:6379/0")
+            cursor = 0
+            while True:
+                cursor, keys = await r.scan(cursor, match=f"{self.prefix}:*", count=100)
+                if keys:
+                    await r.delete(*keys)
+                if cursor == 0:
+                    break
+            await r.aclose()
+        except Exception:
+            pass

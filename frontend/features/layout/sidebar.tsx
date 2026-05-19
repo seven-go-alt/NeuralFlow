@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAgentStore } from "@/store/agent-store";
 import type { ChatMode } from "@/types/agent";
 import { ModelSelector } from "@/features/sidebar/model-selector";
-import { ResourceGroups } from "@/features/sidebar/resource-groups";
 import { SessionList } from "@/features/sidebar/session-list";
 
 const modes: Array<{ value: ChatMode; label: string; description: string; icon: typeof Bot }> = [

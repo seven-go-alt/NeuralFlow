@@ -19,11 +19,14 @@ from app.documents.schemas import (
 from app.documents.service import DocumentService, DocumentValidationError
 from app.ingestion.pipeline import IngestionPipeline
 from app.retrieval.chroma_store import ChromaDocumentStore
+from app.utils.cache import ResponseCache
 from worker import celery_app
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+
+cache = ResponseCache()
 
 
 async def _enqueue_or_run_sync(*, tenant_id: str, document_id: str) -> None:
@@ -73,6 +76,7 @@ async def upload_document(
     )
     if refreshed is None:
         raise HTTPException(status_code=500, detail="Uploaded document missing after ingestion")
+    await cache.invalidate(tenant_id, "/api/v1/documents")
     return DocumentUploadResponse(
         document_id=refreshed.document_id,
         filename=refreshed.original_filename,
@@ -84,7 +88,7 @@ async def upload_document(
 
 
 @router.get("", response_model=DocumentListResponse)
-def list_documents(
+async def list_documents(
     request: Request,
     page: int = 1,
     page_size: int = 20,
@@ -94,6 +98,16 @@ def list_documents(
     db: Session = Depends(get_db),
 ):
     tenant_id = getattr(request.state, "tenant_id", "public")
+    cache_params: dict[str, object] = {"page": page, "page_size": page_size}
+    if status:
+        cache_params["status"] = status
+    if file_type:
+        cache_params["file_type"] = file_type
+    if keyword:
+        cache_params["keyword"] = keyword
+    cached = await cache.get(tenant_id, request.url.path, cache_params)
+    if cached:
+        return cached
     repo = DocumentRepository(db)
     items, total = repo.list_documents(
         tenant_id=tenant_id,
@@ -103,12 +117,14 @@ def list_documents(
         file_type=file_type,
         keyword=keyword,
     )
-    return DocumentListResponse(
+    response_data = DocumentListResponse(
         items=[DocumentRead.model_validate(item) for item in items],
         total=total,
         page=page,
         page_size=page_size,
     )
+    await cache.set(tenant_id, request.url.path, response_data.model_dump(), cache_params, ttl=30)
+    return response_data
 
 
 @router.get("/{document_id}", response_model=DocumentRead)
@@ -133,7 +149,7 @@ def list_document_chunks(document_id: str, request: Request, db: Session = Depen
 
 
 @router.delete("/{document_id}")
-def delete_document(document_id: str, request: Request, db: Session = Depends(get_db)):
+async def delete_document(document_id: str, request: Request, db: Session = Depends(get_db)):
     tenant_id = getattr(request.state, "tenant_id", "public")
     repo = DocumentRepository(db)
     ok = repo.soft_delete(tenant_id=tenant_id, document_id=document_id)
@@ -142,6 +158,7 @@ def delete_document(document_id: str, request: Request, db: Session = Depends(ge
     ChromaDocumentStore(allow_in_memory=True).delete_document(
         tenant_id=tenant_id, document_id=document_id
     )
+    await cache.invalidate(tenant_id, "/api/v1/documents")
     return {"ok": True, "document_id": document_id}
 
 
@@ -153,4 +170,5 @@ async def reindex_document(document_id: str, request: Request, db: Session = Dep
     if record is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await _enqueue_or_run_sync(tenant_id=tenant_id, document_id=document_id)
+    await cache.invalidate(tenant_id, "/api/v1/documents")
     return {"ok": True, "document_id": document_id, "status": "queued"}
