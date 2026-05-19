@@ -33,6 +33,8 @@ from app.core.llm import LLMClient, build_rule_based_fallback_reply
 from app.db.session import init_db
 from app.documents.repository import DocumentRepository
 from app.memory.working import WorkingMemory
+from app.middleware.ratelimit import RateLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.telemetry import TelemetryMiddleware
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
@@ -71,6 +73,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=settings.rate_limit_max_requests, window_seconds=settings.rate_limit_window_seconds)
 app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_default_id)
 app.add_middleware(TelemetryMiddleware, observability=observability)
 app.include_router(auth_router)

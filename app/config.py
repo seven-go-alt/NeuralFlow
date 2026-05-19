@@ -129,6 +129,9 @@ class Settings(BaseSettings):
         alias="INTENT_POLICY_MAP_JSON",
     )
 
+    rate_limit_max_requests: int = Field(default=100, alias="RATE_LIMIT_MAX_REQUESTS")
+    rate_limit_window_seconds: int = Field(default=60, alias="RATE_LIMIT_WINDOW_SECONDS")
+
     sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
     sentry_traces_sample_rate: float = Field(default=0.1, alias="SENTRY_TRACES_SAMPLE_RATE")
 
