@@ -1,0 +1,32 @@
+{
+  "name": "NeuralFlow",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "uv sync --group dev --frozen && cd frontend && npm ci",
+  "forwardPorts": [8000, 3000],
+  "portsAttributes": {
+    "8000": { "label": "API", "onAutoForward": "notify" },
+    "3000": { "label": "Frontend", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": ".venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "ruff.importStrategy": "fromEnvironment"
+      }
+    }
+  }
+}
