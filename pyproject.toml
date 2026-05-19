@@ -21,7 +21,7 @@ dependencies = [
     "pyjwt>=2.8.0",
     "psycopg[binary]>=3.2.12",
     "pydantic-settings>=2.13.1",
-    "pymupdf>=1.26.5",
+    "pymupdf>=1.27.2.3",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.20",
     "redis>=7.4.0",
@@ -50,6 +50,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.13.2",
     "types-aiofiles>=24.1.0",
+    "hypothesis>=6.119.4",
 ]
 
 [tool.pytest.ini_options]

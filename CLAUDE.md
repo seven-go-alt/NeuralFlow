@@ -11,13 +11,22 @@
 必须全部通过才能推送：
 
 ```bash
-# 后端
+# 1. Pre-commit 格式化（必须先跑，否则 CI 必报 ruff 格式错误）
+uv run pre-commit run --all-files
+
+# 2. 后端
 uv run ruff check .
 uv run mypy app tests worker.py
 uv run pytest -q
 
-# 前端
+# 3. 前端
 cd frontend && npm run lint && npm run typecheck && npm test
+```
+
+启动本地开发环境（API + 前端同时启动）：
+
+```bash
+make dev
 ```
 
 ## GitHub 分支保护
