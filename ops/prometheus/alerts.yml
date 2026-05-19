@@ -1,0 +1,59 @@
+groups:
+  - name: neuralflow_alerts
+    interval: 30s
+    rules:
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(neuralflow_http_errors_total[5m]))
+            /
+            sum(rate(neuralflow_http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate ({{ $value | humanizePercentage }} over 5m)"
+          description: >
+            The HTTP error ratio across all endpoints has exceeded 5% over the last 5 minutes.
+            Current value: {{ $value | humanizePercentage }}.
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(neuralflow_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 request latency ({{ $value | humanizeDuration }} over 5m)"
+          description: >
+            The p99 request latency across all endpoints has exceeded 5 seconds over the last 5 minutes.
+            Current p99 value: {{ $value | humanizeDuration }}.
+
+      - alert: HealthCheckDown
+        expr: |
+          probe_success{job="neuralflow"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health check endpoint is down"
+          description: >
+            The /healthz endpoint has been returning non-200 status codes for more than 1 minute.
+            The service may be unavailable.
+
+      - alert: LowApiThroughput
+        expr: |
+          sum(rate(neuralflow_http_requests_total[5m])) < 0.1667
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusually low API throughput ({{ $value | humanize }} req/s over 5m)"
+          description: >
+            The total request rate has dropped below 0.1667 req/s (~10 req/min)
+            over the last 5 minutes. This may indicate an outage or service disruption.

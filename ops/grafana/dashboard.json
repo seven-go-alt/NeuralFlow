@@ -1,0 +1,207 @@
+{
+  "title": "NeuralFlow Monitoring",
+  "uid": "neuralflow-monitoring",
+  "description": "Grafana dashboard for NeuralFlow application metrics",
+  "tags": ["neuralflow", "monitoring"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "panels": [
+    {
+      "title": "Request Rate (QPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neuralflow_http_requests_total[1m]))",
+          "legendFormat": "Total QPS"
+        },
+        {
+          "expr": "sum(rate(neuralflow_http_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{ endpoint }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "showPoints": "never"
+          }
+        }
+      },
+      "description": "HTTP request rate per second, broken down by endpoint."
+    },
+    {
+      "title": "Error Ratio",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neuralflow_http_errors_total[5m])) / sum(rate(neuralflow_http_requests_total[5m]))",
+          "legendFormat": "Error Ratio"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.03 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      },
+      "description": "Ratio of HTTP error responses (4xx, 5xx) to total requests over 5 minutes."
+    },
+    {
+      "title": "Request Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(neuralflow_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(neuralflow_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(neuralflow_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "showPoints": "never"
+          }
+        }
+      },
+      "description": "Request latency distribution percentiles over 5-minute windows."
+    },
+    {
+      "title": "Health Check Status",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"neuralflow\"}",
+          "legendFormat": "Health"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "description": "Current health check status of the NeuralFlow instance. 1 = up, 0 = down."
+    },
+    {
+      "title": "Active Sessions",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "neuralflow_active_sessions",
+          "legendFormat": "Active Sessions"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "showPoints": "never"
+          }
+        }
+      },
+      "description": "Number of currently active (in-flight) sessions."
+    },
+    {
+      "title": "Error Count by Status Code",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neuralflow_http_errors_total[5m])) by (status_code)",
+          "legendFormat": "{{ status_code }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "showPoints": "never"
+          }
+        }
+      },
+      "description": "Error rate broken down by HTTP status code."
+    },
+    {
+      "title": "LLM Token Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 8 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "targets": [
+        {
+          "expr": "rate(neuralflow_llm_token_usage_total[5m])",
+          "legendFormat": "{{ model }} - {{ type }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "showPoints": "never"
+          }
+        }
+      },
+      "description": "LLM token consumption rate by model and token type (input / output)."
+    }
+  ]
+}
