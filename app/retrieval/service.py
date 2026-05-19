@@ -58,6 +58,11 @@ class RetrievalService:
         file_types = filters.get("file_types") or []
         if len(file_types) == 1:
             clauses.append({"file_type": file_types[0]})
+        content_types = filters.get("content_types") or []
+        if len(content_types) == 1:
+            clauses.append({"content_type": content_types[0]})
+        elif len(content_types) > 1:
+            clauses.append({"$or": [{"content_type": ct} for ct in content_types]})
         return {"$and": clauses} if len(clauses) > 1 else clauses[0]
 
     def _dedupe(self, results: list[RetrievalResult]) -> list[RetrievalResult]:

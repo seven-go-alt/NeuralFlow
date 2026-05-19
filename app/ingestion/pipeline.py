@@ -23,6 +23,9 @@ class IngestionPipeline:
     async def run(
         self, tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
     ) -> dict:
+        from app.config import get_settings
+
+        settings = get_settings()
         db = SessionLocal()
         repo = DocumentRepository(db)
         try:
@@ -38,6 +41,45 @@ class IngestionPipeline:
                 record.storage_path,
                 record.title,
             )
+
+            # Multimodal extraction (images + tables) for PDF/DOCX
+            if settings.multimodal_enabled and record.file_type in ("pdf", "docx"):
+                from app.core.llm import LLMClient
+                from app.ingestion.multimodal import (
+                    ImageExtractor,
+                    MultimodalDocumentProcessor,
+                    TableExtractor,
+                    VisionDescriber,
+                )
+
+                processor = MultimodalDocumentProcessor(
+                    image_extractor=ImageExtractor(
+                        max_size_mb=settings.multimodal_max_image_size_mb,
+                        max_images=settings.multimodal_max_images,
+                    ),
+                    table_extractor=TableExtractor(
+                        max_tables=settings.multimodal_max_tables
+                    ),
+                    vision_describer=VisionDescriber(
+                        llm_client=LLMClient(),
+                        vision_model=settings.vision_model,
+                        prompt_template=settings.vision_prompt_template,
+                    ),
+                )
+                extraction = await processor.process(
+                    source_path=record.storage_path,
+                    file_type=record.file_type,
+                    parsed_doc=parsed,
+                )
+                all_sections = (
+                    parsed.sections
+                    + extraction.image_sections
+                    + extraction.table_sections
+                )
+                parsed.sections = all_sections
+                parsed.metadata["image_count"] = extraction.image_count
+                parsed.metadata["table_count"] = extraction.table_count
+
             repo.update_status(tenant_id, document_id, DocumentStatus.CHUNKING)
             chunks = self.chunk_splitter.split(parsed)
             repo.update_status(

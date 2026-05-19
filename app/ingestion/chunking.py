@@ -35,6 +35,7 @@ class RecursiveChunkSplitter:
                         metadata={
                             "source_path": document.source_path,
                             "source_type": document.source_type,
+                            "content_type": section.metadata.get("content_type", "text"),
                             **section.metadata,
                         },
                         token_count=token_count,

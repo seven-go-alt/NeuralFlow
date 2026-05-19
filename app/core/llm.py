@@ -29,6 +29,7 @@ class LLMClient:
         self.api_key = settings.llm_api_key or settings.openai_api_key
         self.fallback_model = settings.ollama_fallback_model
         self.offline_fallback_enabled = settings.offline_fallback_enabled
+        self.vision_model = settings.vision_model
 
     async def generate(self, prompt: str) -> str:
         try:
@@ -97,6 +98,29 @@ class LLMClient:
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": self._build_messages(prompt),
+        }
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        response = await acompletion(**kwargs)
+        return response.choices[0].message.content or ""
+
+    async def describe_image(self, image_base64: str, image_format: str, prompt: str) -> str:
+        kwargs: dict[str, Any] = {
+            "model": self.vision_model or "gpt-4o",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/{image_format};base64,{image_base64}"},
+                        },
+                    ],
+                }
+            ],
         }
         if self.api_base:
             kwargs["api_base"] = self.api_base
