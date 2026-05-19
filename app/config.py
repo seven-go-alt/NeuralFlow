@@ -129,6 +129,9 @@ class Settings(BaseSettings):
         alias="INTENT_POLICY_MAP_JSON",
     )
 
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    sentry_traces_sample_rate: float = Field(default=0.1, alias="SENTRY_TRACES_SAMPLE_RATE")
+
     celery_broker_url_override: str | None = Field(default=None, alias="CELERY_BROKER_URL")
     celery_result_backend_override: str | None = Field(default=None, alias="CELERY_RESULT_BACKEND")
 
