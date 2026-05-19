@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
+from sqlalchemy import text
 
 from app.agents.orchestrator import AgentOrchestrator
 from app.agents.react import ReActAgent
@@ -79,6 +80,14 @@ _FRONTEND_DIR = os.path.join(
 )
 
 
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    from app.db.session import engine
+
+    engine.dispose()
+    logger.info("database connections disposed")
+
+
 @app.get("/", include_in_schema=False)
 async def serve_frontend():
     index_path = os.path.join(_FRONTEND_DIR, "index.html")
@@ -140,8 +149,66 @@ class AdminConfigResponse(BaseModel):
 
 
 @app.get("/healthz")
-async def healthz() -> dict[str, str]:
-    return {"status": "ok", "app": settings.app_name}
+async def healthz() -> dict[str, Any]:
+    from time import perf_counter
+
+    import redis as redis_module
+
+    from app.db.session import SessionLocal
+    from app.utils.vector_client import get_vector_client
+
+    start = perf_counter()
+    checks: dict[str, Any] = {"status": "ok", "app": settings.app_name}
+    issues: list[str] = []
+
+    # Database check
+    db_check = {"status": "unknown"}
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_check["status"] = "up"
+    except Exception as exc:
+        db_check["status"] = "down"
+        db_check["error"] = str(exc)
+        issues.append("database")
+
+    # ChromaDB check
+    chroma_check: dict = {"status": "unknown"}
+    try:
+        get_vector_client(allow_in_memory=False)
+        chroma_check["status"] = "up"
+    except Exception as exc:
+        chroma_check["status"] = "unavailable"
+        chroma_check["error"] = str(exc)
+        issues.append("chromadb")
+
+    # Redis check
+    redis_check: dict = {"status": "unknown"}
+    try:
+        r = redis_module.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=settings.redis_db,
+            socket_connect_timeout=3,
+        )
+        r.ping()
+        r.close()
+        redis_check["status"] = "up"
+    except Exception as exc:
+        redis_check["status"] = "unavailable"
+        redis_check["error"] = str(exc)
+        issues.append("redis")
+
+    checks["database"] = db_check
+    checks["chromadb"] = chroma_check
+    checks["redis"] = redis_check
+    checks["duration_ms"] = round((perf_counter() - start) * 1000, 1)
+
+    if issues:
+        checks["status"] = "degraded"
+        checks["issues"] = issues
+    return checks
 
 
 @app.get("/metrics")

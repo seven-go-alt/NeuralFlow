@@ -7,6 +7,7 @@ import httpx
 
 from app.config import get_settings
 from app.embeddings.base import EmbeddingProvider
+from app.utils.retry import retry
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,19 @@ class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
         if self.api_key:
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    response = await client.post(
-                        f"{self.api_base}/embeddings",
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        json={"model": model, "input": texts},
+
+                    async def _do_embed() -> httpx.Response:
+                        return await client.post(
+                            f"{self.api_base}/embeddings",
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            json={"model": model, "input": texts},
+                        )
+
+                    response = await retry(
+                        _do_embed,
+                        max_attempts=3,
+                        base_delay=0.5,
+                        retryable_exceptions=(httpx.RequestError,),
                     )
                     response.raise_for_status()
                     payload = response.json()
