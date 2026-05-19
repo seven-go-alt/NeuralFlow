@@ -7,11 +7,14 @@ from time import perf_counter
 from typing import Any
 
 import httpx
+import sentry_sdk
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from sqlalchemy import text
 
 from app.agents.orchestrator import AgentOrchestrator
@@ -46,6 +49,17 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 audit_log_path = os.getenv("NEURALFLOW_AUDIT_LOG_PATH", "/tmp/neuralflow_audit.log")
 observability = create_observability()
+
+# Sentry initialization (gated behind SENTRY_DSN env var)
+if os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        environment=settings.app_env,
+    )
+    logger.info("Sentry initialized", extra={"environment": settings.app_env})
+
 app = FastAPI(title=settings.app_name)
 init_db()
 allowed_origins = [item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()]

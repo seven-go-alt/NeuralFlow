@@ -71,10 +71,19 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         intent = getattr(request.state, "intent", "unknown")
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
         duration_seconds = duration_ms / 1000
+        method = request.method
+        status_code = response.status_code
         set_log_context(session_id=session_id, trace_id=trace_id, intent=intent)
         self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(
             duration_seconds
         )
+        self.observability.request_count.labels(
+            endpoint=endpoint, method=method, status_code=str(status_code)
+        ).inc()
+        if status_code >= 400:
+            self.observability.error_by_status.labels(
+                endpoint=endpoint, status_code=str(status_code)
+            ).inc()
         response.headers["X-Request-ID"] = trace_id
         logger.info(
             "request completed",
@@ -83,7 +92,7 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
                 "trace_id": trace_id,
                 "intent": intent,
                 "duration_ms": duration_ms,
-                "status_code": response.status_code,
+                "status_code": status_code,
                 "endpoint": endpoint,
             },
         )
@@ -101,11 +110,19 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         intent = getattr(request.state, "intent", "unknown")
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
         duration_seconds = duration_ms / 1000
+        method = request.method
+        status_code = 500
         set_log_context(session_id=session_id, trace_id=trace_id, intent=intent)
         self.observability.request_duration.labels(endpoint=endpoint, intent=intent).observe(
             duration_seconds
         )
         self.observability.error_total.labels(endpoint=endpoint, intent=intent).inc()
+        self.observability.request_count.labels(
+            endpoint=endpoint, method=method, status_code=str(status_code)
+        ).inc()
+        self.observability.error_by_status.labels(
+            endpoint=endpoint, status_code=str(status_code)
+        ).inc()
         logger.exception(
             "request failed",
             extra={
