@@ -39,7 +39,7 @@ class EvalRunSummary(BaseModel):
     answer_completeness: float | None = None
 
 
-@router.post("/run")
+@router.post("/run", summary="Trigger an evaluation run", description="Run RAG evaluation on a JSONL dataset. Runs retrieval and answer generation for each case, computes metrics (hit rate, citation accuracy, keyword coverage), and stores results in the database.")
 async def trigger_eval_run(
     request: EvalRunRequest,
     db: Session = Depends(get_db),
@@ -78,7 +78,7 @@ async def trigger_eval_run(
     return {"run_id": run_id, "status": "completed", "total_cases": metrics.total_cases}
 
 
-@router.get("/runs")
+@router.get("/runs", summary="List evaluation runs", description="Return the 50 most recent evaluation runs with summary metrics, ordered by creation time descending.")
 def list_eval_runs(db: Session = Depends(get_db)):
     records = (
         db.execute(select(EvalRunORM).order_by(EvalRunORM.created_at.desc()).limit(50))
@@ -106,7 +106,7 @@ def list_eval_runs(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/runs/{run_id}")
+@router.get("/runs/{run_id}", summary="Get evaluation run details", description="Return full evaluation run details including per-case results and aggregated metrics.")
 def get_eval_run(run_id: str, db: Session = Depends(get_db)):
     record = db.execute(select(EvalRunORM).where(EvalRunORM.run_id == run_id)).scalar_one_or_none()
     if record is None:

@@ -10,7 +10,7 @@ from app.db.session import get_db
 router = APIRouter(prefix="/api/v1/traces", tags=["traces"])
 
 
-@router.get("")
+@router.get("", summary="List RAG traces", description="Return recent RAG pipeline execution traces, filterable by tenant and session. Each trace shows query, duration, and token count.")
 def list_traces(
     tenant_id: str = Query(default="public"),
     limit: int = Query(default=50, le=200),
@@ -41,7 +41,7 @@ def list_traces(
     }
 
 
-@router.get("/{trace_id}")
+@router.get("/{trace_id}", summary="Get trace details", description="Return a full RAG trace with the complete span tree showing timing for each pipeline stage.")
 def get_trace(trace_id: str, db: Session = Depends(get_db)):
     record = db.execute(
         select(RAGTraceORM).where(RAGTraceORM.trace_id == trace_id)

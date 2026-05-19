@@ -46,7 +46,7 @@ async def _enqueue_or_run_sync(*, tenant_id: str, document_id: str) -> None:
         raise HTTPException(status_code=500, detail=f"Document ingestion failed: {exc}") from exc
 
 
-@router.post("/upload", response_model=DocumentUploadResponse)
+@router.post("/upload", response_model=DocumentUploadResponse, summary="Upload a document", description="Upload a document file (PDF, DOCX, MD, TXT) for ingestion. The file is saved, parsed, chunked, embedded, and indexed in ChromaDB. Optionally triggers multimodal extraction when enabled.")
 async def upload_document(
     request: Request,
     file: UploadFile = File(...),
