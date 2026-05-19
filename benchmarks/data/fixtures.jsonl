@@ -1,0 +1,30 @@
+{"query": "What is RAG in AI?", "expected_topics": ["retrieval", "augmentation", "generation"]}
+{"query": "How does vector search work?", "expected_topics": ["embedding", "similarity", "indexing"]}
+{"query": "Explain chunking strategies for documents", "expected_topics": ["chunking", "splitting", "tokens"]}
+{"query": "What are embeddings in NLP?", "expected_topics": ["embedding", "vector", "representation"]}
+{"query": "How to evaluate retrieval quality?", "expected_topics": ["evaluation", "metrics", "relevance"]}
+{"query": "What is cosine similarity?", "expected_topics": ["similarity", "distance", "vector"]}
+{"query": "Explain hybrid search", "expected_topics": ["hybrid", "dense", "sparse", "keyword"]}
+{"query": "How to implement BM25?", "expected_topics": ["bm25", "keyword", "ranking"]}
+{"query": "What is maximum marginal relevance?", "expected_topics": ["mmr", "diversity", "re-ranking"]}
+{"query": "How to build a RAG pipeline?", "expected_topics": ["pipeline", "retrieval", "generation"]}
+{"query": "What are LLM hallucinations?", "expected_topics": ["hallucination", "accuracy", "grounding"]}
+{"query": "How to reduce hallucination in RAG?", "expected_topics": ["hallucination", "grounding", "citation"]}
+{"query": "What is query rewriting?", "expected_topics": ["rewriting", "transformation", "decomposition"]}
+{"query": "Explain re-ranking in retrieval", "expected_topics": ["re-ranking", "cross-encoder", "scoring"]}
+{"query": "How to handle multi-hop questions?", "expected_topics": ["multi-hop", "decomposition", "iterative"]}
+{"query": "What is a vector database?", "expected_topics": ["vector-db", "indexing", "ann"]}
+{"query": "Explain HNSW indexing", "expected_topics": ["hnsw", "indexing", "approximate"]}
+{"query": "How to choose chunk size?", "expected_topics": ["chunking", "size", "overlap"]}
+{"query": "What is RAPTOR indexing?", "expected_topics": ["raptor", "summarization", "hierarchical"]}
+{"query": "How to implement self-RAG?", "expected_topics": ["self-rag", "reflection", "corrective"]}
+{"query": "Explain context window limits", "expected_topics": ["context-window", "tokens", "truncation"]}
+{"query": "What is prompt caching?", "expected_topics": ["caching", "prompt", "optimization"]}
+{"query": "How to evaluate RAG systems?", "expected_topics": ["evaluation", "metrics", "benchmark"]}
+{"query": "What is HyDE?", "expected_topics": ["hyde", "hypothetical", "generation"]}
+{"query": "Explain dense passage retrieval", "expected_topics": ["dpr", "dense", "encoder"]}
+{"query": "How to fine-tune embeddings?", "expected_topics": ["fine-tuning", "embedding", "contrastive"]}
+{"query": "What is LLM as judge?", "expected_topics": ["llm-as-judge", "evaluation", "grading"]}
+{"query": "Explain citation verification", "expected_topics": ["citation", "verification", "attribution"]}
+{"query": "How to handle out-of-domain queries?", "expected_topics": ["ood", "fallback", "robustness"]}
+{"query": "What is query routing?", "expected_topics": ["routing", "classification", "selection"]}
