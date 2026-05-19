@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, Cpu, GitBranch, Radio, Route } from "lucide-react";
+import { BarChart3, Bot, Cpu, FileText, GitBranch, Radio, Route, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useAgentStore } from "@/store/agent-store";
@@ -79,9 +79,20 @@ export function Sidebar() {
           </section>
           <section className="mt-6">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 font-mono">Knowledge Base</div>
-            <Link href="/documents" className="block rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono">
-              Documents / RAG Console
-            </Link>
+            <div className="space-y-1">
+              <Link href="/documents" className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono">
+                <FileText className="h-3.5 w-3.5 text-zinc-400" />
+                Documents
+              </Link>
+              <Link href="/eval" className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono">
+                <BarChart3 className="h-3.5 w-3.5 text-zinc-400" />
+                Evaluations
+              </Link>
+              <Link href="/traces" className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono">
+                <Search className="h-3.5 w-3.5 text-zinc-400" />
+                Traces
+              </Link>
+            </div>
           </section>
         </div>
       </div>
