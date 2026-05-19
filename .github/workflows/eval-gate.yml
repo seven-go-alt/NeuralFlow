@@ -1,0 +1,23 @@
+name: eval-gate
+
+on:
+  pull_request:
+    paths:
+      - 'app/rag/**'
+      - 'app/evals/**'
+      - 'app/retrieval/**'
+      - 'app/embeddings/**'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --group dev --frozen
+      - run: uv run pytest tests/test_eval_regression.py -v

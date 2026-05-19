@@ -16,7 +16,10 @@ from app.evals.metrics import (
 )
 from app.evals.runner import run_eval
 
-DATASET_PATH = Path(__file__).parent.parent / "data" / "eval" / "datasets" / "rag_quality_50.jsonl"
+DATASET_DIR = Path(__file__).parent.parent / "data" / "eval" / "datasets"
+DATASET_PATH = DATASET_DIR / "rag_quality_50.jsonl"
+FINANCE_DATASET_PATH = DATASET_DIR / "rag_finance_30.jsonl"
+TECHNICAL_DATASET_PATH = DATASET_DIR / "rag_technical_30.jsonl"
 
 
 # ---------------------------------------------------------------------------
@@ -391,3 +394,122 @@ def test_format_comparison_table_output() -> None:
     assert "Retrieval Hit Rate" in table
     assert "Avg Latency" in table
     assert "baseline" in table or "experiment" in table or "tie" in table
+
+
+# ---------------------------------------------------------------------------
+# Multi-dataset regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_finance_dataset_loads_all_30_cases() -> None:
+    cases = load_cases(str(FINANCE_DATASET_PATH))
+    assert len(cases) == 30
+    ids = {c.id for c in cases}
+    assert len(ids) == 30, "Duplicate case IDs in finance dataset"
+
+
+def test_finance_dataset_has_negative_tests() -> None:
+    cases = load_cases(str(FINANCE_DATASET_PATH))
+    no_answer = [c for c in cases if not c.should_answer]
+    assert len(no_answer) >= 1, "Finance dataset should have at least 1 negative test case"
+    for c in no_answer:
+        assert not c.expected_doc_ids, f"Negative test {c.id} should not have expected_doc_ids"
+        assert not c.expected_keywords, f"Negative test {c.id} should not have expected_keywords"
+
+
+def test_finance_dataset_has_keyword_heavy_cases() -> None:
+    cases = load_cases(str(FINANCE_DATASET_PATH))
+    keyword_heavy = [c for c in cases if len(c.expected_keywords) >= 4]
+    assert len(keyword_heavy) >= 3, (
+        "Finance dataset should have at least 3 keyword-heavy test cases"
+    )
+
+
+def test_technical_dataset_loads_all_30_cases() -> None:
+    cases = load_cases(str(TECHNICAL_DATASET_PATH))
+    assert len(cases) == 30
+    ids = {c.id for c in cases}
+    assert len(ids) == 30, "Duplicate case IDs in technical dataset"
+
+
+def test_technical_dataset_has_negative_tests() -> None:
+    cases = load_cases(str(TECHNICAL_DATASET_PATH))
+    no_answer = [c for c in cases if not c.should_answer]
+    assert len(no_answer) >= 1, "Technical dataset should have at least 1 negative test case"
+    for c in no_answer:
+        assert not c.expected_doc_ids, f"Negative test {c.id} should not have expected_doc_ids"
+        assert not c.expected_keywords, f"Negative test {c.id} should not have expected_keywords"
+
+
+def test_technical_dataset_has_keyword_heavy_cases() -> None:
+    cases = load_cases(str(TECHNICAL_DATASET_PATH))
+    keyword_heavy = [c for c in cases if len(c.expected_keywords) >= 4]
+    assert len(keyword_heavy) >= 3, (
+        "Technical dataset should have at least 3 keyword-heavy test cases"
+    )
+
+
+@pytest.mark.asyncio
+async def test_finance_eval_with_mock_data() -> None:
+    """Run the full 30-case finance dataset with mock retrieval and answer."""
+
+    def mock_retrieve(query: str, top_k: int) -> list[dict]:
+        return [
+            {
+                "document_id": "doc_fin_depreciation",
+                "content": "Depreciation policy details.",
+                "score": 0.95,
+            },
+            {
+                "document_id": "doc_fin_journal",
+                "content": "Journal entry guidelines.",
+                "score": 0.88,
+            },
+        ]
+
+    def mock_answer(query: str, context: str) -> str | None:
+        return f"Answer based on: {context[:80]}"
+
+    results = await run_eval(str(FINANCE_DATASET_PATH), mock_retrieve, mock_answer, top_k=3)
+    metrics = aggregate_metrics(results)
+
+    assert metrics.total_cases == 30
+    assert 0 <= metrics.retrieval_hit_rate <= 1.0
+    assert 0 <= metrics.keyword_coverage <= 1.0
+    assert metrics.average_latency_ms >= 0
+    assert 0 <= metrics.mean_reciprocal_rank <= 1.0
+    assert 0 <= metrics.average_precision_at_k <= 1.0
+    assert 0 <= metrics.average_recall_at_k <= 1.0
+
+
+@pytest.mark.asyncio
+async def test_technical_eval_with_mock_data() -> None:
+    """Run the full 30-case technical dataset with mock retrieval and answer."""
+
+    def mock_retrieve(query: str, top_k: int) -> list[dict]:
+        return [
+            {
+                "document_id": "doc_tech_grpc",
+                "content": "gRPC configuration details.",
+                "score": 0.95,
+            },
+            {
+                "document_id": "doc_tech_k8s_probe",
+                "content": "Kubernetes probe settings.",
+                "score": 0.88,
+            },
+        ]
+
+    def mock_answer(query: str, context: str) -> str | None:
+        return f"Answer based on: {context[:80]}"
+
+    results = await run_eval(str(TECHNICAL_DATASET_PATH), mock_retrieve, mock_answer, top_k=3)
+    metrics = aggregate_metrics(results)
+
+    assert metrics.total_cases == 30
+    assert 0 <= metrics.retrieval_hit_rate <= 1.0
+    assert 0 <= metrics.keyword_coverage <= 1.0
+    assert metrics.average_latency_ms >= 0
+    assert 0 <= metrics.mean_reciprocal_rank <= 1.0
+    assert 0 <= metrics.average_precision_at_k <= 1.0
+    assert 0 <= metrics.average_recall_at_k <= 1.0
