@@ -31,7 +31,7 @@ class EmbeddingCache:
                 r = redis_module.Redis(
                     host=s.redis_host, port=s.redis_port, db=s.redis_db, decode_responses=True
                 )
-                data: str | None = r.get(f"emb:{key}")  # type: ignore[assignment]
+                data: str | None = r.get(f"emb:{key}")
                 if data:
                     vector = json.loads(data)
                     self._store[key] = vector
