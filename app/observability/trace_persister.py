@@ -37,9 +37,7 @@ class TracePersister:
         return trace_id
 
     def get_trace(self, trace_id: str) -> dict | None:
-        result = self._db.execute(
-            select(RAGTraceORM).where(RAGTraceORM.trace_id == trace_id)
-        )
+        result = self._db.execute(select(RAGTraceORM).where(RAGTraceORM.trace_id == trace_id))
         record = result.scalar_one_or_none()
         if record is None:
             return None

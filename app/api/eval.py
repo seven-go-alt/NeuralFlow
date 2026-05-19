@@ -81,9 +81,7 @@ async def trigger_eval_run(
 @router.get("/runs")
 def list_eval_runs(db: Session = Depends(get_db)):
     records = (
-        db.execute(
-            select(EvalRunORM).order_by(EvalRunORM.created_at.desc()).limit(50)
-        )
+        db.execute(select(EvalRunORM).order_by(EvalRunORM.created_at.desc()).limit(50))
         .scalars()
         .all()
     )
@@ -93,9 +91,7 @@ def list_eval_runs(db: Session = Depends(get_db)):
                 run_id=r.run_id,
                 dataset_name=r.dataset_name,
                 total_cases=r.total_cases,
-                retrieval_hit_rate=float(
-                    r.metrics_json.get("retrieval_hit_rate", 0.0)
-                ),
+                retrieval_hit_rate=float(r.metrics_json.get("retrieval_hit_rate", 0.0)),
                 citation_accuracy=float(r.metrics_json.get("citation_accuracy", 0.0)),
                 keyword_coverage=float(r.metrics_json.get("keyword_coverage", 0.0)),
                 average_latency_ms=float(r.metrics_json.get("average_latency_ms", 0.0)),
@@ -112,9 +108,7 @@ def list_eval_runs(db: Session = Depends(get_db)):
 
 @router.get("/runs/{run_id}")
 def get_eval_run(run_id: str, db: Session = Depends(get_db)):
-    record = db.execute(
-        select(EvalRunORM).where(EvalRunORM.run_id == run_id)
-    ).scalar_one_or_none()
+    record = db.execute(select(EvalRunORM).where(EvalRunORM.run_id == run_id)).scalar_one_or_none()
     if record is None:
         raise HTTPException(status_code=404, detail="Eval run not found")
     return {

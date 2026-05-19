@@ -8,11 +8,21 @@ if TYPE_CHECKING:
     from app.evals.metrics import EvalMetrics
     from app.rag.answer_evaluator import AnswerEvalResult
 
-eval_retrieval_hit_rate = Gauge("rag_eval_retrieval_hit_rate", "Retrieval hit rate from latest eval run")
-eval_citation_accuracy = Gauge("rag_eval_citation_accuracy", "Citation accuracy from latest eval run")
-eval_answer_relevance = Gauge("rag_eval_answer_relevance", "Average answer relevance from latest eval run")
-eval_answer_faithfulness = Gauge("rag_eval_answer_faithfulness", "Average answer faithfulness from latest eval run")
-eval_answer_completeness = Gauge("rag_eval_answer_completeness", "Average answer completeness from latest eval run")
+eval_retrieval_hit_rate = Gauge(
+    "rag_eval_retrieval_hit_rate", "Retrieval hit rate from latest eval run"
+)
+eval_citation_accuracy = Gauge(
+    "rag_eval_citation_accuracy", "Citation accuracy from latest eval run"
+)
+eval_answer_relevance = Gauge(
+    "rag_eval_answer_relevance", "Average answer relevance from latest eval run"
+)
+eval_answer_faithfulness = Gauge(
+    "rag_eval_answer_faithfulness", "Average answer faithfulness from latest eval run"
+)
+eval_answer_completeness = Gauge(
+    "rag_eval_answer_completeness", "Average answer completeness from latest eval run"
+)
 eval_answer_score = Histogram(
     "rag_eval_answer_score",
     "Answer evaluation scores",

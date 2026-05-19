@@ -4,7 +4,10 @@ from app.rag.answer_evaluator import AnswerEvalResult, evaluate_answer
 
 
 class FakeLLM:
-    def __init__(self, response: str = '{"relevance": 0.8, "faithfulness": 0.9, "completeness": 0.7, "reason": "good"}') -> None:
+    def __init__(
+        self,
+        response: str = '{"relevance": 0.8, "faithfulness": 0.9, "completeness": 0.7, "reason": "good"}',
+    ) -> None:
         self.response = response
 
     async def generate(self, prompt: str) -> str:  # noqa: ARG002
@@ -27,18 +30,16 @@ async def test_evaluate_answer_full_scores() -> None:
 
 
 async def test_evaluate_answer_empty_answer() -> None:
-    result = await evaluate_answer(
-        query="test", answer="", context_chunks=[], llm=FakeLLM()
-    )
+    result = await evaluate_answer(query="test", answer="", context_chunks=[], llm=FakeLLM())
     assert result.relevance == 0.0
     assert result.reason == "empty answer"
 
 
 async def test_evaluate_answer_clamps_values() -> None:
-    llm = FakeLLM(response='{"relevance": 2.5, "faithfulness": -1.0, "completeness": 0.5, "reason": ""}')
-    result = await evaluate_answer(
-        query="test", answer="answer", context_chunks=[], llm=llm
+    llm = FakeLLM(
+        response='{"relevance": 2.5, "faithfulness": -1.0, "completeness": 0.5, "reason": ""}'
     )
+    result = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
     assert result.relevance == 1.0
     assert result.faithfulness == 0.0
     assert result.completeness == 0.5
@@ -46,9 +47,7 @@ async def test_evaluate_answer_clamps_values() -> None:
 
 async def test_evaluate_answer_parse_error() -> None:
     llm = FakeLLM(response="not json")
-    result = await evaluate_answer(
-        query="test", answer="answer", context_chunks=[], llm=llm
-    )
+    result = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
     assert result.relevance == 0.0
     assert "parse error" in result.reason
 
