@@ -29,7 +29,9 @@ def _make_mock_retrieve(
     return retrieve
 
 
-def _make_mock_answer(answer_prefix: str = "Based on the documents:") -> Callable[[str, str], str | None]:
+def _make_mock_answer(
+    answer_prefix: str = "Based on the documents:",
+) -> Callable[[str, str], str | None]:
     def answer(query: str, context: str) -> str | None:
         return f"{answer_prefix} {query}"
 
@@ -68,7 +70,8 @@ def cmd_compare(args: argparse.Namespace) -> None:
             str(dataset_path),
             baseline_retrieve_fn=args.baseline_retrieve or _make_mock_retrieve("baseline_doc"),
             baseline_answer_fn=args.baseline_answer or _make_mock_answer("Baseline answer:"),
-            experiment_retrieve_fn=args.experiment_retrieve or _make_mock_retrieve("experiment_doc"),
+            experiment_retrieve_fn=args.experiment_retrieve
+            or _make_mock_retrieve("experiment_doc"),
             experiment_answer_fn=args.experiment_answer or _make_mock_answer("Experiment answer:"),
             top_k=args.top_k,
         )
@@ -82,12 +85,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Run evaluation on a dataset")
     run_parser.add_argument("dataset_path", type=str, help="Path to JSONL eval dataset")
-    run_parser.add_argument("--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)")
+    run_parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)"
+    )
     run_parser.set_defaults(func=cmd_run)
 
-    compare_parser = subparsers.add_parser("compare", help="Compare baseline vs experiment eval runs")
+    compare_parser = subparsers.add_parser(
+        "compare", help="Compare baseline vs experiment eval runs"
+    )
     compare_parser.add_argument("dataset_path", type=str, help="Path to JSONL eval dataset")
-    compare_parser.add_argument("--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)")
+    compare_parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)"
+    )
     compare_parser.set_defaults(func=cmd_compare)
 
     return parser

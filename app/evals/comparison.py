@@ -45,9 +45,13 @@ class ComparisonResult:
             computed_deltas[name] = round(delta, 6)
 
             if name == "average_latency_ms":
-                computed_winners[name] = "experiment" if delta < 0 else "baseline" if delta > 0 else "tie"
+                computed_winners[name] = (
+                    "experiment" if delta < 0 else "baseline" if delta > 0 else "tie"
+                )
             else:
-                computed_winners[name] = "experiment" if delta > 0 else "baseline" if delta < 0 else "tie"
+                computed_winners[name] = (
+                    "experiment" if delta > 0 else "baseline" if delta < 0 else "tie"
+                )
 
         object.__setattr__(self, "deltas", computed_deltas)
         object.__setattr__(self, "winners", computed_winners)
@@ -138,7 +142,9 @@ def format_comparison_table(result: ComparisonResult) -> str:
             exp_str = f"{exp_val:.1%}"
             delta_str = f"{delta:+.1%}"
 
-        winner_symbol = {"baseline": "baseline", "experiment": "experiment", "tie": "tie"}.get(winner, "—")
+        winner_symbol = {"baseline": "baseline", "experiment": "experiment", "tie": "tie"}.get(
+            winner, "—"
+        )
         lines.append(f"| {display_name} | {base_str} | {exp_str} | {delta_str} | {winner_symbol} |")
 
     lines.append("")

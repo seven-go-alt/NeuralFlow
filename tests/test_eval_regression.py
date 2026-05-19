@@ -48,7 +48,9 @@ def test_dataset_has_keyword_heavy_cases() -> None:
 
 def test_dataset_has_numerical_cases() -> None:
     cases = load_cases(str(DATASET_PATH))
-    numerical = [c for c in cases if any(any(ch.isdigit() for ch in kw) for kw in c.expected_keywords)]
+    numerical = [
+        c for c in cases if any(any(ch.isdigit() for ch in kw) for kw in c.expected_keywords)
+    ]
     assert len(numerical) >= 3, "Should have at least 3 numerical reasoning test cases"
 
 
@@ -122,9 +124,21 @@ async def test_eval_with_mock_data() -> None:
 
     def mock_retrieve(query: str, top_k: int) -> list[dict]:
         return [
-            {"document_id": "doc_hr_leave", "content": "Annual leave policy: 20 days for 5+ years.", "score": 0.95},
-            {"document_id": "doc_hr_sick", "content": "Sick leave: 3 days without medical cert.", "score": 0.88},
-            {"document_id": "doc_finance_expense", "content": "Expense reports over $5k need manager approval.", "score": 0.82},
+            {
+                "document_id": "doc_hr_leave",
+                "content": "Annual leave policy: 20 days for 5+ years.",
+                "score": 0.95,
+            },
+            {
+                "document_id": "doc_hr_sick",
+                "content": "Sick leave: 3 days without medical cert.",
+                "score": 0.88,
+            },
+            {
+                "document_id": "doc_finance_expense",
+                "content": "Expense reports over $5k need manager approval.",
+                "score": 0.82,
+            },
         ]
 
     def mock_answer(query: str, context: str) -> str | None:
@@ -174,7 +188,12 @@ async def test_eval_no_answer_scenarios() -> None:
         return []
 
     def answer_fn(query: str, context: str) -> str | None:
-        if "favorite color" in query or "joke" in query or "Super Bowl" in query or "stock price" in query:
+        if (
+            "favorite color" in query
+            or "joke" in query
+            or "Super Bowl" in query
+            or "stock price" in query
+        ):
             return None
         return "some answer"
 
@@ -213,28 +232,49 @@ class TestAggregateMetricsWithRanking:
     def test_mrr_with_varying_ranks(self) -> None:
         results = [
             CaseResult(
-                case_id="c1", question="q1",
-                retrieved_doc_ids=("d1",), retrieved_contents=("c1",),
-                answer="a", latency_ms=10.0,
-                retrieval_hit=True, citation_match=True,
-                keyword_coverage=1.0, no_answer_correct=True,
-                first_relevant_rank=1, precision_at_k=1.0, recall_at_k=1.0,
+                case_id="c1",
+                question="q1",
+                retrieved_doc_ids=("d1",),
+                retrieved_contents=("c1",),
+                answer="a",
+                latency_ms=10.0,
+                retrieval_hit=True,
+                citation_match=True,
+                keyword_coverage=1.0,
+                no_answer_correct=True,
+                first_relevant_rank=1,
+                precision_at_k=1.0,
+                recall_at_k=1.0,
             ),
             CaseResult(
-                case_id="c2", question="q2",
-                retrieved_doc_ids=("d1", "d2"), retrieved_contents=("c1", "c2"),
-                answer="a", latency_ms=20.0,
-                retrieval_hit=True, citation_match=True,
-                keyword_coverage=0.5, no_answer_correct=True,
-                first_relevant_rank=2, precision_at_k=0.5, recall_at_k=0.5,
+                case_id="c2",
+                question="q2",
+                retrieved_doc_ids=("d1", "d2"),
+                retrieved_contents=("c1", "c2"),
+                answer="a",
+                latency_ms=20.0,
+                retrieval_hit=True,
+                citation_match=True,
+                keyword_coverage=0.5,
+                no_answer_correct=True,
+                first_relevant_rank=2,
+                precision_at_k=0.5,
+                recall_at_k=0.5,
             ),
             CaseResult(
-                case_id="c3", question="q3",
-                retrieved_doc_ids=("d3",), retrieved_contents=("c3",),
-                answer=None, latency_ms=5.0,
-                retrieval_hit=False, citation_match=False,
-                keyword_coverage=0.0, no_answer_correct=None,
-                first_relevant_rank=0, precision_at_k=0.0, recall_at_k=0.0,
+                case_id="c3",
+                question="q3",
+                retrieved_doc_ids=("d3",),
+                retrieved_contents=("c3",),
+                answer=None,
+                latency_ms=5.0,
+                retrieval_hit=False,
+                citation_match=False,
+                keyword_coverage=0.0,
+                no_answer_correct=None,
+                first_relevant_rank=0,
+                precision_at_k=0.0,
+                recall_at_k=0.0,
             ),
         ]
         m = aggregate_metrics(results)
@@ -250,11 +290,16 @@ class TestAggregateMetricsWithRanking:
         """CaseResult without ranking fields (all defaults) should still work."""
         results = [
             CaseResult(
-                case_id="c1", question="q1",
-                retrieved_doc_ids=("d1",), retrieved_contents=("c1",),
-                answer="a", latency_ms=10.0,
-                retrieval_hit=True, citation_match=True,
-                keyword_coverage=1.0, no_answer_correct=True,
+                case_id="c1",
+                question="q1",
+                retrieved_doc_ids=("d1",),
+                retrieved_contents=("c1",),
+                answer="a",
+                latency_ms=10.0,
+                retrieval_hit=True,
+                citation_match=True,
+                keyword_coverage=1.0,
+                no_answer_correct=True,
             ),
         ]
         m = aggregate_metrics(results)
@@ -308,13 +353,19 @@ async def test_compare_runs() -> None:
 def test_comparison_result_properties() -> None:
     """Verify ComparisonResult computed fields."""
     baseline = EvalMetrics(
-        total_cases=50, retrieval_hits=40, mrr_sum=30.0,
-        precision_at_k_sum=35.0, recall_at_k_sum=25.0,
+        total_cases=50,
+        retrieval_hits=40,
+        mrr_sum=30.0,
+        precision_at_k_sum=35.0,
+        recall_at_k_sum=25.0,
         total_latency_ms=5000.0,
     )
     experiment = EvalMetrics(
-        total_cases=50, retrieval_hits=45, mrr_sum=40.0,
-        precision_at_k_sum=42.0, recall_at_k_sum=35.0,
+        total_cases=50,
+        retrieval_hits=45,
+        mrr_sum=40.0,
+        precision_at_k_sum=42.0,
+        recall_at_k_sum=35.0,
         total_latency_ms=8000.0,
     )
     result = ComparisonResult(baseline=baseline, experiment=experiment)
