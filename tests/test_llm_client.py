@@ -34,7 +34,7 @@ async def test_llm_client_falls_back_to_ollama_when_primary_provider_fails(monke
     reply = await client.generate("你好")
 
     assert reply == "ollama reply"
-    assert calls == ["primary-model", "ollama/qwen2.5:7b"]
+    assert calls == ["primary-model", "primary-model", "primary-model", "ollama/qwen2.5:7b"]
 
 
 @pytest.mark.asyncio
