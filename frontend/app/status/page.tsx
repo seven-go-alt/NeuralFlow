@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Activity, Database, RefreshCw, Server } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Activity, Clock, Database, RefreshCw, Server } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -41,6 +41,22 @@ function statusLabel(status: string): string {
   return status;
 }
 
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function formatRelativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  if (diff < 1000) return "just now";
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  return `${Math.floor(diff / 3_600_000)}h ago`;
+}
+
 const componentIcons: Record<string, typeof Database> = {
   database: Database,
   chromadb: Database,
@@ -56,6 +72,9 @@ export default function StatusPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const historyRef = useRef<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +88,15 @@ export default function StatusPage() {
         if (!cancelled) {
           setHealth(data);
           setError(null);
+          const now = new Date();
+          setLastChecked(now);
+
+          // Track status history (keep last 10)
+          historyRef.current = [
+            `${formatTime(now)} - ${data.status}`,
+            ...historyRef.current.slice(0, 9),
+          ];
+          setHistory([...historyRef.current]);
         }
       } catch {
         if (!cancelled) setError("Failed to reach the API health endpoint");
@@ -109,7 +137,9 @@ export default function StatusPage() {
             disabled={loading}
             className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-200 font-mono disabled:opacity-40"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
         </div>
@@ -136,16 +166,30 @@ export default function StatusPage() {
                     />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-zinc-100">Overall System Health</div>
+                    <div className="text-sm font-medium text-zinc-100">
+                      Overall System Health
+                    </div>
                     <div className="mt-0.5 text-xs text-zinc-500 font-mono">
                       Response time: {health.response_time_ms ?? "—"}ms
                     </div>
                   </div>
                 </div>
-                <Badge tone={statusTone(health.status)} pulse={health.status === "healthy" || health.status === "ok"}>
+                <Badge
+                  tone={statusTone(health.status)}
+                  pulse={
+                    health.status === "healthy" || health.status === "ok"
+                  }
+                >
                   {statusLabel(health.status)}
                 </Badge>
               </div>
+              {lastChecked && (
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-zinc-600">
+                  <Clock className="h-3 w-3" />
+                  Last checked: {formatTime(lastChecked)} (
+                  {formatRelativeTime(lastChecked)})
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -187,7 +231,8 @@ export default function StatusPage() {
             </div>
             {Object.entries(health.components).map(([name, comp], idx) => {
               const Icon = componentIcon(name);
-              const compStatus = typeof comp === "string" ? comp : (comp.status ?? "unknown");
+              const compStatus =
+                typeof comp === "string" ? comp : (comp.status ?? "unknown");
               return (
                 <div
                   key={name}
@@ -200,15 +245,43 @@ export default function StatusPage() {
                         <Icon className="h-4 w-4 text-zinc-400" />
                       </div>
                       <div>
-                        <div className="text-sm font-medium capitalize text-zinc-100">{name}</div>
-                        <div className="mt-0.5 text-xs text-zinc-600 font-mono">{compStatus}</div>
+                        <div className="text-sm font-medium capitalize text-zinc-100">
+                          {name}
+                        </div>
+                        <div className="mt-0.5 text-xs text-zinc-600 font-mono">
+                          {compStatus}
+                        </div>
                       </div>
                     </div>
-                    <Badge tone={statusTone(compStatus)}>{statusLabel(compStatus)}</Badge>
+                    <Badge tone={statusTone(compStatus)}>
+                      {statusLabel(compStatus)}
+                    </Badge>
                   </div>
                 </div>
               );
             })}
+          </section>
+        )}
+
+        {/* Status History */}
+        {history.length > 0 && (
+          <section>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 font-mono">
+              <Clock className="h-3.5 w-3.5 text-zinc-400" />
+              Status History
+            </div>
+            <div className="animate-fade-in-up rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+              <div className="space-y-1.5">
+                {history.map((entry, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 text-xs font-mono text-zinc-500"
+                  >
+                    <span className="shrink-0 text-zinc-600">{entry}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
         )}
 
