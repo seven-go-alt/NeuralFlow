@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, Bot, Cpu, FileText, GitBranch, Radio, Route, Search } from "lucide-react";
+import { Activity, BarChart3, Bot, Cpu, FileText, GitBranch, MessageSquare, Radio, Route, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useAgentStore } from "@/store/agent-store";
@@ -54,6 +54,32 @@ export function Sidebar() {
         <div className="stagger-children">
           <div className="mb-6"><SessionList /></div>
           <div className="mb-6"><ModelSelector /></div>
+          <section className="mb-6">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 font-mono">System</div>
+            <div className="space-y-1">
+              <Link
+                href="/chat"
+                className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-zinc-400" />
+                Chat
+              </Link>
+              <Link
+                href="/models"
+                className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono"
+              >
+                <Cpu className="h-3.5 w-3.5 text-zinc-400" />
+                Models
+              </Link>
+              <Link
+                href="/status"
+                className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-200 transition-colors hover:bg-zinc-900 font-mono"
+              >
+                <Activity className="h-3.5 w-3.5 text-zinc-400" />
+                Status
+              </Link>
+            </div>
+          </section>
           <section>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 font-mono">Execution Mode</div>
             <div className="space-y-1">
