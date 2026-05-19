@@ -18,8 +18,16 @@ class StubImageExtractor(ImageExtractor):
     def __init__(self, images: list | None = None) -> None:
         super().__init__()
         self._stub_images = (
-            images if images is not None else [
-                ExtractedImage(image_data=b"\x89PNG\r\n\x1a\n", page_number=1, image_index=0, format="png", size_bytes=10),
+            images
+            if images is not None
+            else [
+                ExtractedImage(
+                    image_data=b"\x89PNG\r\n\x1a\n",
+                    page_number=1,
+                    image_index=0,
+                    format="png",
+                    size_bytes=10,
+                ),
             ]
         )
 
@@ -31,8 +39,12 @@ class StubTableExtractor(TableExtractor):
     def __init__(self, tables: list | None = None) -> None:
         super().__init__()
         self._stub_tables = (
-            tables if tables is not None else [
-                ExtractedTable(markdown_text="| A | B |\n|---|---|\n| 1 | 2 |", page_number=1, table_index=0),
+            tables
+            if tables is not None
+            else [
+                ExtractedTable(
+                    markdown_text="| A | B |\n|---|---|\n| 1 | 2 |", page_number=1, table_index=0
+                ),
             ]
         )
 

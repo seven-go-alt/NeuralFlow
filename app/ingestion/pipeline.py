@@ -57,9 +57,7 @@ class IngestionPipeline:
                         max_size_mb=settings.multimodal_max_image_size_mb,
                         max_images=settings.multimodal_max_images,
                     ),
-                    table_extractor=TableExtractor(
-                        max_tables=settings.multimodal_max_tables
-                    ),
+                    table_extractor=TableExtractor(max_tables=settings.multimodal_max_tables),
                     vision_describer=VisionDescriber(
                         llm_client=LLMClient(),
                         vision_model=settings.vision_model,
@@ -72,9 +70,7 @@ class IngestionPipeline:
                     parsed_doc=parsed,
                 )
                 all_sections = (
-                    parsed.sections
-                    + extraction.image_sections
-                    + extraction.table_sections
+                    parsed.sections + extraction.image_sections + extraction.table_sections
                 )
                 parsed.sections = all_sections
                 parsed.metadata["image_count"] = extraction.image_count

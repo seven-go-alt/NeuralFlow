@@ -116,7 +116,9 @@ class LLMClient:
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/{image_format};base64,{image_base64}"},
+                            "image_url": {
+                                "url": f"data:image/{image_format};base64,{image_base64}"
+                            },
                         },
                     ],
                 }

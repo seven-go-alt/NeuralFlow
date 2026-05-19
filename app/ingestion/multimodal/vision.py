@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class VisionDescriber:
     llm_client: LLMClient
     vision_model: str = "gpt-4o"
-    prompt_template: str = "Describe this image in detail, focusing on content relevant to document understanding."
+    prompt_template: str = (
+        "Describe this image in detail, focusing on content relevant to document understanding."
+    )
     _settings: Any = field(default=None, compare=False)
 
     async def describe_images(self, images: list[ExtractedImage]) -> list[str]:
@@ -40,9 +42,17 @@ class VisionDescriber:
                         }
                     ],
                 }
-                if self._settings and hasattr(self._settings, "llm_api_base") and self._settings.llm_api_base:
+                if (
+                    self._settings
+                    and hasattr(self._settings, "llm_api_base")
+                    and self._settings.llm_api_base
+                ):
                     kwargs["api_base"] = self._settings.llm_api_base
-                if self._settings and hasattr(self._settings, "llm_api_key") and self._settings.llm_api_key:
+                if (
+                    self._settings
+                    and hasattr(self._settings, "llm_api_key")
+                    and self._settings.llm_api_key
+                ):
                     kwargs["api_key"] = self._settings.llm_api_key
 
                 response = await litellm.acompletion(**kwargs)
