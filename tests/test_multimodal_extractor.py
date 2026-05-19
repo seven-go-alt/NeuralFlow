@@ -56,7 +56,6 @@ def test_image_extractor_pdf() -> None:
 
 
 def test_image_extractor_docx(tmp_path: Path) -> None:
-
     docx_path = tmp_path / "test_img.docx"
     doc = DocxDocument()
     doc.add_paragraph("Test docx with image placeholder")
