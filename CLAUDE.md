@@ -11,13 +11,24 @@
 必须全部通过才能推送：
 
 ```bash
-# 后端
+# 后端 (可直接使用 Make)
+make lint
+make typecheck
+make test
+
+# 或手动执行
 uv run ruff check .
 uv run mypy app tests worker.py
 uv run pytest -q
 
 # 前端
 cd frontend && npm run lint && npm run typecheck && npm test
+```
+
+启动本地开发环境（API + 前端同时启动）：
+
+```bash
+make dev
 ```
 
 ## GitHub 分支保护
