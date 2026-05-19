@@ -5,8 +5,9 @@ import json
 
 
 class EmbeddingCache:
-    def __init__(self) -> None:
+    def __init__(self, use_redis: bool = True) -> None:
         self._store: dict[str, list[float]] = {}
+        self._use_redis = use_redis
 
     def build_key(self, model: str, text: str) -> str:
         return hashlib.sha256(
@@ -14,7 +15,44 @@ class EmbeddingCache:
         ).hexdigest()
 
     def get(self, model: str, text: str) -> list[float] | None:
-        return self._store.get(self.build_key(model, text))
+        key = self.build_key(model, text)
+        # Try in-memory first
+        cached = self._store.get(key)
+        if cached is not None:
+            return cached
+        # Try Redis
+        if self._use_redis:
+            try:
+                import redis as redis_module
+
+                from app.config import get_settings
+
+                s = get_settings()
+                r = redis_module.Redis(
+                    host=s.redis_host, port=s.redis_port, db=s.redis_db, decode_responses=True
+                )
+                data: str | None = r.get(f"emb:{key}")  # type: ignore[assignment]
+                if data:
+                    vector = json.loads(data)
+                    self._store[key] = vector
+                    return vector
+            except Exception:
+                pass
+        return None
 
     def set(self, model: str, text: str, vector: list[float]) -> None:
-        self._store[self.build_key(model, text)] = vector
+        key = self.build_key(model, text)
+        self._store[key] = vector
+        if self._use_redis:
+            try:
+                import redis as redis_module
+
+                from app.config import get_settings
+
+                s = get_settings()
+                r = redis_module.Redis(
+                    host=s.redis_host, port=s.redis_port, db=s.redis_db, decode_responses=True
+                )
+                r.setex(f"emb:{key}", 3600, json.dumps(vector))
+            except Exception:
+                pass

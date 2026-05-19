@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.rag_trace import RAGTraceORM
 from app.db.session import get_db
+from app.utils.cache import ResponseCache
 
 router = APIRouter(prefix="/api/v1/traces", tags=["traces"])
+
+cache = ResponseCache()
 
 
 @router.get(
@@ -15,11 +18,16 @@ router = APIRouter(prefix="/api/v1/traces", tags=["traces"])
     summary="List RAG traces",
     description="Return recent RAG pipeline execution traces, filterable by tenant and session. Each trace shows query, duration, and token count.",
 )
-def list_traces(
+async def list_traces(
+    request: Request,
     tenant_id: str = Query(default="public"),
     limit: int = Query(default=50, le=200),
     db: Session = Depends(get_db),
 ):
+    params = {"tenant_id": tenant_id, "limit": limit}
+    cached = await cache.get(tenant_id, request.url.path, params)
+    if cached:
+        return cached
     records = (
         db.execute(
             select(RAGTraceORM)
@@ -30,7 +38,7 @@ def list_traces(
         .scalars()
         .all()
     )
-    return {
+    response_data = {
         "traces": [
             {
                 "trace_id": r.trace_id,
@@ -43,6 +51,8 @@ def list_traces(
             for r in records
         ]
     }
+    await cache.set(tenant_id, request.url.path, response_data, params, ttl=30)
+    return response_data
 
 
 @router.get(

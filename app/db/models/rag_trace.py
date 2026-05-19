@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,9 @@ from app.db.base import Base
 
 class RAGTraceORM(Base):
     __tablename__ = "rag_traces"
+    __table_args__ = (
+        Index("ix_rag_traces_tenant_created", "tenant_id", "created_at"),
+    )
 
     trace_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(128), index=True)

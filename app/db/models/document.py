@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,9 @@ from app.db.base import Base
 
 class DocumentORM(Base):
     __tablename__ = "documents"
+    __table_args__ = (
+        Index("ix_documents_tenant_created", "tenant_id", "created_at"),
+    )
 
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(128), index=True)
