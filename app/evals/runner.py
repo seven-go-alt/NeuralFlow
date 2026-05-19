@@ -13,8 +13,11 @@ from app.evals.metrics import (
     CaseResult,
     EvalMetrics,
     compute_citation_match,
+    compute_first_relevant_rank,
     compute_keyword_coverage,
     compute_no_answer_correct,
+    compute_precision_at_k,
+    compute_recall_at_k,
     compute_retrieval_hit,
 )
 
@@ -49,6 +52,7 @@ async def run_eval(
         if answer_eval_fn is not None and answer is not None:
             answer_eval = answer_eval_fn(case.question, answer, list(retrieved_contents))
 
+        effective_k = len(retrieved_doc_ids) if len(retrieved_doc_ids) > 0 else top_k
         results.append(
             CaseResult(
                 case_id=case.id,
@@ -63,6 +67,15 @@ async def run_eval(
                 ),
                 keyword_coverage=compute_keyword_coverage(all_text, case.expected_keywords),
                 no_answer_correct=compute_no_answer_correct(case.should_answer, answer),
+                first_relevant_rank=compute_first_relevant_rank(
+                    retrieved_doc_ids, case.expected_doc_ids
+                ),
+                precision_at_k=compute_precision_at_k(
+                    retrieved_doc_ids, case.expected_doc_ids, effective_k
+                ),
+                recall_at_k=compute_recall_at_k(
+                    retrieved_doc_ids, case.expected_doc_ids, effective_k
+                ),
             )
         )
 
@@ -87,24 +100,29 @@ def build_eval_report(
     lines.append(f"- **Keyword Coverage**: {metrics.keyword_coverage:.1%}")
     lines.append(f"- **No-Answer Accuracy**: {metrics.no_answer_accuracy:.1%}")
     lines.append(f"- **Average Latency**: {metrics.average_latency_ms:.1f} ms")
+    lines.append(f"- **Mean Reciprocal Rank (MRR)**: {metrics.mean_reciprocal_rank:.4f}")
+    lines.append(f"- **Avg Precision@k**: {metrics.average_precision_at_k:.1%}")
+    lines.append(f"- **Avg Recall@k**: {metrics.average_recall_at_k:.1%}")
     lines.append("")
     lines.append("## Per-Case Details")
     lines.append("")
     lines.append(
-        "| Case ID | Retrieval Hit | Citation Match | Keyword Cov | No-Answer Correct | Latency (ms) |"
+        "| Case ID | Retrieval Hit | Citation Match | Keyword Cov | No-Answer Correct | Latency (ms) | Rank |"
     )
     lines.append(
-        "|---------|--------------|---------------|-------------|-------------------|-------------|"
+        "|---------|--------------|---------------|-------------|-------------------|-------------|------|"
     )
     for r in results:
         no_ans = "✓" if r.no_answer_correct else "✗" if r.no_answer_correct is False else "—"
+        rank_str = str(r.first_relevant_rank) if r.first_relevant_rank > 0 else "—"
         lines.append(
             f"| {r.case_id} "
             f"| {'✓' if r.retrieval_hit else '✗'} "
             f"| {'✓' if r.citation_match else '✗'} "
             f"| {r.keyword_coverage:.0%} "
             f"| {no_ans} "
-            f"| {r.latency_ms:.1f} |"
+            f"| {r.latency_ms:.1f} "
+            f"| {rank_str} |"
         )
     lines.append("")
     return "\n".join(lines)
