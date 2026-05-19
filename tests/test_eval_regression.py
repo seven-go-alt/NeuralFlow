@@ -420,7 +420,9 @@ def test_finance_dataset_has_negative_tests() -> None:
 def test_finance_dataset_has_keyword_heavy_cases() -> None:
     cases = load_cases(str(FINANCE_DATASET_PATH))
     keyword_heavy = [c for c in cases if len(c.expected_keywords) >= 4]
-    assert len(keyword_heavy) >= 3, "Finance dataset should have at least 3 keyword-heavy test cases"
+    assert len(keyword_heavy) >= 3, (
+        "Finance dataset should have at least 3 keyword-heavy test cases"
+    )
 
 
 def test_technical_dataset_loads_all_30_cases() -> None:
@@ -442,7 +444,9 @@ def test_technical_dataset_has_negative_tests() -> None:
 def test_technical_dataset_has_keyword_heavy_cases() -> None:
     cases = load_cases(str(TECHNICAL_DATASET_PATH))
     keyword_heavy = [c for c in cases if len(c.expected_keywords) >= 4]
-    assert len(keyword_heavy) >= 3, "Technical dataset should have at least 3 keyword-heavy test cases"
+    assert len(keyword_heavy) >= 3, (
+        "Technical dataset should have at least 3 keyword-heavy test cases"
+    )
 
 
 @pytest.mark.asyncio
@@ -451,8 +455,16 @@ async def test_finance_eval_with_mock_data() -> None:
 
     def mock_retrieve(query: str, top_k: int) -> list[dict]:
         return [
-            {"document_id": "doc_fin_depreciation", "content": "Depreciation policy details.", "score": 0.95},
-            {"document_id": "doc_fin_journal", "content": "Journal entry guidelines.", "score": 0.88},
+            {
+                "document_id": "doc_fin_depreciation",
+                "content": "Depreciation policy details.",
+                "score": 0.95,
+            },
+            {
+                "document_id": "doc_fin_journal",
+                "content": "Journal entry guidelines.",
+                "score": 0.88,
+            },
         ]
 
     def mock_answer(query: str, context: str) -> str | None:
@@ -476,8 +488,16 @@ async def test_technical_eval_with_mock_data() -> None:
 
     def mock_retrieve(query: str, top_k: int) -> list[dict]:
         return [
-            {"document_id": "doc_tech_grpc", "content": "gRPC configuration details.", "score": 0.95},
-            {"document_id": "doc_tech_k8s_probe", "content": "Kubernetes probe settings.", "score": 0.88},
+            {
+                "document_id": "doc_tech_grpc",
+                "content": "gRPC configuration details.",
+                "score": 0.95,
+            },
+            {
+                "document_id": "doc_tech_k8s_probe",
+                "content": "Kubernetes probe settings.",
+                "score": 0.88,
+            },
         ]
 
     def mock_answer(query: str, context: str) -> str | None:
