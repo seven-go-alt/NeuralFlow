@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     vector_search_default_top_k: int = 3
     stream_thinking_enabled: bool = False
 
+    rag_advanced_enabled: bool = False
+    rag_use_multi_query: bool = False
+    rag_use_hyde: bool = False
+    rag_max_corrections: int = 2
+
     intent_default: str = "general"
     intent_llm_fallback_enabled: bool = True
     intent_keyword_rules_json: str = Field(
