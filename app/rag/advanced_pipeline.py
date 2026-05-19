@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.llm import LLMClient
+from app.observability.trace_manager import TraceManager
 from app.rag.context_builder import RAGContextBuilder
 from app.rag.corrective_loop import CorrectiveRetriever
 from app.rag.query_transformer import (
@@ -45,6 +46,7 @@ class AdvancedRAGPipeline:
         self._llm = llm
         self._context_builder = context_builder or RAGContextBuilder()
         self._corrective = CorrectiveRetriever(retrieve_fn, llm)
+        self.trace: TraceManager | None = None
 
     async def execute(
         self,
@@ -54,7 +56,8 @@ class AdvancedRAGPipeline:
         use_hyde: bool = False,
         max_corrections: int = 2,
     ) -> AdvancedRAGResult:
-        """Execute the full advanced RAG pipeline."""
+        """Execute the full advanced RAG pipeline with tracing."""
+        self.trace = TraceManager("advanced_rag")
         transform_history: list[dict[str, Any]] = []
         search_query = query
         results: list[RetrievalResult] = []
@@ -62,49 +65,57 @@ class AdvancedRAGPipeline:
         corrections = 0
 
         if use_hyde:
-            search_query = await hyde_transform(query, self._llm)
-            transform_history.append(
-                {
-                    "strategy": "hyde",
-                    "original": query,
-                    "transformed": search_query,
-                }
-            )
+            with self.trace.span("hyde_transform"):
+                search_query = await hyde_transform(query, self._llm)
+                transform_history.append(
+                    {
+                        "strategy": "hyde",
+                        "original": query,
+                        "transformed": search_query,
+                    }
+                )
 
         if use_multi_query:
-            transform_result = await expand_multi_query(query, self._llm)
-            transform_history.append(
-                {
-                    "strategy": "multi_query",
-                    "variants": transform_result.variants,
-                }
-            )
+            with self.trace.span("multi_query_transform"):
+                transform_result = await expand_multi_query(query, self._llm)
+                transform_history.append(
+                    {
+                        "strategy": "multi_query",
+                        "variants": transform_result.variants,
+                    }
+                )
 
-            all_results: list[list[RetrievalResult]] = []
-            for vq in transform_result.variants:
-                vr = await self._retrieve_fn(vq, top_k)
-                all_results.append(vr)
-            results = merge_deduplicated(all_results)
+                all_results: list[list[RetrievalResult]] = []
+                for vq in transform_result.variants:
+                    vr = await self._retrieve_fn(vq, top_k)
+                    all_results.append(vr)
+                results = merge_deduplicated(all_results)
 
-            # Grade merged results
-            grade = await self._grade_or_none(query, results)
-            if grade is not None and not grade.sufficient:
+                grade = await self._grade_or_none(query, results)
+                if grade is not None and not grade.sufficient:
+                    with self.trace.span("corrective_retry"):
+                        corrective = await self._corrective.retrieve(search_query, top_k)
+                        results = corrective.results if corrective.results else results
+                        grade = corrective.grade
+                        corrections = corrective.corrections
+                        transform_history.extend(corrective.histories)
+        else:
+            with self.trace.span("retrieve"):
                 corrective = await self._corrective.retrieve(search_query, top_k)
-                results = corrective.results if corrective.results else results
+                results = corrective.results
                 grade = corrective.grade
                 corrections = corrective.corrections
                 transform_history.extend(corrective.histories)
-        else:
-            corrective = await self._corrective.retrieve(search_query, top_k)
-            results = corrective.results
-            grade = corrective.grade
-            corrections = corrective.corrections
-            transform_history.extend(corrective.histories)
 
-        # Build context
-        rag_build = self._context_builder.build(query, results)
-        should_answer = grade.sufficient if grade is not None else bool(results)
+        with self.trace.span("grade"):
+            if grade is None:
+                grade = await self._grade_or_none(query, results)
 
+        with self.trace.span("context_build"):
+            rag_build = self._context_builder.build(query, results)
+            should_answer = grade.sufficient if grade is not None else bool(results)
+
+        self.trace.close()
         return AdvancedRAGResult(
             query=query,
             original_query=query,

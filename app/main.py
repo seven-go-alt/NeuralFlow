@@ -16,8 +16,10 @@ from pydantic import BaseModel, ValidationError
 from app.agents.orchestrator import AgentOrchestrator
 from app.agents.react import ReActAgent
 from app.api.documents import router as documents_router
+from app.api.eval import router as eval_router
 from app.api.retrieval import router as retrieval_router
 from app.api.streaming import StreamTaskRegistry, create_sse_response
+from app.api.traces import router as traces_router
 from app.auth import router as auth_router
 from app.config import get_settings
 from app.config_manager import ConfigManager
@@ -58,7 +60,9 @@ app.add_middleware(TenantIsolationMiddleware, default_tenant_id=settings.tenant_
 app.add_middleware(TelemetryMiddleware, observability=observability)
 app.include_router(auth_router)
 app.include_router(documents_router)
+app.include_router(eval_router)
 app.include_router(retrieval_router)
+app.include_router(traces_router)
 configure_structured_logging(logger_name="neuralflow.request", audit_log_path=audit_log_path)
 intent_router = IntentRouter()
 llm_client = LLMClient()

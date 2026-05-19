@@ -12,6 +12,10 @@ class EvalMetrics:
     no_answer_correct: int = 0
     no_answer_total: int = 0
     total_latency_ms: float = 0.0
+    answer_relevance_sum: float = 0.0
+    answer_faithfulness_sum: float = 0.0
+    answer_completeness_sum: float = 0.0
+    answer_count: int = 0
 
     @property
     def retrieval_hit_rate(self) -> float:
@@ -43,6 +47,24 @@ class EvalMetrics:
             return 0.0
         return self.total_latency_ms / self.total_cases
 
+    @property
+    def average_answer_relevance(self) -> float:
+        if self.answer_count == 0:
+            return 0.0
+        return self.answer_relevance_sum / self.answer_count
+
+    @property
+    def average_answer_faithfulness(self) -> float:
+        if self.answer_count == 0:
+            return 0.0
+        return self.answer_faithfulness_sum / self.answer_count
+
+    @property
+    def average_answer_completeness(self) -> float:
+        if self.answer_count == 0:
+            return 0.0
+        return self.answer_completeness_sum / self.answer_count
+
 
 @dataclass(slots=True)
 class CaseResult:
@@ -56,6 +78,9 @@ class CaseResult:
     citation_match: bool
     keyword_coverage: float
     no_answer_correct: bool | None
+    answer_relevance: float | None = None
+    answer_faithfulness: float | None = None
+    answer_completeness: float | None = None
 
 
 def compute_retrieval_hit(
@@ -106,4 +131,9 @@ def aggregate_metrics(results: list[CaseResult]) -> EvalMetrics:
             metrics.no_answer_total += 1
             if r.no_answer_correct:
                 metrics.no_answer_correct += 1
+        if r.answer_relevance is not None:
+            metrics.answer_count += 1
+            metrics.answer_relevance_sum += r.answer_relevance
+            metrics.answer_faithfulness_sum += r.answer_faithfulness or 0.0
+            metrics.answer_completeness_sum += r.answer_completeness or 0.0
     return metrics
