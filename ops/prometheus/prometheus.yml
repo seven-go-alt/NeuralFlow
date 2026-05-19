@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: neuralflow-api
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: /metrics
+
+  - job_name: node
+    static_configs:
+      - targets: ['localhost:9100']
