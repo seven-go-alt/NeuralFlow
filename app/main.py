@@ -507,23 +507,55 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         db = SessionLocal()
         try:
             retrieval_service = RetrievalService(document_repo=DocumentRepository(db))
+            top_k = (request.retrieval_options or {}).get("top_k", settings.rag_default_top_k)
             retrieval_request = RetrievalRequest(
                 query=request.message,
-                top_k=(request.retrieval_options or {}).get("top_k", settings.rag_default_top_k),
+                top_k=top_k,
                 score_threshold=(request.retrieval_options or {}).get(
                     "score_threshold", settings.rag_score_threshold
                 ),
                 filters=(request.retrieval_options or {}).get("filters", {}),
             )
-            retrieval_response = await retrieval_service.search(
-                tenant_id=tenant_id, request=retrieval_request
-            )
-            rag_build = RAGContextBuilder().build(
-                query=request.message, results=retrieval_response.results
-            )
-            rag_results = [item.model_dump() for item in retrieval_response.results]
-            rag_citations = rag_build.citations
-            rag_context = rag_build.context
+            if settings.rag_advanced_enabled:
+                from app.rag.advanced_pipeline import AdvancedRAGPipeline
+
+                async def _retrieve_fn(query: str, k: int) -> list:
+                    from app.retrieval.schemas import RetrievalFilters
+
+                    req = RetrievalRequest(
+                        query=query,
+                        top_k=k,
+                        score_threshold=0.0,
+                        filters=RetrievalFilters(),
+                    )
+                    resp = await retrieval_service.search(tenant_id=tenant_id, request=req)
+                    return resp.results
+
+                pipeline = AdvancedRAGPipeline(
+                    retrieve_fn=_retrieve_fn,
+                    llm=llm_client,
+                    context_builder=RAGContextBuilder(),
+                )
+                adv_result = await pipeline.execute(
+                    query=request.message,
+                    top_k=top_k,
+                    use_multi_query=settings.rag_use_multi_query,
+                    use_hyde=settings.rag_use_hyde,
+                    max_corrections=settings.rag_max_corrections,
+                )
+                rag_results = [item.model_dump() for item in adv_result.results]
+                rag_citations = adv_result.citations
+                rag_context = adv_result.context
+            else:
+                retrieval_response = await retrieval_service.search(
+                    tenant_id=tenant_id, request=retrieval_request
+                )
+                rag_build = RAGContextBuilder().build(
+                    query=request.message, results=retrieval_response.results
+                )
+                rag_results = [item.model_dump() for item in retrieval_response.results]
+                rag_citations = rag_build.citations
+                rag_context = rag_build.context
         except VectorStoreUnavailableError as exc:
             raise HTTPException(
                 status_code=503,
