@@ -13,6 +13,24 @@ from app.db.session import get_db
 from app.main import app
 
 
+def _clear_api_cache() -> None:
+    """Clear Redis API cache keys to prevent stale responses between tests."""
+    try:
+        import redis as sync_redis
+
+        r = sync_redis.Redis(decode_responses=True)
+        cursor = 0
+        while True:
+            cursor, keys = r.scan(cursor, match="api_cache:*", count=100)  # type: ignore[misc]
+            if keys:
+                r.delete(*keys)
+            if cursor == 0:
+                break
+        r.close()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def test_db():
     """Create a temporary file-based SQLite database for testing.
@@ -33,6 +51,8 @@ def test_db():
         yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    # Invalidate Redis API cache to avoid stale cached responses between tests
+    _clear_api_cache()
     yield session
     session.close()
     engine.dispose()
