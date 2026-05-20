@@ -18,4 +18,24 @@ describe("Badge", () => {
     const { container } = render(<Badge tone="rose">failed</Badge>);
     expect(container.firstChild).toBeInTheDocument();
   });
+
+  it("renders with all tone variants without error", () => {
+    const tones = ["cyan", "emerald", "amber", "rose", "violet", "zinc"] as const;
+    for (const tone of tones) {
+      const { container } = render(<Badge tone={tone}>{tone}</Badge>);
+      expect(container.firstChild).toBeInTheDocument();
+    }
+  });
+
+  it("applies pulse class when pulse prop is true", () => {
+    render(<Badge pulse>live</Badge>);
+    const el = screen.getByText("live");
+    expect(el.className).toContain("animate-pulse-glow");
+  });
+
+  it("merges custom className with default classes", () => {
+    render(<Badge className="my-custom-class">test</Badge>);
+    const el = screen.getByText("test");
+    expect(el.className).toContain("my-custom-class");
+  });
 });
