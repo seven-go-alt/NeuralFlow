@@ -63,6 +63,7 @@ if os.getenv("SENTRY_DSN"):
     )
     logger.info("Sentry initialized", extra={"environment": settings.app_env})
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
