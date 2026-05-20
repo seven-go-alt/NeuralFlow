@@ -92,7 +92,7 @@ async def test_embed_texts_provider_returns_fewer_vectors() -> None:
 
 
 def test_cache_build_key() -> None:
-    c = EmbeddingCache()
+    c = EmbeddingCache(use_redis=False)
     k1 = c.build_key("m1", "hello")
     k2 = c.build_key("m1", "hello")
     k3 = c.build_key("m2", "hello")
@@ -102,14 +102,14 @@ def test_cache_build_key() -> None:
 
 
 def test_cache_get_set() -> None:
-    c = EmbeddingCache()
+    c = EmbeddingCache(use_redis=False)
     assert c.get("m", "t") is None
     c.set("m", "t", [0.5, 0.6])
     assert c.get("m", "t") == [0.5, 0.6]
 
 
 def test_cache_isolation() -> None:
-    c = EmbeddingCache()
+    c = EmbeddingCache(use_redis=False)
     c.set("m1", "t", [1.0])
     c.set("m2", "t", [2.0])
     c.set("m1", "other", [3.0])
