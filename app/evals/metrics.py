@@ -137,7 +137,12 @@ def compute_precision_at_k(
     if k == 0:
         return 0.0
     expected_set = set(expected_doc_ids)
-    relevant = sum(1 for doc_id in retrieved_doc_ids[:k] if doc_id in expected_set)
+    seen: set[str] = set()
+    relevant = 0
+    for doc_id in retrieved_doc_ids[:k]:
+        if doc_id in expected_set and doc_id not in seen:
+            relevant += 1
+            seen.add(doc_id)
     return relevant / k
 
 
@@ -149,7 +154,12 @@ def compute_recall_at_k(
     if not expected_doc_ids:
         return 1.0
     expected_set = set(expected_doc_ids)
-    relevant = sum(1 for doc_id in retrieved_doc_ids[:k] if doc_id in expected_set)
+    seen: set[str] = set()
+    relevant = 0
+    for doc_id in retrieved_doc_ids[:k]:
+        if doc_id in expected_set and doc_id not in seen:
+            relevant += 1
+            seen.add(doc_id)
     return relevant / len(expected_doc_ids)
 
 

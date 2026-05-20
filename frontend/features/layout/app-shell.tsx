@@ -304,7 +304,7 @@ export function AppShell() {
     if (!isStreaming) {
       pendingSentRef.current = false;
     }
-  }, [activeSession?.pendingPrompt, isStreaming, submitMessage, clearPendingPrompt]);
+  }, [activeSession?.pendingPrompt, activeSession?.id, isStreaming, submitMessage, clearPendingPrompt]);
 
   return (
     <main className="console-surface relative flex h-screen text-zinc-100">

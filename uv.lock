@@ -2379,7 +2379,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.12" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pyjwt", specifier = ">=2.8.0" },
-    { name = "pymupdf", specifier = ">=1.26.5" },
+    { name = "pymupdf", specifier = ">=1.27.2.3" },
     { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "redis", specifier = ">=7.4.0" },
