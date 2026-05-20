@@ -53,6 +53,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-backend
       - uses: actions/cache@v4
         with:
@@ -67,6 +68,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-backend
       - name: Run tests with coverage
         run: uv run pytest -q --cov=app --cov-report=xml --cov-report=term
@@ -74,6 +76,12 @@ jobs:
         with:
           name: coverage-report
           path: ./coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
   frontend:
     timeout-minutes: 15
