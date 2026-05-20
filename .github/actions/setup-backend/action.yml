@@ -1,0 +1,15 @@
+name: Setup Backend
+description: Checkout code, set up Python 3.11, uv, and install dev dependencies
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+    - run: uv sync --group dev --frozen
+      shell: bash

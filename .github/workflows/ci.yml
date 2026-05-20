@@ -19,93 +19,60 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    timeout-minutes: 15
+  changes:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
-
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          enable-cache: true
+          filters: |
+            backend:
+              - 'app/**'
+              - 'tests/**'
+              - 'worker.py'
+              - 'pyproject.toml'
+              - '.pre-commit-config.yaml'
+            frontend:
+              - 'frontend/**'
 
-      - name: Install dependencies
-        run: uv sync --group dev --frozen
-
-      - name: Cache pre-commit
-        uses: actions/cache@v4
+  quality:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    steps:
+      - uses: ./.github/actions/setup-backend
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-
       - name: Pre-commit hooks
         run: uv run pre-commit run --all-files --show-diff-on-failure
-
-      - name: Ruff
-        run: uv run ruff check .
-
-      - name: Mypy
-        run: uv run mypy app tests worker.py
 
   test:
     timeout-minutes: 15
     runs-on: ubuntu-latest
-
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --group dev --frozen
-
-      - name: Pytest
-        run: uv run pytest -q
-
-  coverage:
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --group dev --frozen
-
+      - uses: ./.github/actions/setup-backend
       - name: Run tests with coverage
-        run: uv run pytest --cov=app --cov-report=xml --cov-report=term
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        run: uv run pytest -q --cov=app --cov-report=xml --cov-report=term
+      - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: ./coverage.xml
@@ -113,36 +80,32 @@ jobs:
   frontend:
     timeout-minutes: 15
     runs-on: ubuntu-latest
-
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
       - name: Install dependencies
         working-directory: frontend
         run: npm ci --prefer-offline
-
-      - name: Cache Next.js build
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: frontend/.next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}
-
       - name: Lint
         working-directory: frontend
         run: npm run lint
-
       - name: Typecheck
         working-directory: frontend
         run: npm run typecheck
-
       - name: Test
         working-directory: frontend
         run: npm test
