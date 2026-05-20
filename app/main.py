@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any
 
@@ -62,7 +63,17 @@ if os.getenv("SENTRY_DSN"):
     )
     logger.info("Sentry initialized", extra={"environment": settings.app_env})
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    from app.db.session import engine
+
+    engine.dispose()
+    logger.info("database connections disposed")
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 init_db()
 allowed_origins = [item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()]
 allow_all_origins = allowed_origins == ["*"]
@@ -100,14 +111,6 @@ mcp_logger = configure_structured_logging(
 _FRONTEND_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend"
 )
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
-    from app.db.session import engine
-
-    engine.dispose()
-    logger.info("database connections disposed")
 
 
 @app.get("/", include_in_schema=False)
