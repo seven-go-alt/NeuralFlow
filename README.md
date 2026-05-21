@@ -34,14 +34,15 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 它支持把 PDF、Markdown、TXT、DOCX 文档上传进系统，自动完成：
 
 1. 文件存储
-2. 文档解析
+2. 文档解析（含图片/表格多模态提取）
 3. Chunk 切分
 4. Embedding 生成
 5. ChromaDB 建索引
-6. Query Retrieval
-7. RAG Context Assembly
+6. Query Retrieval（Hybrid keyword + vector search）
+7. RAG Context Assembly（含 Advanced RAG 纠错循环）
 8. 注入聊天 / Agent Prompt
 9. 在前端展示引用来源与检索 chunks
+10. LLM-as-judge 回答质量评估与 Pipeline 追踪
 
 ---
 
@@ -134,7 +135,8 @@ bash scripts/verify-local.sh
 - ChromaDB
 - Celery
 - LiteLLM / OpenAI-compatible API
-- PyMuPDF
+- httpx（async HTTP client）
+- PyMuPDF（含 PDF table extraction）
 - python-docx
 - markdown-it-py
 - tiktoken
@@ -156,20 +158,25 @@ bash scripts/verify-local.sh
 高层数据流：
 
 ```text
-Upload File
-  -> Document Record
-  -> Async Ingestion Task
-  -> Parse
-  -> Chunk
-  -> Embed
-  -> Chroma Index
+Upload File (PDF / DOCX / MD / TXT)
+  -> Document Record (DB)
+  -> Async Ingestion Task (Celery)
+  -> Parse (text + images + tables for multimodal)
+  -> Chunk (token-aware, configurable overlap)
+  -> Embed (OpenAI-compatible API, in-memory + Redis cache)
+  -> Chroma Index (vectors + metadata)
 
 User Query
-  -> Retrieval
-  -> Context Builder
+  -> [Optional] Query Transformation (rewrite / expand)
+  -> Hybrid Retrieval (keyword BM25 + vector search)
+  -> Relevance Grading (LLM-as-judge filter)
+  -> [Optional] Corrective Loop (rewrite query → re-retrieve)
+  -> Context Builder (token-budget-aware assembly)
   -> Agent / Chat Prompt
   -> LLM Response
-  -> Citations / Sources
+  -> Answer Evaluation (LLM-as-judge score)
+  -> Pipeline Trace (persisted to DB for observability)
+  -> Citations / Sources (frontend display)
 ```
 
 ---
@@ -179,7 +186,7 @@ User Query
 如果你要把这个项目作为求职作品集，最值得展示的是这条完整链路：
 
 1. 启动 **FastAPI / Celery Worker / Next.js Frontend**
-2. 在 `Documents` 页面上传一份 PDF / Markdown / TXT / DOCX
+2. 在 `Documents` 页面上传一份 PDF / Markdown / TXT / DOCX（含图片和表格的 PDF 可以同时展示多模态提取）
 3. 观察文档状态从 `queued -> parsing -> chunking -> embedding -> indexing -> ready`
 4. 在文档列表页或详情页点击：
    - `Summarize this document`
@@ -193,8 +200,9 @@ User Query
 
 这条流程能够完整展示：
 
-- 异步文档摄入 pipeline
-- 向量检索 + RAG context assembly
+- 异步文档摄入 pipeline（含多模态图片/表格提取）
+- Hybrid 检索（keyword + vector）
+- Advanced RAG 纠错循环
 - 单文档 scoped retrieval
 - Agent / Chat runtime observability
 - 前后端联动的产品闭环
@@ -474,17 +482,23 @@ RAG 相关：
 
 ## 11. 作品集亮点
 
-这版项目的亮点不在“接了一个向量库”，而在于它展示了完整工程链路：
+这版项目的亮点不在”接了一个向量库”，而在于它展示了从文档摄入到高级 RAG 再到评估观测的完整工程链路：
 
-- 文档上传系统
-- 异步 ingestion pipeline
-- 企业知识库检索
-- RAG context assembly
-- Agent integration
+- 文档上传与多格式解析
+- 多模态提取（图片描述 + 表格→markdown）
+- 异步 ingestion pipeline（Celery）
+- 向量检索 + Hybrid retrieval（keyword BM25）
+- Advanced RAG（query transformation → grading → corrective loop）
+- RAG context assembly（token-budget-aware）
+- Agent / Chat integration
+- LLM-as-judge 回答质量评估
+- Pipeline tracing with DB persistence
 - 引用来源展示
 - 多租户隔离
 - streaming observability
-- regression tests
+- 644 regression tests
+- Performance benchmarks
+- 自动化 CI/CD（path filtering、auto-merge、eval gate）
 
 如果你要把它写进简历或作品集，最适合强调的关键词是：
 
@@ -492,6 +506,11 @@ RAG 相关：
 - **AI Knowledge Base Platform**
 - **Agent Runtime**
 - **Function Calling / MCP**
+- **Advanced RAG Pipeline（query transformation + corrective loop）**
+- **Hybrid Retrieval（keyword + vector）**
+- **Multimodal RAG（vision LLM image extraction）**
+- **RAG Evaluation（LLM-as-judge）**
+- **Pipeline Observability（tracing + metrics）**
 - **Multi-tenant Retrieval**
 - **Async Ingestion Pipeline**
 - **Source-aware Citation UX**
@@ -599,7 +618,7 @@ npm run dev
 - 是否出现 source / score / page 信息
 - assistant 回答下方是否展示 citations
 
-### Step 5: 展示流式检索可观测性
+### Step 6: 展示流式检索可观测性
 
 使用 `/chat/stream` 路径时，可以重点展示：
 - retrieval 事件
@@ -615,13 +634,37 @@ npm run dev
 
 运行新增的 RAG 关键测试：
 
+RAG Pipeline 关键测试：
+
 ```bash
 uv run pytest -q \
   tests/test_rag_chat.py \
   tests/test_rag_context_builder.py \
+  tests/test_advanced_pipeline.py \
+  tests/test_hybrid_retrieval.py \
   tests/test_documents_api.py \
   tests/test_ingestion_pipeline.py \
   tests/test_retrieval_api.py
+```
+
+评估与可观测性测试：
+
+```bash
+uv run pytest -q \
+  tests/test_answer_evaluator.py \
+  tests/test_eval_api.py \
+  tests/test_eval_regression.py \
+  tests/test_trace_manager.py \
+  tests/test_trace_persister.py
+```
+
+多模态 RAG 测试：
+
+```bash
+uv run pytest -q \
+  tests/test_multimodal_extractor.py \
+  tests/test_multimodal_config.py \
+  tests/test_multimodal_processor.py
 ```
 
 运行全量测试：
@@ -650,7 +693,7 @@ uv run pytest tests/ -v
 - [x] 测试覆盖主链路（**644 tests**）
 - [x] **Hybrid retrieval（keyword + vector search）**
 - [x] **Advanced RAG pipeline（query transformation + correctness grading + corrective loop）**
-- [x] **Performance benchmarks（HTMX HTML reports）**
+- [x] **Performance benchmarks（ingestion / retrieval / token usage, HTML reports）**
 - [x] **LLM-as-judge answer evaluation（relevance / faithfulness / completeness）**
 - [x] **Pipeline tracing with DB persistence + API**
 - [x] **Prometheus eval metrics gauges**
@@ -660,6 +703,7 @@ uv run pytest tests/ -v
 
 ## 15. 下一步可继续增强
 
+- Redis-backed embedding cache with connection pooling（目前每次 get/set 新建连接）
 - richer metadata filter（tags / owner / document groups）
 - markdown heading hierarchy parsing
 - OCR pipeline
