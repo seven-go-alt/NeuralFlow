@@ -11,6 +11,11 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - Redis Working Memory
 - ChromaDB Vector Retrieval
 - Document RAG Pipeline
+- **Hybrid Retrieval（keyword + vector）**
+- **Advanced RAG Pipeline（query transformation → corrective loop）**
+- **Multimodal RAG（image / table extraction with vision LLM）**
+- **RAG Evaluation（LLM-as-judge answer quality scoring）**
+- **Pipeline Observability（tracing with DB persistence + API）**
 - Streaming Chat / SSE Runtime Events
 - Next.js Runtime Console
 - Multi-tenant Isolation
@@ -55,14 +60,24 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - 文档详情 / chunk 浏览
 
 ### RAG Pipeline
-- 文档解析
+- 文档解析（PDF / Markdown / TXT / DOCX）
 - token-aware recursive chunk splitting
 - configurable overlap
 - OpenAI-compatible embedding provider
-- embedding cache
+- embedding cache（in-memory + Redis）
 - ChromaDB retrieval
+- **Hybrid retrieval（keyword + vector）**
+- **Advanced RAG pipeline（query transformation → grading → corrective loop → context building）**
+- **Multimodal RAG（image description extraction from PDF/DOCX, table extraction → markdown）**
 - token-budget-aware context builder
 - citations / source support
+
+### RAG Evaluation & Observability
+- **LLM-as-judge answer evaluation（relevance / faithfulness / completeness scoring）**
+- **Pipeline tracing with DB persistence**
+- **Prometheus eval metrics（Gauges / Histograms for answer scores）**
+- **Eval API endpoints（run evals on datasets, list results, inspect detail）**
+- **Trace API endpoints（filterable trace spans, full trace tree）**
 
 ### 前端 Runtime Console
 - documents 页面
@@ -80,7 +95,9 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - tenant middleware
 - Prometheus metrics
 - runtime config hot patch
-- pytest regression coverage
+- pytest regression coverage（**644 tests**）
+- **Performance benchmarks（ingestion latency / retrieval latency / token usage）**
+- **GitHub Actions CI/CD（auto-merge for Dependabot, eval gate, multi-stage workflows）**
 
 完整变更记录见：
 
@@ -192,23 +209,33 @@ NeuralFlow/
 │   ├── agents/
 │   ├── api/
 │   │   ├── documents.py
+│   │   ├── eval.py
 │   │   ├── retrieval.py
-│   │   └── streaming.py
+│   │   ├── streaming.py
+│   │   └── traces.py
 │   ├── core/
 │   ├── db/
 │   ├── documents/
 │   ├── embeddings/
+│   ├── evals/
 │   ├── ingestion/
+│   │   └── multimodal/     # image/table extraction
 │   ├── memory/
+│   ├── observability/
+│   │   ├── trace_manager.py
+│   │   ├── trace_persister.py
+│   │   └── eval_metrics.py
 │   ├── rag/
 │   ├── retrieval/
 │   └── main.py
 ├── frontend/
 │   ├── app/
+│   │   ├── chat/
 │   │   └── documents/
 │   ├── components/
 │   │   ├── documents/
-│   │   └── rag/
+│   │   ├── rag/
+│   │   └── ui/
 │   ├── features/
 │   ├── services/
 │   └── types/
@@ -416,6 +443,12 @@ RAG 相关：
 - `rag_default_top_k`
 - `rag_score_threshold`
 
+多模态 RAG（可选）：
+- `MULTIMODAL_ENABLED`（默认 `false`）
+- `VISION_MODEL`（默认 `gpt-4o`）
+- `MULTIMODAL_MAX_IMAGES`（默认 20）
+- `MULTIMODAL_MAX_TABLES`（默认 50）
+
 生产环境建议：
 
 - 将 `LLM_API_BASE` / `LLM_API_KEY` 与 `EMBEDDING_API_BASE` / `EMBEDDING_API_KEY` 分开配置，避免某些代理只支持 chat 不支持 embeddings。
@@ -606,7 +639,7 @@ uv run pytest tests/ -v
 - [x] 多用户 / 多租户隔离
 - [x] PDF / Markdown / TXT / DOCX 解析
 - [x] token-aware chunk pipeline
-- [x] embedding provider abstraction
+- [x] embedding provider abstraction（in-memory + Redis cache）
 - [x] ChromaDB retrieval
 - [x] RAG context builder
 - [x] Agent / Chat RAG injection
@@ -614,20 +647,28 @@ uv run pytest tests/ -v
 - [x] source citations 展示
 - [x] retrieval chunk 可视化
 - [x] 异步 ingestion 任务
-- [x] 测试覆盖主链路
-
----
+- [x] 测试覆盖主链路（**644 tests**）
+- [x] **Hybrid retrieval（keyword + vector search）**
+- [x] **Advanced RAG pipeline（query transformation + correctness grading + corrective loop）**
+- [x] **Performance benchmarks（HTMX HTML reports）**
+- [x] **LLM-as-judge answer evaluation（relevance / faithfulness / completeness）**
+- [x] **Pipeline tracing with DB persistence + API**
+- [x] **Prometheus eval metrics gauges**
+- [x] **Multimodal RAG（image description from PDF/DOCX, table→markdown extraction）**
+- [x] **CI/CD 自动合入（auto-merge for Dependabot, eval gate）**
+- [x] **Security headers（CSP）**
 
 ## 15. 下一步可继续增强
 
-- Redis-backed embedding cache
 - richer metadata filter（tags / owner / document groups）
 - markdown heading hierarchy parsing
 - OCR pipeline
-- reranker / hybrid retrieval
+- reranker（cross-encoder）
 - signed file preview URLs
-- Postgres production profile
+- Postgres production migration
 - role-based knowledge base ACL
+- auth / SSO integration
+- deployment manifests（K8s / Helm）
 
 ---
 
