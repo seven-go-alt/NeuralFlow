@@ -9,6 +9,9 @@ class RetrievalFilters(BaseModel):
     document_ids: list[str] = Field(default_factory=list)
     file_types: list[str] = Field(default_factory=list)
     content_types: list[str] = Field(default_factory=list)
+    tags: list[str] | None = None
+    owner: str | None = None
+    groups: list[str] | None = None
 
 
 class RetrievalRequest(BaseModel):

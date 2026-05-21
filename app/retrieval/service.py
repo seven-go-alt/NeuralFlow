@@ -55,14 +55,27 @@ class RetrievalService:
         document_ids = filters.get("document_ids") or []
         if len(document_ids) == 1:
             clauses.append({"document_id": document_ids[0]})
+        elif len(document_ids) > 1:
+            clauses.append({"document_id": {"$in": document_ids}})
         file_types = filters.get("file_types") or []
         if len(file_types) == 1:
             clauses.append({"file_type": file_types[0]})
+        elif len(file_types) > 1:
+            clauses.append({"file_type": {"$in": file_types}})
         content_types = filters.get("content_types") or []
         if len(content_types) == 1:
             clauses.append({"content_type": content_types[0]})
         elif len(content_types) > 1:
-            clauses.append({"$or": [{"content_type": ct} for ct in content_types]})
+            clauses.append({"content_type": {"$in": content_types}})
+        tags = filters.get("tags")
+        if tags:
+            clauses.append({"tags": {"$in": tags}})
+        owner = filters.get("owner")
+        if owner:
+            clauses.append({"owner": {"$eq": owner}})
+        groups = filters.get("groups")
+        if groups:
+            clauses.append({"groups": {"$in": groups}})
         return {"$and": clauses} if len(clauses) > 1 else clauses[0]
 
     def _dedupe(self, results: list[RetrievalResult]) -> list[RetrievalResult]:
