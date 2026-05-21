@@ -43,19 +43,40 @@ class CrossEncoderReranker:
         enabled = self._enabled and s.cross_encoder_enabled
 
         if not enabled:
-            return heuristic_rerank(chunks, query)
+            hw = s.reranker_heuristic_weights
+            return heuristic_rerank(
+                chunks,
+                query,
+                vector_weight=hw.get("vector_weight", 0.5),
+                keyword_weight=hw.get("keyword_weight", 0.3),
+                metadata_weight=hw.get("metadata_weight", 0.2),
+            )
 
         model = _load_model(model_name)
         if model is None:
             logger.warning("cross-encoder model unavailable, falling back to heuristic rerank")
-            return heuristic_rerank(chunks, query)
+            hw = s.reranker_heuristic_weights
+            return heuristic_rerank(
+                chunks,
+                query,
+                vector_weight=hw.get("vector_weight", 0.5),
+                keyword_weight=hw.get("keyword_weight", 0.3),
+                metadata_weight=hw.get("metadata_weight", 0.2),
+            )
 
         pairs = [(query, c.content) for c in chunks]
         try:
             scores: list[float] = model.predict(pairs).tolist()
         except Exception as exc:
             logger.warning("cross-encoder inference failed: %s", exc)
-            return heuristic_rerank(chunks, query)
+            hw = s.reranker_heuristic_weights
+            return heuristic_rerank(
+                chunks,
+                query,
+                vector_weight=hw.get("vector_weight", 0.5),
+                keyword_weight=hw.get("keyword_weight", 0.3),
+                metadata_weight=hw.get("metadata_weight", 0.2),
+            )
 
         normalized = [_sigmoid(s) for s in scores]
         indexed = list(enumerate(chunks))

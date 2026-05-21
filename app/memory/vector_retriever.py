@@ -25,12 +25,16 @@ class VectorRetriever:
         cache_client: Any | None = None,
         cache_ttl_seconds: int = 300,
         tenant_id: str = "public",
+        bm25_k1: float = 1.5,
+        bm25_b: float = 0.75,
     ) -> None:
         self.collection = collection
         self.cache_client = cache_client
         self.cache_ttl_seconds = cache_ttl_seconds
         self.tenant_id = tenant_id or "public"
         self.last_cache_hit = False
+        self.bm25_k1 = bm25_k1
+        self.bm25_b = bm25_b
 
     RRF_K = 60  # Reciprocal Rank Fusion constant
 
@@ -163,9 +167,9 @@ class VectorRetriever:
         for term in query_terms:
             df[term] = sum(1 for doc in documents if term in doc.lower())
 
-        # BM25 scoring (simplified: k1=1.5, b=0.75, avgdl approximation)
+        # BM25 scoring (default: k1=1.5, b=0.75, avgdl approximation)
         avg_dl = max(1, sum(len(d) for d in documents) / doc_count)
-        k1, b = 1.5, 0.75
+        k1, b = self.bm25_k1, self.bm25_b
         ranked: list[RetrievedDocument] = []
         for content, metadata in zip(documents, metadatas, strict=False):
             lowered = content.lower()

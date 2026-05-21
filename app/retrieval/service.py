@@ -5,16 +5,21 @@ from typing import Any
 from app.documents.repository import DocumentRepository
 from app.embeddings.service import EmbeddingService
 from app.retrieval.chroma_store import ChromaDocumentStore
+from app.retrieval.reranker import CrossEncoderReranker
 from app.retrieval.schemas import RetrievalRequest, RetrievalResponse, RetrievalResult
 
 
 class RetrievalService:
     def __init__(
-        self, document_repo: DocumentRepository, embedding_service: EmbeddingService | None = None
+        self,
+        document_repo: DocumentRepository,
+        embedding_service: EmbeddingService | None = None,
+        reranker: CrossEncoderReranker | None = None,
     ) -> None:
         self.document_repo = document_repo
         self.embedding_service = embedding_service or EmbeddingService()
         self.store = ChromaDocumentStore()
+        self.reranker = reranker or CrossEncoderReranker()
 
     async def search(self, tenant_id: str, request: RetrievalRequest) -> RetrievalResponse:
         where = self._build_where(tenant_id=tenant_id, filters=request.filters.model_dump())
@@ -48,7 +53,9 @@ class RetrievalService:
                     },
                 )
             )
-        return RetrievalResponse(query=request.query, results=self._dedupe(results))
+        results = self._dedupe(results)
+        results = self.reranker.rerank(query=request.query, chunks=results, top_k=request.top_k)
+        return RetrievalResponse(query=request.query, results=results)
 
     def _build_where(self, tenant_id: str, filters: dict[str, Any]) -> dict[str, Any]:
         clauses: list[dict[str, Any]] = [{"tenant_id": tenant_id}]

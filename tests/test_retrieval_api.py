@@ -158,6 +158,11 @@ async def test_retrieval_service_search_parses_chroma_response(monkeypatch) -> N
             }
 
     monkeypatch.setattr("app.retrieval.service.ChromaDocumentStore", lambda: StubStore())
+    monkeypatch.setenv("CROSS_ENCODER_ENABLED", "false")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
 
     service = RetrievalService(document_repo=None)
     request = RetrievalRequest(query="test", filters=RetrievalFilters())
