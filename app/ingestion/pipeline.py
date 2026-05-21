@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class IngestionPipeline:
     def __init__(self) -> None:
         self.embedding_service = EmbeddingService()
-        self.chunk_splitter: RecursiveChunkSplitter | MarkdownHeadingSplitter = RecursiveChunkSplitter()
+        self.chunk_splitter: RecursiveChunkSplitter | MarkdownHeadingSplitter = (
+            RecursiveChunkSplitter()
+        )
         self.store = ChromaDocumentStore()
 
     async def run(
