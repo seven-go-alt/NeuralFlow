@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: {{ .Values.global.namespace | default "neuralflow" }}
+  labels:
+    {{- include "neuralflow.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "neuralflow.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "neuralflow.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ include "neuralflow.apiImage" . }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- range .Values.worker.command }}
+            - {{ . | quote }}
+            {{- end }}
+          args:
+            {{- range .Values.worker.args }}
+            - {{ . | quote }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "neuralflow.fullname" . }}-config
+            - secretRef:
+                name: {{ include "neuralflow.fullname" . }}-secret
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - "-c"
+                - "import socket, sys; s=socket.create_connection(('redis', 6379), 5); s.close(); sys.exit(0)"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - "-c"
+                - "import socket, sys; s=socket.create_connection(('redis', 6379), 5); s.close(); sys.exit(0)"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: {{ .Values.global.namespace | default "neuralflow" }}
+  labels:
+    {{- include "neuralflow.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.worker.service.port }}
+      targetPort: {{ .Values.worker.service.targetPort }}
+      name: http
+  selector:
+    {{- include "neuralflow.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: worker

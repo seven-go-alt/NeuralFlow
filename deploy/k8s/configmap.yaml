@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neuralflow-config
+  namespace: neuralflow
+  labels:
+    app.kubernetes.io/name: neuralflow
+    app.kubernetes.io/part-of: neuralflow
+data:
+  APP_NAME: "NeuralFlow"
+  APP_ENV: "production"
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+
+  CHROMA_HOST: "chroma"
+  CHROMA_PORT: "8000"
+  CHROMA_COLLECTION: "conversation_memory"
+  DOCUMENT_CHROMA_COLLECTION: "document_knowledge"
+
+  LITELLM_MODEL: "gpt-4o-mini"
+  EMBEDDING_MODEL: "text-embedding-3-small"
+
+  CELERY_WORKER_POOL: "solo"
+
+  MCP_BASE_URL: "http://localhost:9000"
+
+  DB_POOL_SIZE: "5"
+  DB_MAX_OVERFLOW: "10"
+
+  DOCUMENTS_STORAGE_DIR: "/data/uploads"
+
+  # Proxy settings for internal traffic
+  NO_PROXY: "localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend,.svc,.cluster.local"
