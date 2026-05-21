@@ -40,6 +40,7 @@ from app.middleware.telemetry import TelemetryMiddleware
 from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models import TenantContext
 from app.plugins.manager import PluginManager
+from app.rag.answer_evaluator import evaluate_answer
 from app.retrieval.service import RetrievalService
 from app.skills.mcp_client import MCPClient
 from app.skills.registry import SkillDefinition, skill_registry
@@ -420,6 +421,32 @@ async def chat_stream(
         )
         payload["working_memory"].add_message("assistant", final_reply)
 
+        if settings.streaming_eval_enabled and final_reply:
+            try:
+                context_chunks = [
+                    item.get("content", "")
+                    for item in payload.get("retrieval_results", [])
+                    if item.get("content")
+                ]
+                eval_result = await evaluate_answer(
+                    query=payload.get("user_message", ""),
+                    answer=final_reply,
+                    context_chunks=context_chunks,
+                    llm=llm_client,
+                )
+                yield {
+                    "event": "eval",
+                    "data": {
+                        "relevance": eval_result.relevance,
+                        "faithfulness": eval_result.faithfulness,
+                        "completeness": eval_result.completeness,
+                        "overall": eval_result.overall,
+                        "reason": eval_result.reason,
+                    },
+                }
+            except Exception:
+                logger.warning("streaming eval failed", exc_info=True)
+
     return await create_sse_response(request.session_id, event_source, stream_registry)
 
 
@@ -687,6 +714,7 @@ async def _prepare_chat(request: ChatRequest, tenant_context: TenantContext | No
         "working_memory": working_memory,
         "intent": routed.primary_intent,
         "prompt": prompt,
+        "user_message": request.message,
         "skill_results": skill_results,
         "retrieval_results": rag_results,
         "rag_citations": rag_citations,

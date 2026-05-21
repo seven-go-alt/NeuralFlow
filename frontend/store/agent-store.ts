@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ChatMode,
   ConversationSession,
+  EvalScore,
   RuntimeEvent,
   RuntimeHint,
   RuntimeMetrics,
@@ -50,6 +51,8 @@ interface AgentState {
   setStreaming: (value: boolean) => void;
   toggleRightPanel: () => void;
   toggleSidebar: () => void;
+  evalResult: EvalScore | null;
+  setEvalResult: (result: EvalScore | null) => void;
 }
 
 const emptyRuntime = (): RuntimeSnapshot => ({
@@ -80,6 +83,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   rightPanelOpen: true,
   sidebarOpen: false,
   isStreaming: false,
+  evalResult: null,
   setMode: (mode) => set({ mode }),
   setModel: (model) => set({ model }),
   setApiBaseUrl: (apiBaseUrl) => set({ apiBaseUrl }),
@@ -188,8 +192,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   setRetrievedChunks: (retrievedChunks) => set((state) => ({ runtime: { ...state.runtime, retrievedChunks } })),
   setMetrics: (metrics) => set((state) => ({ runtime: { ...state.runtime, metrics: { ...state.runtime.metrics, ...metrics } } })),
   setRuntimeHint: (hint) => set((state) => ({ runtime: { ...state.runtime, hint } })),
-  resetRuntime: () => set({ runtime: emptyRuntime() }),
+  resetRuntime: () => set({ runtime: emptyRuntime(), evalResult: null }),
   setStreaming: (isStreaming) => set({ isStreaming }),
+  setEvalResult: (evalResult) => set({ evalResult }),
   toggleRightPanel: () => set((state) => ({ rightPanelOpen: !state.rightPanelOpen })),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 }));

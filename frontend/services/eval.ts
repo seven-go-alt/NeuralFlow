@@ -1,4 +1,4 @@
-import type { EvalRunDetail, EvalRunsResponse } from "@/types/eval";
+import type { EvalRunDetail, EvalRunsResponse, TriggerEvalRunRequest, TriggerEvalRunResponse } from "@/types/eval";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -15,5 +15,16 @@ export async function listEvalRuns(): Promise<EvalRunsResponse> {
 export async function getEvalRun(runId: string): Promise<EvalRunDetail> {
   const response = await fetch(`${API_BASE}/api/v1/eval/runs/${runId}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Failed to get eval run: ${response.status}`);
+  return response.json();
+}
+
+export async function triggerEvalRun(req: TriggerEvalRunRequest): Promise<TriggerEvalRunResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/eval/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Failed to trigger eval run: ${response.status}`);
   return response.json();
 }

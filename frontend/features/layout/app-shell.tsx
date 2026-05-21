@@ -14,7 +14,7 @@ import { apiClient } from "@/services/api-client";
 import { searchRetrieval } from "@/services/retrieval";
 import { streamChat } from "@/services/streaming";
 import { useAgentStore } from "@/store/agent-store";
-import type { ReactAgentResponse, RuntimeEvent, ToolCall } from "@/types/agent";
+import type { EvalScore, ReactAgentResponse, RuntimeEvent, ToolCall } from "@/types/agent";
 
 import { Sidebar } from "./sidebar";
 
@@ -38,6 +38,7 @@ export function AppShell() {
     setRuntimeHint,
     resetRuntime,
     setStreaming,
+    setEvalResult,
     toggleRightPanel,
     toggleSidebar,
     setSessionDocument,
@@ -186,6 +187,11 @@ export function AppShell() {
                 ]);
                 setRuntimeHint(null);
               },
+              onEval: (data) => {
+                const score = data as unknown as EvalScore;
+                setEvalResult(score);
+                runtimeEvent("metrics", "Answer evaluated", `Overall: ${(score.overall * 100).toFixed(0)}% | ${score.reason}`, "success");
+              },
               onDone: (data) => {
                 runtimeEvent("metrics", "Stream completed", "SSE response closed successfully.", "success");
                 setMetrics({ latencyMs: Number(data.stream_latency ?? 0) * 1000 });
@@ -284,6 +290,7 @@ export function AppShell() {
       setRetrievedChunks,
       setRuntimeHint,
       setStreaming,
+      setEvalResult,
       updateMessage,
     ],
   );
