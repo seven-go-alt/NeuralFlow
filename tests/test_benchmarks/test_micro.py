@@ -1,6 +1,6 @@
 """Microbenchmarks for core retrieval and scoring functions."""
 
-from app.retrieval.reranker import heuristic_rerank, _sigmoid
+from app.retrieval.reranker import _sigmoid, heuristic_rerank
 from app.retrieval.schemas import RetrievalResult
 
 
