@@ -118,6 +118,23 @@ class Settings(BaseSettings):
     multimodal_max_image_size_mb: int = Field(default=5, alias="MULTIMODAL_MAX_IMAGE_SIZE_MB")
     multimodal_max_tables: int = Field(default=50, alias="MULTIMODAL_MAX_TABLES")
 
+    # OCR pipeline for scanned documents and images
+    ocr_enabled: bool = Field(default=False, alias="OCR_ENABLED")
+    ocr_language: str = Field(default="eng", alias="OCR_LANGUAGE")
+    ocr_dpi: int = Field(default=300, alias="OCR_DPI")
+
+    # Cross-encoder reranker
+    cross_encoder_enabled: bool = Field(default=True, alias="CROSS_ENCODER_ENABLED")
+    reranker_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
+    )
+    reranker_top_k: int = Field(default=5, alias="RERANKER_TOP_K")
+
+    # Chunking strategy
+    chunking_strategy: str = Field(default="fixed", alias="CHUNKING_STRATEGY")
+    chunk_max_section_chars: int = Field(default=2000, alias="CHUNK_MAX_SECTION_CHARS")
+    chunk_min_section_chars: int = Field(default=100, alias="CHUNK_MIN_SECTION_CHARS")
+
     intent_default: str = "general"
     intent_llm_fallback_enabled: bool = True
     intent_keyword_rules_json: str = Field(

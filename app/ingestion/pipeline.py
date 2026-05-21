@@ -76,6 +76,24 @@ class IngestionPipeline:
                 parsed.metadata["image_count"] = extraction.image_count
                 parsed.metadata["table_count"] = extraction.table_count
 
+            # OCR pipeline for scanned documents and images
+            if settings.ocr_enabled and record.file_type in ("pdf", "png", "jpg", "jpeg", "tiff"):
+                from app.ingestion.ocr.processor import OCRProcessor
+
+                ocr_processor = OCRProcessor()
+                ocr_sections = await asyncio.to_thread(
+                    ocr_processor.process,
+                    source_path=record.storage_path,
+                    file_type=record.file_type,
+                    document_id=document_id,
+                    tenant_id=tenant_id,
+                    settings=settings,
+                )
+                if ocr_sections:
+                    parsed.sections.extend(ocr_sections)
+                    parsed.metadata["ocr_applied"] = True
+                    parsed.metadata["ocr_page_count"] = len(ocr_sections)
+
             repo.update_status(tenant_id, document_id, DocumentStatus.CHUNKING)
             chunks = self.chunk_splitter.split(parsed)
             repo.update_status(

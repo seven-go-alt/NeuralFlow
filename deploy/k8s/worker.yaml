@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: neuralflow
+  labels:
+    app.kubernetes.io/name: neuralflow
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: neuralflow-api:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - "-lc"
+          args:
+            - '/app/.venv/bin/celery -A worker.celery_app worker --loglevel=info --pool=${CELERY_WORKER_POOL:-solo}'
+          envFrom:
+            - configMapRef:
+                name: neuralflow-config
+            - secretRef:
+                name: neuralflow-secret
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: neuralflow-secret
+                  key: DATABASE_URL
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - "-c"
+                - "import socket, sys; s=socket.create_connection(('redis', 6379), 5); s.close(); sys.exit(0)"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - "-c"
+                - "import socket, sys; s=socket.create_connection(('redis', 6379), 5); s.close(); sys.exit(0)"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+      # Workers don't need a Service by default, but keep it for potential metrics scraping
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: neuralflow
+  labels:
+    app.kubernetes.io/name: neuralflow
+    app.kubernetes.io/component: worker
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app.kubernetes.io/component: worker

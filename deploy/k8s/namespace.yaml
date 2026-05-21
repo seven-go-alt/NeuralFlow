@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neuralflow
+  labels:
+    app.kubernetes.io/name: neuralflow
+    app.kubernetes.io/part-of: neuralflow
