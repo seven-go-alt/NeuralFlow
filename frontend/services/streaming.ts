@@ -6,6 +6,7 @@ export interface StreamCallbacks {
   onError?: (error: Error) => void;
   onRetrieval?: (data: Record<string, unknown>) => void;
   onChunk?: (data: Record<string, unknown>) => void;
+  onEval?: (data: Record<string, unknown>) => void;
 }
 
 export async function streamChat({
@@ -64,6 +65,7 @@ export async function streamChat({
       if (parsed.event === "done") callbacks.onDone?.(parsed.data);
       if (parsed.event === "retrieval") callbacks.onRetrieval?.(parsed.data);
       if (parsed.event === "chunk") callbacks.onChunk?.(parsed.data);
+      if (parsed.event === "eval") callbacks.onEval?.(parsed.data);
       if (parsed.event === "error") callbacks.onError?.(new Error(String(parsed.data.error ?? "Stream error")));
     }
   }

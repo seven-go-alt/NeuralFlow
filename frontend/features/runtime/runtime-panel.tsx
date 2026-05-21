@@ -10,9 +10,11 @@ import { MetricsStrip } from "./metrics-strip";
 import { PipelineTimeline } from "./pipeline-timeline";
 import { RetrievedChunks } from "./retrieved-chunks";
 import { ToolCallList } from "./tool-call-list";
+import { EvalBadge } from "@/components/runtime/eval-badge";
 
 export function RuntimePanel() {
   const runtime = useAgentStore((state) => state.runtime);
+  const evalResult = useAgentStore((state) => state.evalResult);
   const toggleRightPanel = useAgentStore((state) => state.toggleRightPanel);
 
   return (
@@ -53,6 +55,7 @@ export function RuntimePanel() {
           </div>
         </div>
         <MetricsStrip metrics={runtime.metrics} />
+        {evalResult && <EvalBadge evalResult={evalResult} />}
         <PipelineTimeline events={runtime.events} />
         <RetrievedChunks chunks={runtime.retrievedChunks} />
         <ToolCallList toolCalls={runtime.toolCalls} />

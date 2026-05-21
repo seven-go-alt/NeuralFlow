@@ -102,6 +102,7 @@ class Settings(BaseSettings):
     vector_search_cache_ttl_seconds: int = 300
     vector_search_default_top_k: int = 3
     stream_thinking_enabled: bool = False
+    streaming_eval_enabled: bool = False
 
     rag_advanced_enabled: bool = False
     rag_use_multi_query: bool = False

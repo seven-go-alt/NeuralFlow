@@ -87,6 +87,14 @@ export interface ToolCall {
   latencyMs?: number;
 }
 
+export interface EvalScore {
+  relevance: number;
+  faithfulness: number;
+  completeness: number;
+  overall: number;
+  reason: string;
+}
+
 export interface RuntimeMetrics {
   tokensIn?: number;
   tokensOut?: number;

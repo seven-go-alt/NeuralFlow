@@ -96,7 +96,7 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - tenant middleware
 - Prometheus metrics
 - runtime config hot patch
-- pytest regression coverage（**644 tests**）
+- pytest regression coverage（**689 tests**）
 - **Performance benchmarks（ingestion latency / retrieval latency / token usage）**
 - **GitHub Actions CI/CD（auto-merge for Dependabot, eval gate, multi-stage workflows）**
 
@@ -496,7 +496,7 @@ RAG 相关：
 - 引用来源展示
 - 多租户隔离
 - streaming observability
-- 644 regression tests
+- 689 regression tests
 - Performance benchmarks
 - 自动化 CI/CD（path filtering、auto-merge、eval gate）
 
@@ -690,7 +690,7 @@ uv run pytest tests/ -v
 - [x] source citations 展示
 - [x] retrieval chunk 可视化
 - [x] 异步 ingestion 任务
-- [x] 测试覆盖主链路（**644 tests**）
+- [x] 测试覆盖主链路（**689 tests**）
 - [x] **Hybrid retrieval（keyword + vector search）**
 - [x] **Advanced RAG pipeline（query transformation + correctness grading + corrective loop）**
 - [x] **Performance benchmarks（ingestion / retrieval / token usage, HTML reports）**
@@ -700,19 +700,23 @@ uv run pytest tests/ -v
 - [x] **Multimodal RAG（image description from PDF/DOCX, table→markdown extraction）**
 - [x] **CI/CD 自动合入（auto-merge for Dependabot, eval gate）**
 - [x] **Security headers（CSP）**
+- [x] **Redis-backed embedding cache with connection pooling**
+- [x] **Rich metadata filters（tags / owner / document groups, multi-value $in support）**
+- [x] **Markdown heading hierarchy parsing & chunking**
+- [x] **OCR pipeline（pytesseract + pdf2image for scanned documents）**
+- [x] **Cross-encoder reranker（lazy-loaded transformer model）**
+- [x] **Signed file preview URLs（HMAC time-limited tokens）**
+- [x] **Postgres production migration guide（MIGRATION.md + .env.production.example）**
+- [x] **Deployment manifests（K8s + Helm charts）**
 
 ## 15. 下一步可继续增强
 
-- Redis-backed embedding cache with connection pooling（目前每次 get/set 新建连接）
-- richer metadata filter（tags / owner / document groups）
-- markdown heading hierarchy parsing
-- OCR pipeline
-- reranker（cross-encoder）
-- signed file preview URLs
-- Postgres production migration
-- role-based knowledge base ACL
-- auth / SSO integration
-- deployment manifests（K8s / Helm）
+- **role-based knowledge base ACL** — 文档/知识库按角色粒度的访问控制，需要补全 auth 系统后再做
+- **auth / SSO integration** — 用户认证与单点登录，已完成 JWT 基础框架，对接 OAuth/OIDC 待实现
+- **evaluation dashboard** — 在 frontend 中加入 LLM-as-judge 评估结果可视化面板（当前仅可通过 API 查看）
+- **advanced reranker model** — 替换当前 `MiniLM-L-6-v2` 为更大更强的 cross-encoder 模型（如 `electra-base`），提升排序精度
+- **hybrid search index tuning** — BM25 参数（k1 / b）可配置化，适应不同文档类型的最佳检索权重
+- **streaming eval monitoring** — 在 chat stream 中实时注入评估评分事件，供前端或监控系统消费
 
 ---
 
