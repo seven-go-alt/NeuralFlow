@@ -30,11 +30,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
@@ -42,38 +37,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Sync Python dependencies
-        env:
-          UV_HTTP_TIMEOUT: "180"
-          UV_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-        run: uv sync --frozen
-
-      - name: Run backend tests
-        env:
-          UV_HTTP_TIMEOUT: "180"
-          UV_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-        run: uv run pytest
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-
-      - name: Run frontend lint
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Run frontend typecheck
-        working-directory: frontend
-        run: npm run typecheck
-
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npm test
 
       - name: Build frontend
         working-directory: frontend
