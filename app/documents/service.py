@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.documents.enums import DocumentFileType, DocumentStatus
 from app.documents.repository import DocumentRepository
 from app.documents.schemas import DocumentCreate
-from app.documents.storage import LocalDocumentStorage
+from app.documents.storage import DocumentStorage, create_storage
 
 _ALLOWED_SUFFIXES = {
     ".pdf": DocumentFileType.PDF.value,
@@ -26,10 +26,10 @@ class DocumentValidationError(ValueError):
 
 
 class DocumentService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, storage: DocumentStorage | None = None) -> None:
         self.db = db
         self.repo = DocumentRepository(db)
-        self.storage = LocalDocumentStorage()
+        self.storage = storage or create_storage()
 
     async def upload_document(
         self, tenant_id: str, owner_user_id: str, upload: UploadFile, title: str | None = None

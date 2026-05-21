@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE")
     db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW")
     documents_storage_dir: str = Field(default="data/uploads", alias="DOCUMENTS_STORAGE_DIR")
+    document_storage_backend: str = Field(default="local", alias="DOCUMENT_STORAGE_BACKEND")
+    s3_bucket: str = Field(default="neuralflow", alias="S3_BUCKET")
+    s3_region: str = Field(default="us-east-1", alias="S3_REGION")
+    s3_endpoint_url: str | None = Field(default=None, alias="S3_ENDPOINT_URL")
     document_max_upload_mb: int = 50
     rag_default_top_k: int = 5
     rag_score_threshold: float = 0.0
