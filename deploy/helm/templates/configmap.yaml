@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neuralflow.fullname" . }}-config
+  namespace: {{ .Values.global.namespace | default "neuralflow" }}
+  labels:
+    {{- include "neuralflow.labels" . | nindent 4 }}
+data:
+  APP_NAME: {{ .Values.config.appName | quote }}
+  APP_ENV: {{ .Values.config.appEnv | quote }}
+  API_HOST: {{ .Values.config.apiHost | quote }}
+  API_PORT: {{ .Values.config.apiPort | quote }}
+
+  REDIS_HOST: {{ .Values.config.redisHost | quote }}
+  REDIS_PORT: {{ .Values.config.redisPort | quote }}
+  REDIS_DB: {{ .Values.config.redisDb | quote }}
+
+  CHROMA_HOST: {{ .Values.config.chromaHost | quote }}
+  CHROMA_PORT: {{ .Values.config.chromaPort | quote }}
+  CHROMA_COLLECTION: {{ .Values.config.chromaCollection | quote }}
+  DOCUMENT_CHROMA_COLLECTION: {{ .Values.config.documentChromaCollection | quote }}
+
+  LITELLM_MODEL: {{ .Values.config.litellmModel | quote }}
+  EMBEDDING_MODEL: {{ .Values.config.embeddingModel | quote }}
+
+  CELERY_WORKER_POOL: {{ .Values.config.celeryWorkerPool | quote }}
+
+  MCP_BASE_URL: {{ .Values.config.mcpBaseUrl | quote }}
+
+  DB_POOL_SIZE: {{ .Values.config.dbPoolSize | quote }}
+  DB_MAX_OVERFLOW: {{ .Values.config.dbMaxOverflow | quote }}
+
+  DOCUMENTS_STORAGE_DIR: {{ .Values.config.documentsStorageDir | quote }}
+
+  NO_PROXY: {{ .Values.config.noProxy | quote }}

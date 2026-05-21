@@ -1,0 +1,210 @@
+# =============================================================================
+# NeuralFlow Helm Chart Values
+# =============================================================================
+# This is the default values file for the NeuralFlow Helm chart.
+# Override any value using --set or a custom values file.
+
+# Global settings
+global:
+  namespace: neuralflow
+
+# =============================================================================
+# Image configuration
+# =============================================================================
+image:
+  registry: ""
+  tag: latest
+  pullPolicy: Always
+
+api:
+  image:
+    repository: neuralflow-api
+    # tag is inherited from global .Values.image.tag
+
+  replicas: 2
+  maxReplicas: 10
+  hpaCpuTarget: 70
+
+  command:
+    - /docker-entrypoint.sh
+  args:
+    - gunicorn
+    - -k
+    - uvicorn.UvicornWorker
+    - -w
+    - "4"
+    - --bind
+    - "0.0.0.0:8000"
+    - app.main:app
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+  service:
+    port: 8000
+    targetPort: 8000
+
+  uploads:
+    storageSize: 5Gi
+    storageClass: ""
+
+worker:
+  image:
+    repository: neuralflow-api
+    # Same image as API, different command
+
+  replicas: 1
+
+  command:
+    - /bin/sh
+    - -lc
+  args:
+    - '/app/.venv/bin/celery -A worker.celery_app worker --loglevel=info --pool={{ .Values.config.celeryWorkerPool | default "solo" }}'
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+  service:
+    port: 8000
+    targetPort: 8000
+
+frontend:
+  image:
+    repository: neuralflow-frontend
+
+  replicas: 2
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  service:
+    port: 3000
+    targetPort: 3000
+
+  env:
+    NODE_ENV: production
+    PORT: "3000"
+    API_BASE: http://api:8000
+    NEXT_PUBLIC_API_BASE_URL: ""
+
+# =============================================================================
+# Service configuration
+# =============================================================================
+redis:
+  image: redis:7-alpine
+  port: 6379
+  persistence:
+    storageSize: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+chroma:
+  image: chromadb/chroma:1.0.20
+  port: 8000
+  persistence:
+    storageSize: 10Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+postgres:
+  image: postgres:16-alpine
+  port: 5432
+  database: neuralflow
+  user: neuralflow
+  persistence:
+    storageSize: 10Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+# =============================================================================
+# Application configuration (non-sensitive)
+# =============================================================================
+config:
+  appName: NeuralFlow
+  appEnv: production
+  apiHost: 0.0.0.0
+  apiPort: 8000
+
+  redisHost: redis
+  redisPort: 6379
+  redisDb: "0"
+
+  chromaHost: chroma
+  chromaPort: 8000
+  chromaCollection: conversation_memory
+  documentChromaCollection: document_knowledge
+
+  litellmModel: gpt-4o-mini
+  embeddingModel: text-embedding-3-small
+
+  celeryWorkerPool: solo
+
+  mcpBaseUrl: http://localhost:9000
+
+  dbPoolSize: "5"
+  dbMaxOverflow: "10"
+
+  documentsStorageDir: /data/uploads
+
+  noProxy: "localhost,127.0.0.1,redis,chroma,postgres,api,worker,frontend,.svc,.cluster.local"
+
+# =============================================================================
+# Secrets (should be overridden per environment)
+# =============================================================================
+secrets:
+  postgresPassword: change-me
+  databaseUrl: postgresql+psycopg://neuralflow:change-me@postgres:5432/neuralflow
+  openaiApiKey: change-me
+  llmApiKey: change-me
+  embeddingApiKey: change-me
+  authJwtSecret: change-to-a-strong-random-secret
+  sentryDsn: ""
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  enabled: false
+  className: nginx
+  host: neuralflow.example.com
+  tls:
+    enabled: false
+    secretName: neuralflow-tls
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
