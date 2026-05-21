@@ -24,14 +24,19 @@ def test_dev_dependency_group_includes_quality_tools() -> None:
 
 def test_ci_workflow_runs_lint_typecheck_and_tests() -> None:
     workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    setup_backend = (
+        PROJECT_ROOT / ".github" / "actions" / "setup-backend" / "action.yml"
+    ).read_text(encoding="utf-8")
 
     assert "on:" in workflow
     assert "push:" in workflow
     assert "pull_request:" in workflow
-    assert "uv sync --group dev --frozen" in workflow
-    assert "uv run ruff check ." in workflow
-    assert "uv run mypy app tests worker.py" in workflow
-    assert "uv run pytest -q" in workflow
+    # Dependency sync is handled by the composite setup-backend action
+    assert "uv sync --group dev --frozen" in setup_backend
+    # Lint and typecheck run via pre-commit hooks (which wraps ruff + mypy)
+    assert "pre-commit run --all-files" in workflow
+    # Tests run in the test job
+    assert "uv run pytest" in workflow
 
 
 def test_pre_commit_hooks_match_project_quality_pipeline() -> None:
