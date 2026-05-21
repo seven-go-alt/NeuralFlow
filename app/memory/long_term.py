@@ -28,6 +28,8 @@ class LongTermMemory:
             cache_client=get_redis_client(),
             cache_ttl_seconds=settings.vector_search_cache_ttl_seconds,
             tenant_id=self.tenant_id,
+            bm25_k1=settings.bm25_k1,
+            bm25_b=settings.bm25_b,
         )
         self.default_top_k = settings.vector_search_default_top_k
 

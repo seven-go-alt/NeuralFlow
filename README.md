@@ -714,8 +714,8 @@ uv run pytest tests/ -v
 - **role-based knowledge base ACL** — 文档/知识库按角色粒度的访问控制，需要补全 auth 系统后再做
 - **auth / SSO integration** — 用户认证与单点登录，已完成 JWT 基础框架，对接 OAuth/OIDC 待实现
 - ~~evaluation dashboard~~ — 已完成：recharts 图表（趋势/分布/雷达）+ 触发评估 + 逐 Case 下钻
-- **advanced reranker model** — 替换当前 `MiniLM-L-6-v2` 为更大更强的 cross-encoder 模型（如 `electra-base`），提升排序精度
-- **hybrid search index tuning** — BM25 参数（k1 / b）可配置化，适应不同文档类型的最佳检索权重
+- ~~advanced reranker model~~ — 已完成：CrossEncoderReranker 已接入真实检索流程，支持 `RERANKER_MODEL` 切换更强模型，`RERANKER_HEURISTIC_WEIGHTS_JSON` 可调启发式兜底权重
+- ~~hybrid search index tuning~~ — 已完成：`BM25_K1` / `BM25_B` 环境变量可配置，传递给 VectorRetriever 内存混合检索的 BM25 评分
 - ~~streaming eval monitoring~~ — 已完成：chat SSE stream 中注入 eval 事件，前端 runtime 面板展示评分徽章
 
 ---

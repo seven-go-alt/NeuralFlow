@@ -125,6 +125,14 @@ class Settings(BaseSettings):
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
     reranker_top_k: int = Field(default=5, alias="RERANKER_TOP_K")
+    reranker_heuristic_weights_json: str = Field(
+        default='{"vector_weight": 0.5, "keyword_weight": 0.3, "metadata_weight": 0.2}',
+        alias="RERANKER_HEURISTIC_WEIGHTS_JSON",
+    )
+
+    # BM25 configuration for hybrid memory retrieval
+    bm25_k1: float = Field(default=1.5, alias="BM25_K1")
+    bm25_b: float = Field(default=0.75, alias="BM25_B")
 
     # Chunking strategy
     chunking_strategy: str = Field(default="fixed", alias="CHUNKING_STRATEGY")
@@ -195,11 +203,15 @@ class Settings(BaseSettings):
     def intent_policy_map(self) -> dict[str, dict[str, Any]]:
         return _load_json_mapping(self.intent_policy_map_json)
 
+    @property
+    def reranker_heuristic_weights(self) -> dict[str, float]:
+        return _load_json_mapping(self.reranker_heuristic_weights_json)
+
 
 def _load_json_mapping(raw_value: str) -> dict[str, Any]:
     value = json.loads(raw_value)
     if not isinstance(value, dict):
-        raise ValueError("Intent config must decode to a JSON object")
+        raise ValueError("Config value must decode to a JSON object")
     return value
 
 
