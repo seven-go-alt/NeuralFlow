@@ -7,7 +7,7 @@ from app.db.session import SessionLocal
 from app.documents.enums import DocumentStatus
 from app.documents.repository import DocumentRepository
 from app.embeddings.service import EmbeddingService
-from app.ingestion.chunking import RecursiveChunkSplitter
+from app.ingestion.chunking import MarkdownHeadingSplitter, RecursiveChunkSplitter
 from app.ingestion.parser_factory import ParserFactory
 from app.retrieval.chroma_store import ChromaDocumentStore
 
@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class IngestionPipeline:
     def __init__(self) -> None:
         self.embedding_service = EmbeddingService()
-        self.chunk_splitter = RecursiveChunkSplitter()
+        self.chunk_splitter: RecursiveChunkSplitter | MarkdownHeadingSplitter = (
+            RecursiveChunkSplitter()
+        )
         self.store = ChromaDocumentStore()
 
     async def run(
@@ -95,6 +97,18 @@ class IngestionPipeline:
                     parsed.metadata["ocr_page_count"] = len(ocr_sections)
 
             repo.update_status(tenant_id, document_id, DocumentStatus.CHUNKING)
+            if settings.chunking_strategy == "markdown_heading" and parsed.source_type in (
+                "md",
+                "markdown",
+            ):
+                self.chunk_splitter = MarkdownHeadingSplitter(
+                    chunk_size=900,
+                    chunk_overlap=120,
+                    max_section_chars=settings.chunk_max_section_chars,
+                    min_section_chars=settings.chunk_min_section_chars,
+                )
+            else:
+                self.chunk_splitter = RecursiveChunkSplitter()
             chunks = self.chunk_splitter.split(parsed)
             repo.update_status(
                 tenant_id,
