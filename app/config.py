@@ -130,6 +130,17 @@ class Settings(BaseSettings):
     chunk_max_section_chars: int = Field(default=2000, alias="CHUNK_MAX_SECTION_CHARS")
     chunk_min_section_chars: int = Field(default=100, alias="CHUNK_MIN_SECTION_CHARS")
 
+    # OCR pipeline for scanned documents and images
+    ocr_enabled: bool = Field(default=False, alias="OCR_ENABLED")
+    ocr_language: str = Field(default="eng", alias="OCR_LANGUAGE")
+    ocr_dpi: int = Field(default=300, alias="OCR_DPI")
+
+    # Signed document preview URLs
+    document_signed_url_ttl: int = Field(default=3600, alias="DOCUMENT_SIGNED_URL_TTL")
+    document_signed_url_secret: str = Field(
+        default="neuralflow-default-signing-secret", alias="DOCUMENT_SIGNED_URL_SECRET"
+    )
+
     intent_default: str = "general"
     intent_llm_fallback_enabled: bool = True
     intent_keyword_rules_json: str = Field(
