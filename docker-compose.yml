@@ -26,6 +26,14 @@ services:
       - redis
       - chroma
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+
   redis:
     image: redis:7-alpine
     ports:

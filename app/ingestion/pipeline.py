@@ -6,6 +6,7 @@ import logging
 from app.db.session import SessionLocal
 from app.documents.enums import DocumentStatus
 from app.documents.repository import DocumentRepository
+from app.documents.storage import DocumentStorage, create_storage
 from app.embeddings.service import EmbeddingService
 from app.ingestion.chunking import MarkdownHeadingSplitter, RecursiveChunkSplitter
 from app.ingestion.parser_factory import ParserFactory
@@ -15,12 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionPipeline:
-    def __init__(self) -> None:
+    def __init__(self, storage: DocumentStorage | None = None) -> None:
         self.embedding_service = EmbeddingService()
         self.chunk_splitter: RecursiveChunkSplitter | MarkdownHeadingSplitter = (
             RecursiveChunkSplitter()
         )
         self.store = ChromaDocumentStore()
+        self.storage = storage or create_storage()
 
     async def run(
         self, tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
@@ -35,12 +37,13 @@ class IngestionPipeline:
             if record is None:
                 raise ValueError(f"Document not found: {document_id}")
             repo.update_status(tenant_id, document_id, DocumentStatus.PARSING)
-            parser = ParserFactory.create(record.storage_path)
+            local_path = await self.storage.get_local_path(record.storage_path)
+            parser = ParserFactory.create(local_path)
             parsed = await asyncio.to_thread(
                 parser.parse,
                 document_id,
                 tenant_id,
-                record.storage_path,
+                local_path,
                 record.title,
             )
 
@@ -67,7 +70,7 @@ class IngestionPipeline:
                     ),
                 )
                 extraction = await processor.process(
-                    source_path=record.storage_path,
+                    source_path=local_path,
                     file_type=record.file_type,
                     parsed_doc=parsed,
                 )
@@ -85,7 +88,7 @@ class IngestionPipeline:
                 ocr_processor = OCRProcessor()
                 ocr_sections = await asyncio.to_thread(
                     ocr_processor.process,
-                    source_path=record.storage_path,
+                    source_path=local_path,
                     file_type=record.file_type,
                     document_id=document_id,
                     tenant_id=tenant_id,
