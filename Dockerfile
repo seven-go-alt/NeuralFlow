@@ -25,8 +25,7 @@ ENV HTTP_PROXY=${HTTP_PROXY:-} \
     UV_INDEX_URL=${UV_INDEX_URL:-} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
 
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     gcc \
