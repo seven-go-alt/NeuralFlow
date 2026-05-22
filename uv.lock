@@ -2431,12 +2431,16 @@ dependencies = [
     { name = "python-docx" },
     { name = "python-multipart" },
     { name = "redis" },
-    { name = "sentence-transformers" },
     { name = "sentry-sdk" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
     { name = "tiktoken" },
     { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+ml = [
+    { name = "sentence-transformers" },
 ]
 
 [package.dev-dependencies]
@@ -2475,13 +2479,14 @@ requires-dist = [
     { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "redis", specifier = ">=7.4.0" },
-    { name = "sentence-transformers", specifier = ">=3.4.0" },
+    { name = "sentence-transformers", marker = "extra == 'ml'", specifier = ">=3.4.0" },
     { name = "sentry-sdk", specifier = ">=2.20.0" },
     { name = "sqlalchemy", specifier = ">=2.0.44" },
     { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.9.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0" },
 ]
+provides-extras = ["ml"]
 
 [package.metadata.requires-dev]
 dev = [
