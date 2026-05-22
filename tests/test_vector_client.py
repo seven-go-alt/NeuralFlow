@@ -60,21 +60,24 @@ def test_in_memory_get_with_where() -> None:
 
 def test_get_vector_client_returns_in_memory_when_chroma_unavailable(monkeypatch) -> None:
     """When ChromaDB is unreachable and allow_in_memory=True, return InMemoryVectorClient."""
+    import chromadb
 
     def failing_client(*args, **kwargs):
         raise ConnectionError("Chroma unreachable")
 
-    monkeypatch.setattr("app.utils.vector_client.HttpClient", failing_client)
+    monkeypatch.setattr(chromadb, "HttpClient", failing_client)
 
     client = get_vector_client(allow_in_memory=True)
     assert isinstance(client, InMemoryVectorClient)
 
 
 def test_get_vector_client_raises_when_chroma_unavailable_and_not_allowed(monkeypatch) -> None:
+    import chromadb
+
     def failing_client(*args, **kwargs):
         raise ConnectionError("Chroma unreachable")
 
-    monkeypatch.setattr("app.utils.vector_client.HttpClient", failing_client)
+    monkeypatch.setattr(chromadb, "HttpClient", failing_client)
 
     with pytest.raises(VectorStoreUnavailableError, match="ChromaDB unavailable"):
         get_vector_client(allow_in_memory=False)

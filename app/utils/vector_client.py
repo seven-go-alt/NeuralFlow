@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from chromadb import HttpClient
-from chromadb.api import ClientAPI
+from typing import TYPE_CHECKING
 
 from app.config import get_settings
+
+if TYPE_CHECKING:
+    from chromadb.api import ClientAPI
 
 
 class InMemoryCollection:
@@ -65,6 +67,8 @@ class VectorStoreUnavailableError(RuntimeError):
 def get_vector_client(*, allow_in_memory: bool = True) -> ClientAPI | InMemoryVectorClient:
     settings = get_settings()
     try:
+        from chromadb import HttpClient
+
         client = HttpClient(host=settings.chroma_host, port=settings.chroma_port)
         client.heartbeat()
         return client

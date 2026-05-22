@@ -2415,7 +2415,6 @@ dependencies = [
     { name = "aiofiles" },
     { name = "aiosqlite" },
     { name = "celery" },
-    { name = "chromadb" },
     { name = "fastapi" },
     { name = "gunicorn" },
     { name = "httpx" },
@@ -2440,6 +2439,7 @@ dependencies = [
 
 [package.optional-dependencies]
 ml = [
+    { name = "chromadb" },
     { name = "sentence-transformers" },
 ]
 
@@ -2463,7 +2463,7 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "celery", specifier = ">=5.6.3" },
-    { name = "chromadb", specifier = ">=1.5.7" },
+    { name = "chromadb", marker = "extra == 'ml'", specifier = ">=1.5.7" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
