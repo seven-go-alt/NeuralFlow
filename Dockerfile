@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -23,7 +25,8 @@ ENV HTTP_PROXY=${HTTP_PROXY:-} \
     UV_INDEX_URL=${UV_INDEX_URL:-} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     gcc \
@@ -39,9 +42,10 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 
-RUN pip install --no-cache-dir -U pip uv \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/uv \
+    pip install --no-cache-dir -U pip uv \
     && uv sync --frozen --no-dev --verbose \
-    && rm -rf /root/.cache/pip /root/.cache/uv \
     && find /app/.venv -name "*.pyc" -delete \
     && find /app/.venv -type d -name "__pycache__" -delete
 
