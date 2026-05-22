@@ -34,7 +34,7 @@ pkill -f 'uv run pytest' 2>/dev/null || true
 rm -f "$ROOT/.venv/.lock"
 
 printf '%s\n' '==> syncing backend dependencies'
-uv sync --frozen --no-dev
+uv sync --frozen --no-dev --extra ml
 
 printf '%s\n' '==> running backend tests'
 uv run pytest

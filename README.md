@@ -96,7 +96,7 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - tenant middleware
 - Prometheus metrics
 - runtime config hot patch
-- pytest regression coverage（**689 tests**）
+- pytest regression coverage（**696 tests**）
 - **Performance benchmarks（ingestion latency / retrieval latency / token usage）**
 - **GitHub Actions CI/CD（auto-merge for Dependabot, eval gate, multi-stage workflows）**
 
@@ -136,7 +136,7 @@ bash scripts/verify-local.sh
 - Celery
 - LiteLLM / OpenAI-compatible API
 - httpx（async HTTP client）
-- PyMuPDF（含 PDF table extraction）
+- PyMuPDF（PDF text / image / table extraction）
 - python-docx
 - markdown-it-py
 - tiktoken
@@ -369,6 +369,9 @@ cd ~/github/NeuralFlow
 cp .env.example .env
 uv sync
 ```
+
+> ML 相关依赖（ChromaDB vector store、cross-encoder reranker）默认不安装。
+> 如果需要完整功能，运行 `uv sync --extra ml`。
 
 ### 8.2 启动后端
 
