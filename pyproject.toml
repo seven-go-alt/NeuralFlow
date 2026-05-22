@@ -27,7 +27,6 @@ dependencies = [
     "pytesseract>=0.3.13",
     "python-multipart>=0.0.20",
     "redis>=7.4.0",
-    "sentence-transformers>=3.4.0",
     "sentry-sdk>=2.20.0",
     "sqlalchemy>=2.0.44",
     "tenacity>=9.1.4",
@@ -41,6 +40,11 @@ neuralflow = "neuralflow:main"
 [build-system]
 requires = ["uv_build>=0.10.9,<0.11.0"]
 build-backend = "uv_build"
+
+[project.optional-dependencies]
+ml = [
+    "sentence-transformers>=3.4.0",
+]
 
 [dependency-groups]
 dev = [
