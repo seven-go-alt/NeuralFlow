@@ -2,21 +2,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
 from docx import Document as DocxDocument
+from fpdf import FPDF
 
 from app.ingestion.parsers import DOCXParser, MarkdownParser, PDFParser, TXTParser
 
 
 def _make_pdf(tmp_path: Path, pages: list[str]) -> str:
-    """Generate a multi-page PDF with given page texts using PyMuPDF."""
-    doc = fitz.open()
+    """Generate a multi-page PDF with given page texts using fpdf2."""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=False)
     for text in pages:
-        page = doc.new_page()
-        page.insert_text(fitz.Point(72, 72), text, fontsize=12)
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
+        pdf.set_xy(10, 10)
+        pdf.cell(0, 10, text)
     path = tmp_path / "test.pdf"
-    doc.save(str(path))
-    doc.close()
+    pdf.output(str(path))
     return str(path)
 
 

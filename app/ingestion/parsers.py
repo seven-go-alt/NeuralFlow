@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-import fitz
+import pdfplumber
 from docx import Document as DocxDocument
 from markdown_it import MarkdownIt
 
@@ -20,23 +20,23 @@ class PDFParser:
     def parse(
         self, document_id: str, tenant_id: str, source_path: str, title: str | None = None
     ) -> ParsedDocument:
-        pdf = fitz.open(source_path)
         sections: list[ParsedSection] = []
         extracted_pages: list[str] = []
-        for index, page in enumerate(pdf, start=1):
-            text = page.get_text("text").strip()
-            if not text:
-                continue
-            extracted_pages.append(text)
-            sections.append(
-                ParsedSection(
-                    section_id=f"{document_id}:p{index}",
-                    content=text,
-                    page_number=index,
-                    heading=f"Page {index}",
-                    metadata={"page_number": index},
+        with pdfplumber.open(source_path) as pdf:
+            for index, page in enumerate(pdf.pages, start=1):
+                text = (page.extract_text() or "").strip()
+                if not text:
+                    continue
+                extracted_pages.append(text)
+                sections.append(
+                    ParsedSection(
+                        section_id=f"{document_id}:p{index}",
+                        content=text,
+                        page_number=index,
+                        heading=f"Page {index}",
+                        metadata={"page_number": index},
+                    )
                 )
-            )
         return ParsedDocument(
             document_id=document_id,
             tenant_id=tenant_id,
