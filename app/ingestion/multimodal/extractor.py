@@ -4,9 +4,12 @@ import logging
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-import fitz
+import pdfplumber
 from docx import Document as DocxDocument
+from PIL import Image as PILImage
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
@@ -41,34 +44,68 @@ class ImageExtractor:
 
     def _extract_from_pdf(self, path: str) -> list[ExtractedImage]:
         images: list[ExtractedImage] = []
-        doc = fitz.open(path)
-        try:
-            for page_num in range(len(doc)):
-                page = doc[page_num]
-                for _img_index, img in enumerate(page.get_images(full=True)):
-                    if len(images) >= self._max_images:
-                        return images
-                    xref = img[0]
-                    pix = fitz.Pixmap(doc, xref)
-                    try:
-                        image_data = pix.tobytes()
-                        if len(image_data) > self._max_size_bytes:
-                            continue
-                        ext = "png" if pix.n < 5 else "jpeg"
-                        images.append(
-                            ExtractedImage(
-                                image_data=image_data,
-                                page_number=page_num + 1,
-                                image_index=len(images),
-                                format=ext,
-                                size_bytes=len(image_data),
-                            )
-                        )
-                    finally:
-                        pix = None
-        finally:
-            doc.close()
+        reader = PdfReader(path)
+        for page_num in range(len(reader.pages)):
+            page = reader.pages[page_num]
+            if len(images) >= self._max_images:
+                break
+            resources = page.get("/Resources")
+            if resources is None or "/XObject" not in resources:
+                continue
+            xobjects = resources["/XObject"]
+            for obj_name in xobjects:
+                xobj = xobjects[obj_name].get_object()
+                if xobj["/Subtype"] != "/Image":
+                    continue
+                if len(images) >= self._max_images:
+                    break
+
+                raw_data = xobj.get_data()
+                width = xobj["/Width"]
+                height = xobj["/Height"]
+
+                try:
+                    image_data = self._convert_image_to_png(raw_data, width, height, xobj)
+                except Exception:
+                    logger.exception(
+                        "Failed to process image %s on page %d", obj_name, page_num + 1
+                    )
+                    continue
+
+                if image_data is None or len(image_data) > self._max_size_bytes:
+                    continue
+
+                images.append(
+                    ExtractedImage(
+                        image_data=image_data,
+                        page_number=page_num + 1,
+                        image_index=len(images),
+                        format="png",
+                        size_bytes=len(image_data),
+                    )
+                )
         return images
+
+    @staticmethod
+    def _convert_image_to_png(
+        raw_data: bytes, width: int, height: int, xobj: object
+    ) -> bytes | None:
+        import io
+
+        # DCTDecode (JPEG) stores JPEG bytes directly
+        pdf_filter = xobj.get("/Filter")  # type: ignore[attr-defined]
+        if pdf_filter == "/DCTDecode":
+            pil_image: Any = PILImage.open(io.BytesIO(raw_data))
+        else:
+            color_space = xobj.get("/ColorSpace", "/DeviceRGB")  # type: ignore[attr-defined]
+            mode = _colorspace_to_pil_mode(color_space)
+            pil_image = PILImage.frombytes(mode, (width, height), raw_data)
+            if mode == "CMYK":
+                pil_image = pil_image.convert("RGB")
+
+        buf = io.BytesIO()
+        pil_image.save(buf, format="PNG")
+        return buf.getvalue()
 
     def _extract_from_docx(self, path: str) -> list[ExtractedImage]:
         images: list[ExtractedImage] = []
@@ -110,21 +147,18 @@ class TableExtractor:
 
     def _extract_from_pdf(self, path: str) -> list[ExtractedTable]:
         tables: list[ExtractedTable] = []
-        doc = fitz.open(path)
-        try:
-            for page_num in range(len(doc)):
+        with pdfplumber.open(path) as pdf:
+            for page_num, page in enumerate(pdf.pages):
                 if len(tables) >= self._max_tables:
                     break
-                page = doc[page_num]
-                pdf_tables = page.find_tables()
-                for table in pdf_tables:
+                pdf_tables = page.extract_tables()
+                for table_data in pdf_tables:
                     if len(tables) >= self._max_tables:
                         break
-                    data = table.extract()
-                    if not data:
+                    if not table_data:
                         continue
                     lines = []
-                    for row_idx, row in enumerate(data):
+                    for row_idx, row in enumerate(table_data):
                         cells = [str(cell or "").strip() for cell in row]
                         lines.append("| " + " | ".join(cells) + " |")
                         if row_idx == 0:
@@ -136,8 +170,6 @@ class TableExtractor:
                             table_index=len(tables),
                         )
                     )
-        finally:
-            doc.close()
         return tables
 
     def _extract_from_docx(self, path: str) -> list[ExtractedTable]:
@@ -160,3 +192,13 @@ class TableExtractor:
                 )
             )
         return tables
+
+
+def _colorspace_to_pil_mode(color_space: object) -> str:
+    cs = str(color_space)
+    if cs == "/DeviceGray":
+        return "L"
+    elif cs == "/DeviceCMYK":
+        return "CMYK"
+    else:
+        return "RGB"
