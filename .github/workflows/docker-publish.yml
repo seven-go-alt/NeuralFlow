@@ -72,7 +72,7 @@ jobs:
 
       - name: Extract API metadata
         id: meta_api
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_API }}
           tags: |
@@ -82,7 +82,7 @@ jobs:
 
       - name: Extract Frontend metadata
         id: meta_frontend
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_FRONTEND }}
           tags: |
