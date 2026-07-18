@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.config import Settings
 from app.documents.schemas import ParsedDocument, ParsedSection
 from app.embeddings.service import EmbeddingService
 from app.ingestion.chunking import RecursiveChunkSplitter
@@ -191,3 +192,63 @@ async def test_ingestion_pipeline_merges_document_metadata(monkeypatch, tmp_path
     metadata = stub_store.upserts[0][0]["metadata"]
     assert metadata["canonical_doc_id"] == "doc_hr_leave"
     assert metadata["document_id"] == document_id  # 系统字段不被文档 metadata 覆盖
+
+
+@pytest.mark.asyncio
+async def test_ingestion_defaults_embedding_model_to_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When embedding_model is not passed to pipeline.run(),
+    it falls back to settings.embedding_model."""
+    from app.db.session import SessionLocal, init_db
+    from app.documents.enums import DocumentStatus
+    from app.documents.repository import DocumentRepository
+    from app.documents.schemas import DocumentCreate
+
+    init_db()
+    db = SessionLocal()
+    repo = DocumentRepository(db)
+    file_path = tmp_path / "policy.txt"
+    file_path.write_text("员工请假需要提前申请。", encoding="utf-8")
+
+    document_id = f"doc_default_emb_{uuid4().hex[:8]}"
+    repo.create_document(
+        DocumentCreate(
+            tenant_id="public",
+            owner_user_id="tester",
+            title="Policy",
+            filename="policy.txt",
+            original_filename="policy.txt",
+            file_type="txt",
+            mime_type="text/plain",
+            size_bytes=file_path.stat().st_size,
+            storage_path=str(file_path),
+            checksum_sha256="abc123",
+            metadata_json={},
+            source_info_json={},
+        ),
+        document_id=document_id,
+    )
+    repo.update_status("public", document_id, DocumentStatus.QUEUED)
+    db.close()
+
+    stub_store = StubStore()
+    monkeypatch.setattr(
+        "app.ingestion.pipeline.get_settings", lambda: Settings(embedding_model="settings-model")
+    )
+    monkeypatch.setattr("app.ingestion.pipeline.ParserFactory.create", lambda path: StubParser())
+    monkeypatch.setattr(
+        "app.ingestion.pipeline.ChromaDocumentStore", lambda *args, **kwargs: DummyStore()
+    )
+
+    pipeline = IngestionPipeline()
+    pipeline.embedding_service = StubEmbeddingService()
+    pipeline.store = stub_store
+
+    # No embedding_model argument — should pick up from settings
+    result = await pipeline.run(tenant_id="public", document_id=document_id)
+
+    assert result["status"] == "ready"
+    assert len(stub_store.upserts) == 1
+    metadata = stub_store.upserts[0][0]["metadata"]
+    assert metadata["embedding_model"] == "settings-model"
