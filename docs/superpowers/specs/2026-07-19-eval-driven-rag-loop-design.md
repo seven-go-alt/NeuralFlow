@@ -46,7 +46,7 @@ NeuralFlow 的 eval 基础设施"有框架、无闭环":
 
 | 层 | 内容 | 依托现有 |
 |---|---|---|
-| 语料层 | `data/eval/corpus/` 合成文档(预估 30-40 篇,以 doc_id 去重清单为准),覆盖 110 条用例的 `expected_doc_ids`;seed 脚本走现有 ingestion 管线,metadata 携带 canonical doc_id 供 citation 匹配 | `app/ingestion/` 全链路 |
+| 语料层 | `data/eval/corpus/` 合成文档(经盘点为 104 篇:每条正例用例一个唯一 doc_id),覆盖 110 条用例的 `expected_doc_ids`;seed 脚本走现有 ingestion 管线,metadata 携带 canonical doc_id 供 citation 匹配 | `app/ingestion/` 全链路 |
 | 执行层 | 替换 `app/api/eval.py` stub:注入真实 `retrieve_fn`(HybridRetrievalService)、`answer_fn`(与线上 chat 相同的 RAG 生成路径,advanced 特性由实验 overlay 控制)、`answer_eval_fn`(`answer_evaluator.py`);CLI 加 `--live/--mock` 开关;EvalRun 落库记录配置快照与成本 | `app/evals/runner.py` 骨架 |
 | 实验层 | 实验 overlay 机制(一个 JSON/YAML 定义一组 settings 覆盖 = 一个实验组);消融矩阵:baseline纯向量 → +hybrid → +reranker → +multi_query → +HyDE → chunking 对比;`compare` 命令跑真实 A/B | `comparison.py`、`config.py` 的 10+ 开关 |
 | 报告层 | 对比报告落盘 `docs/eval-reports/`;前端 eval 页新增 A/B 对比视图;README 量化叙事 | 前端 eval 组件、雷达图 |
