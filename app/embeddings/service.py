@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.config import get_settings
+from app.embeddings.base import EmbeddingProvider as BaseEmbeddingProvider
 from app.embeddings.cache import EmbeddingCache
 from app.embeddings.providers_openai import OpenAICompatibleEmbeddingProvider
 
@@ -7,10 +9,18 @@ from app.embeddings.providers_openai import OpenAICompatibleEmbeddingProvider
 class EmbeddingService:
     def __init__(
         self,
-        provider: OpenAICompatibleEmbeddingProvider | None = None,
+        provider: BaseEmbeddingProvider | None = None,
         cache: EmbeddingCache | None = None,
     ) -> None:
-        self.provider = provider or OpenAICompatibleEmbeddingProvider()
+        if provider is None:
+            settings = get_settings()
+            if settings.embedding_provider == "local":
+                from app.embeddings.providers_local import LocalSentenceTransformerProvider
+
+                provider = LocalSentenceTransformerProvider()
+            else:
+                provider = OpenAICompatibleEmbeddingProvider()
+        self.provider = provider
         self.cache = cache or EmbeddingCache()
 
     async def embed_texts(self, texts: list[str], model: str) -> list[list[float]]:

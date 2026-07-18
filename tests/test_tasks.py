@@ -26,5 +26,5 @@ class TestIngestDocumentTask:
         result = ingest_document_task("t1", "d1")
         assert result["status"] == "ok"
         pipeline_instance.run.assert_called_once_with(
-            tenant_id="t1", document_id="d1", embedding_model="text-embedding-3-small"
+            tenant_id="t1", document_id="d1", embedding_model=None
         )
