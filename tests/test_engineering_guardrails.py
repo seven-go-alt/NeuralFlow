@@ -32,7 +32,7 @@ def test_ci_workflow_runs_lint_typecheck_and_tests() -> None:
     assert "push:" in workflow
     assert "pull_request:" in workflow
     # Dependency sync is handled by the composite setup-backend action
-    assert "uv sync --group dev --frozen" in setup_backend
+    assert "uv sync --group dev --extra ml --frozen" in setup_backend
     # Lint and typecheck run via pre-commit hooks (which wraps ruff + mypy)
     assert "pre-commit run --all-files" in workflow
     # Tests run in the test job

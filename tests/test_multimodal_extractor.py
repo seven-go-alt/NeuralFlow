@@ -3,43 +3,51 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import fitz
 from docx import Document as DocxDocument
+from fpdf import FPDF
 
 from app.ingestion.multimodal.extractor import ImageExtractor, TableExtractor
 
 
 def _create_pdf_with_image(tmp_path: Path) -> str:
     """Create a minimal PDF with an embedded image."""
+    import base64
+    from io import BytesIO
+
+    # 1x1 red pixel PNG (base64 encoded)
+    _png_1px_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+    )
+
     pdf_path = tmp_path / "test_img.pdf"
-    doc = fitz.open()
-    page = doc.new_page()
-    # Insert a tiny 1x1 rectangle as placeholder (no real image needed)
-    page.insert_text(fitz.Point(50, 50), "Test PDF with image area")
-    # Create a small image via Pixmap and insert
-    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 10, 10))
-    page.insert_image(page.rect, pixmap=pix)
-    doc.save(str(pdf_path))
-    doc.close()
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.set_xy(10, 10)
+    pdf.cell(0, 10, "Test PDF with image area")
+    pdf.image(BytesIO(base64.b64decode(_png_1px_b64)), x=10, y=20, w=10, h=10)
+    pdf.output(str(pdf_path))
     return str(pdf_path)
 
 
 def _create_pdf_with_table(tmp_path: Path) -> str:
-    """Create a minimal PDF with a table-like structure."""
+    """Create a minimal PDF with a table-like structure using fpdf2."""
     pdf_path = tmp_path / "test_table.pdf"
-    doc = fitz.open()
-    page = doc.new_page()
-    # Draw table lines and text
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    # Draw table grid lines
     for x in range(1, 4):
-        page.draw_line(fitz.Point(x * 60, 50), fitz.Point(x * 60, 150))
+        pdf.line(x * 60, 50, x * 60, 150)
     for y in range(1, 4):
-        page.draw_line(fitz.Point(60, y * 33 + 50), fitz.Point(180, y * 33 + 50))
-    page.insert_text(fitz.Point(65, 70), "A")
-    page.insert_text(fitz.Point(125, 70), "B")
-    page.insert_text(fitz.Point(65, 103), "1")
-    page.insert_text(fitz.Point(125, 103), "2")
-    doc.save(str(pdf_path))
-    doc.close()
+        pdf.line(60, y * 33 + 50, 180, y * 33 + 50)
+    # Place text in cells
+    pdf.text(65, 70, "A")
+    pdf.text(125, 70, "B")
+    pdf.text(65, 103, "1")
+    pdf.text(125, 103, "2")
+    pdf.output(str(pdf_path))
     return str(pdf_path)
 
 
