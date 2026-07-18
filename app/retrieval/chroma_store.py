@@ -5,6 +5,7 @@ import logging
 from collections.abc import Sequence
 from typing import Any, Protocol, cast
 
+from app.config import get_settings
 from app.embeddings.service import EmbeddingService
 from app.utils.retry import retry_sync
 from app.utils.vector_client import get_vector_client
@@ -69,7 +70,7 @@ class ChromaDocumentStore:
         self, query_text: str, top_k: int, where: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         query_embedding = await self.embedding_service.embed_texts(
-            [query_text], model="text-embedding-3-small"
+            [query_text], model=get_settings().embedding_model
         )
         query_vectors: Sequence[Sequence[float]] = query_embedding
         result = self.collection.query(
