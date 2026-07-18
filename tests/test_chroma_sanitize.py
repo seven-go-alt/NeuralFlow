@@ -71,7 +71,9 @@ async def test_upsert_with_sanitized_metadata(monkeypatch: pytest.MonkeyPatch) -
 
     result = store.collection.get(ids=["chk_sanitize_test_001"], include=["metadatas"])
     assert len(result["ids"]) == 1, "record should exist after upsert"
-    meta = result["metadatas"][0]
+    metadatas = result["metadatas"]
+    assert isinstance(metadatas, list) and len(metadatas) > 0
+    meta = metadatas[0]
     assert isinstance(meta, dict)
     assert meta.get("canonical_doc_id") == "doc_hr_leave"
     assert "tags" not in meta, "empty tags list must not appear in ChromaDB"
