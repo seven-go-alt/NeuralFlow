@@ -9,10 +9,6 @@ on:
       - '*.md'
       - '*.mdx'
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '*.mdx'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
