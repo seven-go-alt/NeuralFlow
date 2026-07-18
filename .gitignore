@@ -9,6 +9,7 @@ var/
 *.pyc
 data/neuralflow.db
 data/uploads/
+data/chroma/
 
 .env.production
 .env.images

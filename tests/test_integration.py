@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,7 +22,9 @@ def _clear_api_cache() -> None:
         r = sync_redis.Redis(decode_responses=True)
         cursor = 0
         while True:
-            cursor, keys = r.scan(cursor, match="api_cache:*", count=100)  # type: ignore[misc]
+            cursor, keys = cast(
+                tuple[int, list[Any]], r.scan(cursor, match="api_cache:*", count=100)
+            )
             if keys:
                 r.delete(*keys)
             if cursor == 0:
