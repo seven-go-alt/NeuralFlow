@@ -12,6 +12,17 @@ from app.utils.vector_client import get_vector_client
 logger = logging.getLogger(__name__)
 
 
+def sanitize_chunk_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Drop values ChromaDB rejects: None, empty lists, and nested dicts."""
+    return {
+        k: v
+        for k, v in metadata.items()
+        if v is not None
+        and not (isinstance(v, list) and not v)
+        and not isinstance(v, dict)
+    }
+
+
 class EmbeddingServiceLike(Protocol):
     async def embed_texts(self, texts: list[str], model: str) -> list[list[float]]: ...
 
@@ -33,7 +44,7 @@ class ChromaDocumentStore:
             return
         ids = [chunk["chunk_id"] for chunk in chunks]
         documents = [chunk["content"] for chunk in chunks]
-        metadatas = [chunk["metadata"] for chunk in chunks]
+        metadatas = [sanitize_chunk_metadata(chunk["metadata"]) for chunk in chunks]
         embeddings = [chunk.get("embedding") for chunk in chunks]
         if any(embedding is None for embedding in embeddings):
             raise ValueError("All chunks must have embeddings before upsert")
