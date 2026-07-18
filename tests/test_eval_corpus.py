@@ -83,9 +83,7 @@ def test_validate_corpus_keyword_match_is_case_insensitive(tmp_path: Path) -> No
 
 def test_validate_corpus_flags_negative_case_with_refs(tmp_path: Path) -> None:
     dataset = tmp_path / "cases.jsonl"
-    _write_dataset(
-        dataset, [_case("c1", "doc_hr_leave", ["annual leave"], should_answer=False)]
-    )
+    _write_dataset(dataset, [_case("c1", "doc_hr_leave", ["annual leave"], should_answer=False)])
     corpus = tmp_path / "corpus"
     corpus.mkdir()
 
