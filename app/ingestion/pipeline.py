@@ -125,6 +125,9 @@ class IngestionPipeline:
             )
             for chunk, vector in zip(chunks, vectors, strict=False):
                 chunk.embedding = vector
+                # carry document-level metadata (e.g. canonical_doc_id) into chunks;
+                # system keys below take precedence
+                chunk.metadata.update(record.metadata_json or {})
                 chunk.metadata.update(
                     {
                         "tenant_id": tenant_id,

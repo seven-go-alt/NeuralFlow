@@ -139,3 +139,55 @@ async def test_ingestion_pipeline_indexes_document(monkeypatch, tmp_path: Path) 
     assert result["chunk_count"] >= 1
     assert len(stub_store.upserts) == 1
     assert stub_store.upserts[0][0]["metadata"]["document_id"] == document_id
+
+
+@pytest.mark.asyncio
+async def test_ingestion_pipeline_merges_document_metadata(monkeypatch, tmp_path: Path) -> None:
+    from app.db.session import SessionLocal, init_db
+    from app.documents.enums import DocumentStatus
+    from app.documents.repository import DocumentRepository
+    from app.documents.schemas import DocumentCreate
+
+    init_db()
+    db = SessionLocal()
+    repo = DocumentRepository(db)
+    file_path = tmp_path / "leave.md"
+    file_path.write_text("# Annual Leave\n员工请假需要提前申请。", encoding="utf-8")
+
+    document_id = f"doc_test_meta_{uuid4().hex[:8]}"
+    repo.create_document(
+        DocumentCreate(
+            tenant_id="public",
+            owner_user_id="tester",
+            title="Leave Policy",
+            filename="leave.md",
+            original_filename="leave.md",
+            file_type="md",
+            mime_type="text/markdown",
+            size_bytes=file_path.stat().st_size,
+            storage_path=str(file_path),
+            checksum_sha256="abc123",
+            metadata_json={"canonical_doc_id": "doc_hr_leave", "eval_corpus": True},
+            source_info_json={},
+        ),
+        document_id=document_id,
+    )
+    repo.update_status("public", document_id, DocumentStatus.QUEUED)
+    db.close()
+
+    stub_store = StubStore()
+    monkeypatch.setattr("app.ingestion.pipeline.ParserFactory.create", lambda path: StubParser())
+    monkeypatch.setattr(
+        "app.ingestion.pipeline.ChromaDocumentStore", lambda *args, **kwargs: DummyStore()
+    )
+    pipeline = IngestionPipeline()
+    pipeline.embedding_service = StubEmbeddingService()
+    pipeline.store = stub_store
+
+    await pipeline.run(
+        tenant_id="public", document_id=document_id, embedding_model="test-embedding"
+    )
+
+    metadata = stub_store.upserts[0][0]["metadata"]
+    assert metadata["canonical_doc_id"] == "doc_hr_leave"
+    assert metadata["document_id"] == document_id  # 系统字段不被文档 metadata 覆盖
