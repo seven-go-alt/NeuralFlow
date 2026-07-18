@@ -23,9 +23,7 @@ class StubSentenceTransformer:
         StubSentenceTransformer.last_model_name = model_name
         StubSentenceTransformer.construction_count += 1
 
-    def encode(
-        self, texts: list[str], *, normalize_embeddings: bool = True
-    ) -> list[list[float]]:
+    def encode(self, texts: list[str], *, normalize_embeddings: bool = True) -> list[list[float]]:
         return [[0.1] * 4 for _ in texts]
 
 
@@ -97,9 +95,7 @@ async def test_local_provider_encodes_with_configured_model(
     provider = LocalSentenceTransformerProvider()
 
     # --- First call: should construct SentenceTransformer ---
-    result = await provider.embed_texts(
-        ["hello", "world"], model="text-embedding-3-small"
-    )
+    result = await provider.embed_texts(["hello", "world"], model="text-embedding-3-small")
 
     assert StubSentenceTransformer.last_model_name == "all-MiniLM-L6-v2"
     assert StubSentenceTransformer.construction_count == 1
@@ -132,9 +128,7 @@ async def test_chroma_query_uses_configured_embedding_model(
         def __init__(self) -> None:
             self.model: str | None = None
 
-        async def embed_texts(
-            self, texts: list[str], model: str
-        ) -> list[list[float]]:
+        async def embed_texts(self, texts: list[str], model: str) -> list[list[float]]:
             self.model = model
             return [[0.1, 0.2, 0.3]]
 

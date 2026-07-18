@@ -60,11 +60,7 @@ async def _main() -> int:
         try:
             repo = DocumentRepository(db)
             existing = repo.get_document(tenant_id=tenant_id, document_id=document_id)
-            if (
-                existing is not None
-                and not args.force
-                and existing.status == DocumentStatus.READY
-            ):
+            if existing is not None and not args.force and existing.status == DocumentStatus.READY:
                 skipped += 1
                 continue
             if existing is None:

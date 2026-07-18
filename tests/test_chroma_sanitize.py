@@ -69,9 +69,7 @@ async def test_upsert_with_sanitized_metadata(monkeypatch: pytest.MonkeyPatch) -
     }
     store.upsert_chunks([chunk])
 
-    result = store.collection.get(
-        ids=["chk_sanitize_test_001"], include=["metadatas"]
-    )
+    result = store.collection.get(ids=["chk_sanitize_test_001"], include=["metadatas"])
     assert len(result["ids"]) == 1, "record should exist after upsert"
     meta = result["metadatas"][0]
     assert isinstance(meta, dict)

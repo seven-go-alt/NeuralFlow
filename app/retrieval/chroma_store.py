@@ -18,9 +18,7 @@ def sanitize_chunk_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     return {
         k: v
         for k, v in metadata.items()
-        if v is not None
-        and not (isinstance(v, list) and not v)
-        and not isinstance(v, dict)
+        if v is not None and not (isinstance(v, list) and not v) and not isinstance(v, dict)
     }
 
 

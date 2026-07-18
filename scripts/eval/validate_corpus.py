@@ -20,10 +20,16 @@ from app.evals.datasets import EvalCase, load_cases
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate eval corpus/dataset alignment")
-    parser.add_argument("--datasets-dir", default="data/eval/datasets",
-                        help="Directory containing .jsonl dataset files (default: data/eval/datasets)")
-    parser.add_argument("--corpus-dir", default="data/eval/corpus",
-                        help="Directory containing corpus .md files (default: data/eval/corpus)")
+    parser.add_argument(
+        "--datasets-dir",
+        default="data/eval/datasets",
+        help="Directory containing .jsonl dataset files (default: data/eval/datasets)",
+    )
+    parser.add_argument(
+        "--corpus-dir",
+        default="data/eval/corpus",
+        help="Directory containing corpus .md files (default: data/eval/corpus)",
+    )
     parser.add_argument(
         "--list-missing",
         action="store_true",
@@ -51,8 +57,7 @@ def main() -> int:
     for orphan in report.orphan_files:
         print(f"[orphan] {orphan}")
     print(
-        f"cases={report.total_cases} docs_checked={report.checked_docs} "
-        f"issues={len(report.issues)}"
+        f"cases={report.total_cases} docs_checked={report.checked_docs} issues={len(report.issues)}"
     )
     return 0 if report.ok else 1
 
