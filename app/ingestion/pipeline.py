@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from app.config import get_settings
 from app.db.session import SessionLocal
 from app.documents.enums import DocumentStatus
 from app.documents.repository import DocumentRepository
@@ -25,11 +26,11 @@ class IngestionPipeline:
         self.storage = storage or create_storage()
 
     async def run(
-        self, tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
+        self, tenant_id: str, document_id: str, embedding_model: str | None = None
     ) -> dict:
-        from app.config import get_settings
-
         settings = get_settings()
+        if embedding_model is None:
+            embedding_model = settings.embedding_model
         db = SessionLocal()
         repo = DocumentRepository(db)
         try:
@@ -125,6 +126,9 @@ class IngestionPipeline:
             )
             for chunk, vector in zip(chunks, vectors, strict=False):
                 chunk.embedding = vector
+                # carry document-level metadata (e.g. canonical_doc_id) into chunks;
+                # system keys below take precedence
+                chunk.metadata.update(record.metadata_json or {})
                 chunk.metadata.update(
                     {
                         "tenant_id": tenant_id,

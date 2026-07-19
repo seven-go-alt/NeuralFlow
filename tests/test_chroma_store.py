@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.config import Settings
 from app.retrieval.chroma_store import ChromaDocumentStore
 
 
@@ -41,6 +42,10 @@ async def test_chroma_document_store_queries_with_explicit_query_embeddings(monk
     collection = SpyCollection()
     embedding_service = SpyEmbeddingService()
     monkeypatch.setattr(
+        "app.retrieval.chroma_store.get_settings",
+        lambda: Settings(embedding_model="test-embedding-model"),
+    )
+    monkeypatch.setattr(
         "app.retrieval.chroma_store.get_vector_client",
         lambda allow_in_memory=False: SpyClient(collection),
     )
@@ -48,7 +53,7 @@ async def test_chroma_document_store_queries_with_explicit_query_embeddings(monk
     store = ChromaDocumentStore(embedding_service=embedding_service)
     result = await store.query("annual leave", top_k=3, where={"tenant_id": "public"})
 
-    assert embedding_service.calls == [(["annual leave"], "text-embedding-3-small")]
+    assert embedding_service.calls == [(["annual leave"], "test-embedding-model")]
     assert collection.query_calls == [
         {
             "query_embeddings": [[0.1, 0.2, 0.3]],

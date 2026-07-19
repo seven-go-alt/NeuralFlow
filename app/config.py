@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     rag_default_top_k: int = 5
     rag_score_threshold: float = 0.0
     embedding_model: str = "text-embedding-3-small"
+    embedding_provider: str = "openai"  # "openai" | "local"
 
     litellm_model: str = "gpt-4o-mini"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
