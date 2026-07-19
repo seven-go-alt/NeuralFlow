@@ -45,7 +45,7 @@ build-backend = "uv_build"
 [project.optional-dependencies]
 ml = [
     "chromadb>=1.5.7",
-    "sentence-transformers>=3.4.0",
+    "sentence-transformers>=5.6.0",
 ]
 
 [dependency-groups]
