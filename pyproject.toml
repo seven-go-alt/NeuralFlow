@@ -59,7 +59,7 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-benchmark>=5.1.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.15.13",
+    "ruff>=0.15.22",
     "types-aiofiles>=24.1.0",
     "hypothesis>=6.119.4",
 ]
