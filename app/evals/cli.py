@@ -46,13 +46,44 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     import asyncio
 
-    retrieve_fn = args.retrieve if args.retrieve else _make_mock_retrieve()
-    answer_fn = args.answer if args.answer else _make_mock_answer()
+    if args.live:
+        from app.evals.factories import (
+            make_live_answer_eval_fn,
+            make_live_answer_fn,
+            make_live_retrieve_fn,
+        )
 
-    results = asyncio.run(run_eval(str(dataset_path), retrieve_fn, answer_fn, top_k=args.top_k))
+        retrieve_fn = make_live_retrieve_fn()
+        answer_fn = make_live_answer_fn()
+        answer_eval_fn = None if args.no_judge else make_live_answer_eval_fn()
+    else:
+        retrieve_fn = _make_mock_retrieve()
+        answer_fn = _make_mock_answer()
+        answer_eval_fn = None
+
+    results = asyncio.run(
+        run_eval(
+            str(dataset_path),
+            retrieve_fn,
+            answer_fn,
+            top_k=args.top_k,
+            answer_eval_fn=answer_eval_fn,
+        )
+    )
     metrics = aggregate_metrics(results)
     report = build_eval_report(results, metrics)
     print(report)
+
+    # print token usage summary
+    total_tokens = sum(
+        (r.token_usage_json or {}).get("total_tokens", 0) for r in results
+    )
+    total_cost = sum(
+        (r.token_usage_json or {}).get("cost_usd", 0.0) for r in results
+    )
+    if total_tokens > 0:
+        print(f"\nTotal tokens: {total_tokens}")
+        print(f"Estimated cost: ${total_cost:.4f}")
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
@@ -87,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("dataset_path", type=str, help="Path to JSONL eval dataset")
     run_parser.add_argument(
         "--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)"
+    )
+    run_parser.add_argument(
+        "--live", action="store_true", dest="live",
+        help="Use real RAG pipeline (retrieval + generation + Judge). Default: mock mode.",
+    )
+    run_parser.add_argument(
+        "--no-judge", action="store_true", dest="no_judge",
+        help="Skip LLM-as-Judge evaluation (faster, no cost)",
     )
     run_parser.set_defaults(func=cmd_run)
 

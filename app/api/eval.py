@@ -9,8 +9,14 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db.models.eval_run import EvalRunORM
 from app.db.session import get_db
+from app.evals.factories import (
+    make_live_answer_eval_fn,
+    make_live_answer_fn,
+    make_live_retrieve_fn,
+)
 from app.evals.metrics import aggregate_metrics
 from app.evals.runner import run_eval
 from app.utils.cache import ResponseCache
@@ -55,14 +61,37 @@ async def trigger_eval_run(
     dataset_name = request.dataset_path.rstrip("/").split("/")[-1].replace(".jsonl", "")
     started_at = datetime.utcnow()
 
+    settings = get_settings()
+    config_snapshot = {
+        "embedding_model": settings.embedding_model,
+        "embedding_provider": settings.embedding_provider,
+        "litellm_model": settings.litellm_model,
+        "top_k": request.top_k,
+        "rag_advanced_enabled": settings.rag_advanced_enabled,
+        "reranker_enabled": settings.cross_encoder_enabled,
+        "chunking_strategy": settings.chunking_strategy,
+    }
+
+    retrieve_fn = make_live_retrieve_fn()
+    answer_fn = make_live_answer_fn()
+    answer_eval_fn = make_live_answer_eval_fn()
+
     results = await run_eval(
         cases_path=request.dataset_path,
-        retrieve_fn=lambda q, k: [],
-        answer_fn=lambda q, c: ("eval answer stub", {}),
+        retrieve_fn=retrieve_fn,
+        answer_fn=answer_fn,
         top_k=request.top_k,
+        answer_eval_fn=answer_eval_fn,
     )
     metrics = aggregate_metrics(results)
     completed_at = datetime.utcnow()
+
+    total_usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost_usd": 0.0}
+    for r in results:
+        if r.token_usage_json:
+            for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                total_usage[k] = total_usage.get(k, 0) + r.token_usage_json.get(k, 0)
+            total_usage["cost_usd"] = total_usage.get("cost_usd", 0.0) + r.token_usage_json.get("cost_usd", 0.0)
 
     record = EvalRunORM(
         run_id=run_id,
@@ -74,17 +103,25 @@ async def trigger_eval_run(
             "citation_accuracy": metrics.citation_accuracy,
             "keyword_coverage": metrics.keyword_coverage,
             "average_latency_ms": metrics.average_latency_ms,
+            "answer_relevance": metrics.average_answer_relevance,
+            "answer_faithfulness": metrics.average_answer_faithfulness,
+            "answer_completeness": metrics.average_answer_completeness,
         },
         per_case_results_json={"results": [r.__dict__ for r in results]},
-        config_snapshot_json=None,
-        token_usage_json=None,
+        config_snapshot_json=config_snapshot,
+        token_usage_json=total_usage,
         started_at=started_at,
         completed_at=completed_at,
     )
     db.add(record)
     db.commit()
 
-    return {"run_id": run_id, "status": "completed", "total_cases": metrics.total_cases}
+    return {
+        "run_id": run_id,
+        "status": "completed",
+        "total_cases": metrics.total_cases,
+        "token_usage": total_usage,
+    }
 
 
 @router.get(
@@ -140,6 +177,8 @@ def get_eval_run(run_id: str, db: Session = Depends(get_db)):
         "total_cases": record.total_cases,
         "metrics": record.metrics_json,
         "per_case_results": record.per_case_results_json,
+        "config_snapshot": record.config_snapshot_json,
+        "token_usage": record.token_usage_json,
         "started_at": record.started_at.isoformat(),
         "completed_at": record.completed_at.isoformat() if record.completed_at else None,
     }
