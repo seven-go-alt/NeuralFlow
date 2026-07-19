@@ -7,7 +7,7 @@ from app.ingestion.pipeline import IngestionPipeline
 
 @current_app.task(name="neuralflow.ingest_document")
 def ingest_document_task(
-    tenant_id: str, document_id: str, embedding_model: str = "text-embedding-3-small"
+    tenant_id: str, document_id: str, embedding_model: str | None = None
 ) -> dict:
     import asyncio
 
