@@ -72,22 +72,14 @@ class LLMClient:
                         "primary llm (with usage) failed, falling back to offline model",
                         exc_info=primary_exc,
                     )
-                    return await self._generate_with_usage_once(
-                        prompt, model=self.fallback_model
-                    )
+                    return await self._generate_with_usage_once(prompt, model=self.fallback_model)
                 except Exception as fallback_exc:
-                    logger.warning(
-                        "fallback llm (with usage) failed", exc_info=fallback_exc
-                    )
+                    logger.warning("fallback llm (with usage) failed", exc_info=fallback_exc)
                     return self._fallback_with_usage(prompt, fallback_exc)
-            logger.warning(
-                "primary llm (with usage) failed", exc_info=primary_exc
-            )
+            logger.warning("primary llm (with usage) failed", exc_info=primary_exc)
             return self._fallback_with_usage(prompt, primary_exc)
 
-    async def _generate_with_usage_once(
-        self, prompt: str, model: str
-    ) -> tuple[str, TokenUsage]:
+    async def _generate_with_usage_once(self, prompt: str, model: str) -> tuple[str, TokenUsage]:
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": self._build_messages(prompt),

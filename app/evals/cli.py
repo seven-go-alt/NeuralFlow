@@ -13,9 +13,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from app.core.llm import TokenUsage
 from app.evals.metrics import aggregate_metrics
 from app.evals.runner import build_eval_report, run_eval
-from app.core.llm import TokenUsage
 
 
 def _make_mock_retrieve(
@@ -35,6 +35,7 @@ def _make_mock_answer(
 ) -> Callable[[str, str], tuple[str | None, TokenUsage]]:
     def answer(query: str, context: str) -> tuple[str | None, TokenUsage]:
         return f"{answer_prefix} {query}", {}
+
     return answer
 
 
@@ -75,12 +76,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(report)
 
     # print token usage summary
-    total_tokens = sum(
-        (r.token_usage_json or {}).get("total_tokens", 0) for r in results
-    )
-    total_cost = sum(
-        (r.token_usage_json or {}).get("cost_usd", 0.0) for r in results
-    )
+    total_tokens = sum((r.token_usage_json or {}).get("total_tokens", 0) for r in results)
+    total_cost = sum((r.token_usage_json or {}).get("cost_usd", 0.0) for r in results)
     if total_tokens > 0:
         print(f"\nTotal tokens: {total_tokens}")
         print(f"Estimated cost: ${total_cost:.4f}")
@@ -120,11 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--top-k", type=int, default=5, help="Number of documents to retrieve (default: 5)"
     )
     run_parser.add_argument(
-        "--live", action="store_true", dest="live",
+        "--live",
+        action="store_true",
+        dest="live",
         help="Use real RAG pipeline (retrieval + generation + Judge). Default: mock mode.",
     )
     run_parser.add_argument(
-        "--no-judge", action="store_true", dest="no_judge",
+        "--no-judge",
+        action="store_true",
+        dest="no_judge",
         help="Skip LLM-as-Judge evaluation (faster, no cost)",
     )
     run_parser.set_defaults(func=cmd_run)

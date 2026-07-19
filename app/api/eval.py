@@ -86,12 +86,19 @@ async def trigger_eval_run(
     metrics = aggregate_metrics(results)
     completed_at = datetime.utcnow()
 
-    total_usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost_usd": 0.0}
+    total_usage: dict = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost_usd": 0.0,
+    }
     for r in results:
         if r.token_usage_json:
             for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
                 total_usage[k] = total_usage.get(k, 0) + r.token_usage_json.get(k, 0)
-            total_usage["cost_usd"] = total_usage.get("cost_usd", 0.0) + r.token_usage_json.get("cost_usd", 0.0)
+            total_usage["cost_usd"] = total_usage.get("cost_usd", 0.0) + r.token_usage_json.get(
+                "cost_usd", 0.0
+            )
 
     record = EvalRunORM(
         run_id=run_id,

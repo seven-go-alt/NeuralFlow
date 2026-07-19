@@ -11,10 +11,9 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from app.config import get_settings
 from app.evals.datasets import load_cases
 from app.evals.factories import (
     make_live_answer_eval_fn,
@@ -39,7 +38,8 @@ def parse_args() -> argparse.Namespace:
         help="Directory to write baseline report",
     )
     parser.add_argument(
-        "--no-judge", action="store_true",
+        "--no-judge",
+        action="store_true",
         help="Skip LLM-as-Judge to save cost",
     )
     return parser.parse_args()
@@ -71,50 +71,54 @@ async def _main() -> int:
     for path in dataset_files:
         print(f"  Running {path.name}...")
         results = await run_eval(
-            str(path), retrieve_fn, answer_fn,
-            top_k=args.top_k, answer_eval_fn=answer_eval_fn,
+            str(path),
+            retrieve_fn,
+            answer_fn,
+            top_k=args.top_k,
+            answer_eval_fn=answer_eval_fn,
         )
         all_results.extend(results)
 
     metrics = aggregate_metrics(all_results)
     report = build_eval_report(all_results, metrics)
 
-    total_tokens = sum(
-        (r.token_usage_json or {}).get("total_tokens", 0) for r in all_results
-    )
-    total_cost = sum(
-        (r.token_usage_json or {}).get("cost_usd", 0.0) for r in all_results
-    )
+    total_tokens = sum((r.token_usage_json or {}).get("total_tokens", 0) for r in all_results)
+    total_cost = sum((r.token_usage_json or {}).get("cost_usd", 0.0) for r in all_results)
     if total_tokens > 0:
         report += f"\n\n## Token Usage\n\n- Total tokens: {total_tokens}\n- Estimated cost: ${total_cost:.4f}\n"
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     report_path = output_dir / f"baseline-{timestamp}.md"
     report_path.write_text(report)
 
     json_path = output_dir / f"baseline-{timestamp}.json"
-    json_path.write_text(json.dumps({
-        "timestamp": timestamp,
-        "top_k": args.top_k,
-        "total_cases": metrics.total_cases,
-        "metrics": {
-            "retrieval_hit_rate": metrics.retrieval_hit_rate,
-            "citation_accuracy": metrics.citation_accuracy,
-            "keyword_coverage": metrics.keyword_coverage,
-            "no_answer_accuracy": metrics.no_answer_accuracy,
-            "average_latency_ms": metrics.average_latency_ms,
-            "mean_reciprocal_rank": metrics.mean_reciprocal_rank,
-            "average_precision_at_k": metrics.average_precision_at_k,
-            "average_recall_at_k": metrics.average_recall_at_k,
-            "average_answer_relevance": metrics.average_answer_relevance,
-            "average_answer_faithfulness": metrics.average_answer_faithfulness,
-            "average_answer_completeness": metrics.average_answer_completeness,
-        },
-        "token_usage": {
-            "total_tokens": total_tokens,
-            "cost_usd": total_cost,
-        },
-    }, indent=2))
+    json_path.write_text(
+        json.dumps(
+            {
+                "timestamp": timestamp,
+                "top_k": args.top_k,
+                "total_cases": metrics.total_cases,
+                "metrics": {
+                    "retrieval_hit_rate": metrics.retrieval_hit_rate,
+                    "citation_accuracy": metrics.citation_accuracy,
+                    "keyword_coverage": metrics.keyword_coverage,
+                    "no_answer_accuracy": metrics.no_answer_accuracy,
+                    "average_latency_ms": metrics.average_latency_ms,
+                    "mean_reciprocal_rank": metrics.mean_reciprocal_rank,
+                    "average_precision_at_k": metrics.average_precision_at_k,
+                    "average_recall_at_k": metrics.average_recall_at_k,
+                    "average_answer_relevance": metrics.average_answer_relevance,
+                    "average_answer_faithfulness": metrics.average_answer_faithfulness,
+                    "average_answer_completeness": metrics.average_answer_completeness,
+                },
+                "token_usage": {
+                    "total_tokens": total_tokens,
+                    "cost_usd": total_cost,
+                },
+            },
+            indent=2,
+        )
+    )
 
     print(f"\nReport saved to {report_path}")
     print(f"JSON data saved to {json_path}")

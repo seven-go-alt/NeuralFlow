@@ -91,11 +91,7 @@ def make_live_answer_eval_fn(
                     relevance=cached["relevance"],
                     faithfulness=cached["faithfulness"],
                     completeness=cached["completeness"],
-                    overall=(
-                        cached["relevance"]
-                        + cached["faithfulness"]
-                        + cached["completeness"]
-                    )
+                    overall=(cached["relevance"] + cached["faithfulness"] + cached["completeness"])
                     / 3.0,
                     reason=cached.get("reason", "cached"),
                     details=cached,
@@ -106,9 +102,7 @@ def make_live_answer_eval_fn(
         # not cached — call LLM (evaluate_answer returns (result, usage) from Task 4)
         import asyncio
 
-        eval_result, eval_usage = asyncio.run(
-            evaluate_answer(query, answer, context_chunks, llm)
-        )
+        eval_result, eval_usage = asyncio.run(evaluate_answer(query, answer, context_chunks, llm))
 
         # cache the result for future runs
         if eval_result.reason != "empty answer" and "error" not in eval_result.reason:

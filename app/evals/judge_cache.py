@@ -69,9 +69,7 @@ class JudgeCache:
 
                 async def _redis_set() -> None:
                     r = aioredis.Redis.from_url(self._redis_url)
-                    await r.setex(
-                        key, int(self._ttl), json.dumps(result, default=str)
-                    )
+                    await r.setex(key, int(self._ttl), json.dumps(result, default=str))
                     await r.aclose()
 
                 import asyncio

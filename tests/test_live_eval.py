@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from app.evals.factories import make_live_answer_fn, make_live_retrieve_fn
-from app.evals.judge_cache import JudgeCache
 from app.evals.metrics import aggregate_metrics
 from app.evals.runner import run_eval
 
@@ -38,21 +37,31 @@ class TestLiveEvalWithMockPipeline:
             ]
 
         def mock_answer(query: str, context: str) -> tuple[str | None, dict]:
-            return "Mock answer", {"prompt_tokens": 150, "completion_tokens": 50, "total_tokens": 200}
+            return "Mock answer", {
+                "prompt_tokens": 150,
+                "completion_tokens": 50,
+                "total_tokens": 200,
+            }
 
         def mock_judge(query: str, answer: str, chunks: list[str]) -> tuple:
             from app.rag.answer_evaluator import AnswerEvalResult
 
             return (
                 AnswerEvalResult(
-                    relevance=0.9, faithfulness=0.8, completeness=0.7,
-                    overall=0.8, reason="mock",
+                    relevance=0.9,
+                    faithfulness=0.8,
+                    completeness=0.7,
+                    overall=0.8,
+                    reason="mock",
                 ),
                 {"prompt_tokens": 200, "completion_tokens": 30, "total_tokens": 230},
             )
 
         results = await run_eval(
-            DATASET_PATH, mock_retrieve, mock_answer, top_k=3,
+            DATASET_PATH,
+            mock_retrieve,
+            mock_answer,
+            top_k=3,
             answer_eval_fn=mock_judge,
         )
         metrics = aggregate_metrics(results)
@@ -68,6 +77,7 @@ class TestLiveEvalWithMockPipeline:
     @pytest.mark.asyncio
     async def test_run_eval_skip_judge(self) -> None:
         """answer_eval_fn=None should work without Judge."""
+
         def mock_retrieve(query: str, top_k: int) -> list[dict]:
             return [
                 {"document_id": "doc_hr_leave", "content": "Leave policy.", "score": 0.9},
@@ -77,7 +87,10 @@ class TestLiveEvalWithMockPipeline:
             return "Answer", {"total_tokens": 100}
 
         results = await run_eval(
-            DATASET_PATH, mock_retrieve, mock_answer, top_k=3,
+            DATASET_PATH,
+            mock_retrieve,
+            mock_answer,
+            top_k=3,
             answer_eval_fn=None,
         )
         metrics = aggregate_metrics(results)
