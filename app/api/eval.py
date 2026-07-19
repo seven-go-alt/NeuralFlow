@@ -58,7 +58,7 @@ async def trigger_eval_run(
     results = await run_eval(
         cases_path=request.dataset_path,
         retrieve_fn=lambda q, k: [],
-        answer_fn=lambda q, c: "eval answer stub",
+        answer_fn=lambda q, c: ("eval answer stub", {}),
         top_k=request.top_k,
     )
     metrics = aggregate_metrics(results)
@@ -76,6 +76,8 @@ async def trigger_eval_run(
             "average_latency_ms": metrics.average_latency_ms,
         },
         per_case_results_json={"results": [r.__dict__ for r in results]},
+        config_snapshot_json=None,
+        token_usage_json=None,
         started_at=started_at,
         completed_at=completed_at,
     )

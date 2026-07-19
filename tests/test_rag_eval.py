@@ -185,8 +185,8 @@ async def test_run_eval_with_mock_fns(tmp_path: Path) -> None:
             {"document_id": "doc_hr", "content": "年假政策是15天", "score": 0.9},
         ]
 
-    def answer_fn(query: str, context: str) -> str | None:
-        return "doc_hr: 年假15天"
+    def answer_fn(query: str, context: str) -> tuple[str | None, dict]:
+        return "doc_hr: 年假15天", {}
 
     results = await run_eval(str(f), retrieve_fn, answer_fn, top_k=5)
     assert len(results) == 1
@@ -207,8 +207,8 @@ async def test_run_eval_should_not_answer(tmp_path: Path) -> None:
     def retrieve_fn(query: str, top_k: int) -> list[dict]:
         return []
 
-    def answer_fn(query: str, context: str) -> str | None:
-        return None
+    def answer_fn(query: str, context: str) -> tuple[str | None, dict]:
+        return None, {}
 
     results = await run_eval(str(f), retrieve_fn, answer_fn)
     assert len(results) == 1

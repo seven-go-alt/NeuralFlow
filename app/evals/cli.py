@@ -15,6 +15,7 @@ from typing import Any
 
 from app.evals.metrics import aggregate_metrics
 from app.evals.runner import build_eval_report, run_eval
+from app.core.llm import TokenUsage
 
 
 def _make_mock_retrieve(
@@ -31,10 +32,9 @@ def _make_mock_retrieve(
 
 def _make_mock_answer(
     answer_prefix: str = "Based on the documents:",
-) -> Callable[[str, str], str | None]:
-    def answer(query: str, context: str) -> str | None:
-        return f"{answer_prefix} {query}"
-
+) -> Callable[[str, str], tuple[str | None, TokenUsage]]:
+    def answer(query: str, context: str) -> tuple[str | None, TokenUsage]:
+        return f"{answer_prefix} {query}", {}
     return answer
 
 
