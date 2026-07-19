@@ -1,5 +1,6 @@
 import js from "@eslint/js";
-import nextVitals from "eslint-config-next/core-web-vitals";
+import nextPlugin from "@next/eslint-plugin-next";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 const browserGlobals = {
@@ -23,7 +24,16 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  ...nextVitals,
+  {
+    plugins: {
+      "@next/next": nextPlugin,
+      "react-hooks": reactHooks,
+    },
+    rules: {
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      ...reactHooks.configs.recommended.rules,
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
