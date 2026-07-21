@@ -61,7 +61,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.15.22",
     "types-aiofiles>=24.1.0",
-    "hypothesis>=6.119.4",
+    "hypothesis>=6.158.1",
 ]
 
 [tool.pytest.ini_options]
