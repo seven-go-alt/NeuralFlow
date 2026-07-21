@@ -428,7 +428,7 @@ async def chat_stream(
                     for item in payload.get("retrieval_results", [])
                     if item.get("content")
                 ]
-                eval_result = await evaluate_answer(
+                eval_result, _ = await evaluate_answer(
                     query=payload.get("user_message", ""),
                     answer=final_reply,
                     context_chunks=context_chunks,

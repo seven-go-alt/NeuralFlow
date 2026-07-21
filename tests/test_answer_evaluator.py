@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.llm import TokenUsage
 from app.rag.answer_evaluator import AnswerEvalResult, evaluate_answer
 
 
@@ -10,18 +11,19 @@ class FakeLLM:
     ) -> None:
         self.response = response
 
-    async def generate(self, prompt: str) -> str:  # noqa: ARG002
-        return self.response
+    async def generate_with_usage(self, prompt: str) -> tuple[str, TokenUsage]:  # noqa: ARG002
+        return self.response, {}
 
 
 async def test_evaluate_answer_full_scores() -> None:
-    result = await evaluate_answer(
+    result, usage = await evaluate_answer(
         query="test query",
         answer="test answer content",
         context_chunks=["chunk1", "chunk2"],
         llm=FakeLLM(),
     )
     assert isinstance(result, AnswerEvalResult)
+    assert isinstance(usage, dict)
     assert result.relevance == 0.8
     assert result.faithfulness == 0.9
     assert result.completeness == 0.7
@@ -30,39 +32,43 @@ async def test_evaluate_answer_full_scores() -> None:
 
 
 async def test_evaluate_answer_empty_answer() -> None:
-    result = await evaluate_answer(query="test", answer="", context_chunks=[], llm=FakeLLM())
+    result, usage = await evaluate_answer(query="test", answer="", context_chunks=[], llm=FakeLLM())
     assert result.relevance == 0.0
     assert result.reason == "empty answer"
+    assert usage == {}
 
 
 async def test_evaluate_answer_clamps_values() -> None:
     llm = FakeLLM(
         response='{"relevance": 2.5, "faithfulness": -1.0, "completeness": 0.5, "reason": ""}'
     )
-    result = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
+    result, usage = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
     assert result.relevance == 1.0
     assert result.faithfulness == 0.0
     assert result.completeness == 0.5
+    assert isinstance(usage, dict)
 
 
 async def test_evaluate_answer_parse_error() -> None:
     llm = FakeLLM(response="not json")
-    result = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
+    result, usage = await evaluate_answer(query="test", answer="answer", context_chunks=[], llm=llm)
     assert result.relevance == 0.0
     assert "parse error" in result.reason
+    assert isinstance(usage, dict)
 
 
 async def test_evaluate_answer_llm_error() -> None:
     class FailingLLM:
-        async def generate(self, prompt: str) -> str:  # noqa: ARG002
+        async def generate_with_usage(self, prompt: str) -> tuple[str, TokenUsage]:  # noqa: ARG002
             msg = "llm unavailable"
             raise RuntimeError(msg)
 
-    result = await evaluate_answer(
+    result, usage = await evaluate_answer(
         query="test", answer="answer", context_chunks=[], llm=FailingLLM()
     )
     assert result.relevance == 0.0
     assert "llm error" in result.reason
+    assert usage == {}
 
 
 async def test_from_llm_response_valid() -> None:

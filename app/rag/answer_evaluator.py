@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.core.llm import LLMClient
+from app.core.llm import LLMClient, TokenUsage
 
 _EVAL_PROMPT = """你是一个 RAG 答案质量评估员。请根据问题和检索上下文评估给出的答案。
 
@@ -67,13 +67,14 @@ async def evaluate_answer(
     answer: str,
     context_chunks: list[str],
     llm: LLMClient,
-) -> AnswerEvalResult:
+) -> tuple[AnswerEvalResult, TokenUsage]:
+    """Evaluate answer quality. Returns (result, token_usage)."""
     if not answer:
-        return AnswerEvalResult.zero(reason="empty answer")
+        return AnswerEvalResult.zero(reason="empty answer"), {}
     context = "\n".join(f"- {c[:500]}" for c in context_chunks)
     prompt = _EVAL_PROMPT.format(query=query, answer=answer, context=context)
     try:
-        raw = await llm.generate(prompt)
-        return AnswerEvalResult.from_llm_response(raw)
+        raw, usage = await llm.generate_with_usage(prompt)
+        return AnswerEvalResult.from_llm_response(raw), usage
     except Exception as exc:
-        return AnswerEvalResult.zero(reason=f"llm error: {exc}")
+        return AnswerEvalResult.zero(reason=f"llm error: {exc}"), {}

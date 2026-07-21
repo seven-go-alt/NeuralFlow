@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, TypedDict
 
 from litellm import acompletion
 
@@ -10,6 +10,13 @@ from app.config import get_settings
 from app.utils.retry import retry
 
 logger = logging.getLogger(__name__)
+
+
+class TokenUsage(TypedDict, total=False):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost_usd: float
 
 
 def build_rule_based_fallback_reply(prompt: str, error: Exception | None = None) -> str:
@@ -51,6 +58,65 @@ class LLMClient:
                     return build_rule_based_fallback_reply(prompt, error=fallback_exc)
             logger.warning("primary llm failed, returning rule-based summary", exc_info=primary_exc)
             return build_rule_based_fallback_reply(prompt, error=primary_exc)
+
+    async def generate_with_usage(self, prompt: str) -> tuple[str, TokenUsage]:
+        """Generate text and return token usage metadata from litellm."""
+        try:
+            return await self._generate_with_usage_once(prompt, model=self.model)
+        except Exception as primary_exc:
+            if not self.offline_fallback_enabled:
+                raise
+            if self.fallback_model:
+                try:
+                    logger.warning(
+                        "primary llm (with usage) failed, falling back to offline model",
+                        exc_info=primary_exc,
+                    )
+                    return await self._generate_with_usage_once(prompt, model=self.fallback_model)
+                except Exception as fallback_exc:
+                    logger.warning("fallback llm (with usage) failed", exc_info=fallback_exc)
+                    return self._fallback_with_usage(prompt, fallback_exc)
+            logger.warning("primary llm (with usage) failed", exc_info=primary_exc)
+            return self._fallback_with_usage(prompt, primary_exc)
+
+    async def _generate_with_usage_once(self, prompt: str, model: str) -> tuple[str, TokenUsage]:
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": self._build_messages(prompt),
+            "max_retries": 0,
+        }
+        if self.api_base:
+            kwargs["api_base"] = self.api_base
+        if self.api_key:
+            kwargs["api_key"] = self.api_key
+        response = await retry(
+            lambda: acompletion(**kwargs),
+            max_attempts=3,
+            base_delay=1.0,
+            retryable_exceptions=(Exception,),
+        )
+        content = response.choices[0].message.content or ""
+        usage: TokenUsage = {}
+        if hasattr(response, "usage") and response.usage is not None:
+            u = response.usage
+            usage = {
+                "prompt_tokens": getattr(u, "prompt_tokens", 0) or 0,
+                "completion_tokens": getattr(u, "completion_tokens", 0) or 0,
+                "total_tokens": getattr(u, "total_tokens", 0) or 0,
+            }
+            cost = getattr(u, "cost", None)
+            if cost is not None:
+                usage["cost_usd"] = float(cost)
+            elif hasattr(response, "_hidden_params") and response._hidden_params:
+                cost = response._hidden_params.get("response_cost")
+                if cost is not None:
+                    usage["cost_usd"] = float(cost)
+        return content, usage
+
+    def _fallback_with_usage(
+        self, prompt: str, error: Exception | None = None
+    ) -> tuple[str, TokenUsage]:
+        return build_rule_based_fallback_reply(prompt, error=error), {}
 
     async def stream_generate(
         self, prompt: str, include_thinking: bool = False

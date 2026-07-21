@@ -105,6 +105,7 @@ class CaseResult:
     first_relevant_rank: int = 0
     precision_at_k: float = 0.0
     recall_at_k: float = 0.0
+    token_usage_json: dict | None = None  # NEW
 
 
 def compute_retrieval_hit(

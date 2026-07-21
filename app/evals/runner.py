@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from app.core.llm import TokenUsage
 from app.evals.datasets import load_cases
 
 if TYPE_CHECKING:
@@ -22,8 +23,8 @@ from app.evals.metrics import (
 )
 
 RetrieveFn = Callable[[str, int], list[dict[str, Any]]]
-AnswerFn = Callable[[str, str], str | None]
-AnswerEvalFn = Callable[[str, str, list[str]], "AnswerEvalResult | None"]
+AnswerFn = Callable[[str, str], tuple[str | None, TokenUsage]]
+AnswerEvalFn = Callable[[str, str, list[str]], tuple["AnswerEvalResult | None", TokenUsage]]
 
 
 async def run_eval(
@@ -44,13 +45,25 @@ async def run_eval(
         retrieved_contents = tuple(r.get("content", "") for r in retrieved)
 
         all_text = " ".join(retrieved_contents)
-        answer = answer_fn(case.question, all_text)
+        answer, answer_usage = answer_fn(case.question, all_text)
 
         latency_ms = (time.perf_counter() - start) * 1000
 
         answer_eval: AnswerEvalResult | None = None
+        eval_usage: TokenUsage = {}
         if answer_eval_fn is not None and answer is not None:
-            answer_eval = answer_eval_fn(case.question, answer, list(retrieved_contents))
+            answer_eval, eval_usage = answer_eval_fn(
+                case.question, answer, list(retrieved_contents)
+            )
+
+        combined_usage: dict = dict(answer_usage)
+        if eval_usage:
+            for k in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                combined_usage[k] = combined_usage.get(k, 0) + eval_usage.get(k, 0)
+            if "cost_usd" in combined_usage or "cost_usd" in eval_usage:
+                combined_usage["cost_usd"] = combined_usage.get("cost_usd", 0.0) + eval_usage.get(
+                    "cost_usd", 0.0
+                )
 
         effective_k = len(retrieved_doc_ids) if len(retrieved_doc_ids) > 0 else top_k
         results.append(
@@ -76,6 +89,7 @@ async def run_eval(
                 recall_at_k=compute_recall_at_k(
                     retrieved_doc_ids, case.expected_doc_ids, effective_k
                 ),
+                token_usage_json=combined_usage if combined_usage else None,
             )
         )
 

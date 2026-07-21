@@ -144,8 +144,8 @@ async def test_eval_with_mock_data() -> None:
             },
         ]
 
-    def mock_answer(query: str, context: str) -> str | None:
-        return f"Answer based on: {context[:80]}"
+    def mock_answer(query: str, context: str) -> tuple[str | None, dict]:
+        return f"Answer based on: {context[:80]}", {}
 
     results = await run_eval(str(DATASET_PATH), mock_retrieve, mock_answer, top_k=3)
     metrics = aggregate_metrics(results)
@@ -166,8 +166,10 @@ async def test_eval_empty_results() -> None:
     def empty_retrieve(query: str, top_k: int) -> list[dict]:
         return []
 
-    def mock_answer(query: str, context: str) -> str | None:
-        return "some answer"
+    def mock_answer(query: str, context: str) -> tuple[str | None, dict]:
+        return "some answer", {}
+
+    results = await run_eval(str(DATASET_PATH), empty_retrieve, mock_answer, top_k=3)
 
     results = await run_eval(str(DATASET_PATH), empty_retrieve, mock_answer, top_k=3)
     metrics = aggregate_metrics(results)
@@ -190,15 +192,15 @@ async def test_eval_no_answer_scenarios() -> None:
     def retrieve_fn(query: str, top_k: int) -> list[dict]:
         return []
 
-    def answer_fn(query: str, context: str) -> str | None:
+    def answer_fn(query: str, context: str) -> tuple[str | None, dict]:
         if (
             "favorite color" in query
             or "joke" in query
             or "Super Bowl" in query
             or "stock price" in query
         ):
-            return None
-        return "some answer"
+            return None, {}
+        return "some answer", {}
 
     results = await run_eval(str(DATASET_PATH), retrieve_fn, answer_fn, top_k=3)
     metrics = aggregate_metrics(results)
@@ -216,8 +218,8 @@ async def test_eval_partial_keyword_coverage() -> None:
             {"document_id": "doc_1", "content": "annual leave policy details.", "score": 0.9},
         ]
 
-    def answer_fn(query: str, context: str) -> str | None:
-        return "response"
+    def answer_fn(query: str, context: str) -> tuple[str | None, dict]:
+        return "response", {}
 
     results = await run_eval(str(DATASET_PATH), retrieve_fn, answer_fn, top_k=1)
     metrics = aggregate_metrics(results)
@@ -324,8 +326,8 @@ async def test_compare_runs() -> None:
             {"document_id": "doc_hr_leave", "content": "Leave policy content.", "score": 0.9},
         ]
 
-    def answer_a(query: str, context: str) -> str | None:
-        return "answer A"
+    def answer_a(query: str, context: str) -> tuple[str | None, dict]:
+        return "answer A", {}
 
     def retrieve_b(query: str, top_k: int) -> list[dict]:
         return [
@@ -333,8 +335,8 @@ async def test_compare_runs() -> None:
             {"document_id": "doc_hr_sick", "content": "Sick leave content.", "score": 0.85},
         ]
 
-    def answer_b(query: str, context: str) -> str | None:
-        return "answer B"
+    def answer_b(query: str, context: str) -> tuple[str | None, dict]:
+        return "answer B", {}
 
     result = await compare_runs(
         str(DATASET_PATH),
@@ -467,8 +469,8 @@ async def test_finance_eval_with_mock_data() -> None:
             },
         ]
 
-    def mock_answer(query: str, context: str) -> str | None:
-        return f"Answer based on: {context[:80]}"
+    def mock_answer(query: str, context: str) -> tuple[str | None, dict]:
+        return f"Answer based on: {context[:80]}", {}
 
     results = await run_eval(str(FINANCE_DATASET_PATH), mock_retrieve, mock_answer, top_k=3)
     metrics = aggregate_metrics(results)
@@ -500,8 +502,8 @@ async def test_technical_eval_with_mock_data() -> None:
             },
         ]
 
-    def mock_answer(query: str, context: str) -> str | None:
-        return f"Answer based on: {context[:80]}"
+    def mock_answer(query: str, context: str) -> tuple[str | None, dict]:
+        return f"Answer based on: {context[:80]}", {}
 
     results = await run_eval(str(TECHNICAL_DATASET_PATH), mock_retrieve, mock_answer, top_k=3)
     metrics = aggregate_metrics(results)

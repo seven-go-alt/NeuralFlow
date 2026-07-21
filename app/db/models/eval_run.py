@@ -17,6 +17,8 @@ class EvalRunORM(Base):
     dataset_name: Mapped[str] = mapped_column(String(255))
     total_cases: Mapped[int] = mapped_column(Integer)
     metrics_json: Mapped[dict] = mapped_column(JSON)
+    config_snapshot_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    token_usage_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     per_case_results_json: Mapped[dict] = mapped_column(JSON)
     started_at: Mapped[datetime] = mapped_column(DateTime)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
