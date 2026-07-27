@@ -1,4 +1,9 @@
-import type { EvalRunDetail, EvalRunsResponse, TriggerEvalRunRequest, TriggerEvalRunResponse } from "@/types/eval";
+import type {
+  EvalRunDetail,
+  EvalRunsResponse,
+  TriggerEvalRunRequest,
+  TriggerEvalRunResponse,
+} from "@/types/eval";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??

@@ -77,7 +77,7 @@ NeuralFlow 是一个面向作品集与真实原型场景的 **企业 AI 知识�
 - **LLM-as-judge answer evaluation（relevance / faithfulness / completeness scoring）**
 - **Pipeline tracing with DB persistence**
 - **Prometheus eval metrics（Gauges / Histograms for answer scores）**
-- **Eval API endpoints（run evals on datasets, list results, inspect detail）**
+- **Eval API endpoints（受控 dataset_id、Celery 异步运行、租户隔离、状态查询）**
 - **Trace API endpoints（filterable trace spans, full trace tree）**
 
 ### 前端 Runtime Console
