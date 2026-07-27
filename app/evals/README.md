@@ -36,3 +36,17 @@ print(report)
 ### `runner.py`
 - `run_eval(cases_path, retrieve_fn, answer_fn, top_k)` — runs full eval pipeline
 - `build_eval_report(results, metrics)` — generates markdown report
+
+### API evaluation runs
+- `POST /api/v1/eval/run` accepts a controlled `dataset_id` (not an arbitrary filesystem path)
+- Runs are queued through Celery on the `evals` queue and persist `queued/running/completed/failed` status
+- `GET /api/v1/eval/runs` and `GET /api/v1/eval/runs/{run_id}` are tenant-scoped
+- Configure `EVAL_DATASET_DIR`, `EVAL_MAX_DATASET_MB`, and `EVAL_MAX_CASES` for API dataset limits
+
+Start a worker with the evaluation queue enabled:
+
+```bash
+celery -A worker.celery_app worker --queues documents,evals,celery
+```
+
+The local CLI intentionally keeps accepting explicit paths for offline development; the HTTP API does not.

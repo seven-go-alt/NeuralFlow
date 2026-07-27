@@ -14,16 +14,27 @@ class EvalCase:
     should_answer: bool
 
 
-def load_cases(path: str | Path) -> list[EvalCase]:
+def load_cases(path: str | Path, *, max_cases: int | None = None) -> list[EvalCase]:
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Eval cases file not found: {path}")
     cases: list[EvalCase] = []
+    case_limit = max_cases
+    if case_limit is None:
+        from app.config import get_settings
+
+        case_limit = get_settings().eval_max_cases
+
+    if case_limit <= 0:
+        raise ValueError("max_cases must be greater than zero")
+
     with path.open(encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
+            if len(cases) >= case_limit:
+                raise ValueError(f"evaluation dataset exceeds the {case_limit} case limit")
             record = json.loads(line)
             cases.append(
                 EvalCase(

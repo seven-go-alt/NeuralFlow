@@ -11,7 +11,7 @@ import {
   GitBranch,
   Search,
 } from "lucide-react";
-import { listTraces, getTrace } from "@/services/traces";
+import { listTraces } from "@/services/traces";
 import { listEvalRuns } from "@/services/eval";
 import type { TraceSummary } from "@/types/traces";
 import type { EvalRunSummary } from "@/types/eval";
