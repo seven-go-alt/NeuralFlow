@@ -16,6 +16,10 @@ export default function EvalRunPage({ params }: { params: Promise<{ runId: strin
   const { data: run, isLoading, isError } = useQuery({
     queryKey: ["eval-run", runId],
     queryFn: () => getEvalRun(runId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "completed" || status === "failed" ? false : 2000;
+    },
   });
 
   if (isLoading) {
@@ -33,7 +37,23 @@ export default function EvalRunPage({ params }: { params: Promise<{ runId: strin
 
   if (isError || !run) notFound();
 
+  if (run.status !== "completed") {
+    return (
+      <main className="min-h-screen bg-zinc-950 px-6 py-8 text-zinc-100">
+        <div className="mx-auto max-w-5xl space-y-6">
+          <Link href="/eval" className="text-sm text-zinc-400 hover:text-zinc-200">← Back to evaluations</Link>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6">
+            <div className="text-lg font-semibold">Evaluation {run.status}</div>
+            <div className="mt-2 text-sm text-zinc-400">Progress: {run.progress}%</div>
+            {run.error_message && <div className="mt-3 text-sm text-rose-300">{run.error_message}</div>}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const m = run.metrics;
+
   const hitRate = ((m.retrieval_hit_rate ?? 0) * 100).toFixed(0);
   const citationAcc = ((m.citation_accuracy ?? 0) * 100).toFixed(0);
   const kwCoverage = ((m.keyword_coverage ?? 0) * 100).toFixed(0);

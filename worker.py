@@ -17,14 +17,17 @@ celery_app = Celery(
 )
 celery_app.conf.task_routes = {
     "neuralflow.ingest_document": {"queue": "documents"},
+    "neuralflow.run_eval": {"queue": "evals"},
 }
 celery_app.conf.task_default_queue = "celery"
 celery_app.conf.task_queues = (
     Queue("celery", routing_key="celery"),
     Queue("documents", routing_key="documents"),
+    Queue("evals", routing_key="evals"),
 )
 
 # Import shared tasks after celery_app initialization to avoid circular import
+from app.evals.tasks import run_eval_task  # noqa: E402,F401
 from app.ingestion.tasks import ingest_document_task  # noqa: E402,F401
 
 

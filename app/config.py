@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     s3_region: str = Field(default="us-east-1", alias="S3_REGION")
     s3_endpoint_url: str | None = Field(default=None, alias="S3_ENDPOINT_URL")
     document_max_upload_mb: int = 50
+    eval_dataset_dir: str = Field(default="data/eval/datasets", alias="EVAL_DATASET_DIR")
+    eval_max_dataset_mb: int = Field(default=10, alias="EVAL_MAX_DATASET_MB")
+    eval_max_cases: int = Field(default=1000, alias="EVAL_MAX_CASES")
     rag_default_top_k: int = 5
     rag_score_threshold: float = 0.0
     embedding_model: str = "text-embedding-3-small"

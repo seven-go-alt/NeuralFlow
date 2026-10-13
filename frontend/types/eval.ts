@@ -2,6 +2,9 @@ export interface EvalRunSummary {
   run_id: string;
   dataset_name: string;
   total_cases: number;
+  status: string;
+  progress: number;
+  error_message?: string | null;
   retrieval_hit_rate: number;
   citation_accuracy: number;
   keyword_coverage: number;
@@ -54,6 +57,9 @@ export interface EvalRunDetail {
   run_id: string;
   dataset_name: string;
   total_cases: number;
+  status: string;
+  progress: number;
+  error_message?: string | null;
   metrics: EvalMetrics;
   per_case_results: PerCaseResults;
   started_at: string;
@@ -61,12 +67,13 @@ export interface EvalRunDetail {
 }
 
 export interface TriggerEvalRunRequest {
-  dataset_path: string;
+  dataset_id: string;
   top_k?: number;
 }
 
 export interface TriggerEvalRunResponse {
   run_id: string;
   status: string;
+  progress: number;
   total_cases: number;
 }

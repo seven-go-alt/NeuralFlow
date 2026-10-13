@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 from app.db.base import Base
+from app.db.migrations import apply_compatibility_migrations
 
 settings = get_settings()
 DATABASE_URL = getattr(settings, "database_url", "sqlite:///./data/neuralflow.db")
@@ -27,6 +28,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    apply_compatibility_migrations(engine)
 
 
 def get_db() -> Generator[Session, None, None]:

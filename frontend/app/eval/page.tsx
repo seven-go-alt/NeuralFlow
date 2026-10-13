@@ -11,7 +11,7 @@ import type { EvalRunSummary } from "@/types/eval";
 
 export default function EvalPage() {
   const [showTrigger, setShowTrigger] = useState(false);
-  const [datasetPath, setDatasetPath] = useState("");
+  const [datasetId, setDatasetId] = useState("");
   const [topK, setTopK] = useState(5);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -21,10 +21,10 @@ export default function EvalPage() {
   });
 
   const triggerMutation = useMutation({
-    mutationFn: () => triggerEvalRun({ dataset_path: datasetPath, top_k: topK }),
+    mutationFn: () => triggerEvalRun({ dataset_id: datasetId, top_k: topK }),
     onSuccess: () => {
       setShowTrigger(false);
-      setDatasetPath("");
+      setDatasetId("");
       refetch();
     },
   });
@@ -52,12 +52,16 @@ export default function EvalPage() {
               <div className="mb-4 text-sm font-semibold text-zinc-200">Trigger New Eval Run</div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-zinc-500 font-mono">Dataset Path</label>
+                  <label className="text-xs text-zinc-500 font-mono">Dataset ID</label>
                   <input
                     type="text"
-                    value={datasetPath}
-                    onChange={(e) => setDatasetPath(e.target.value)}
-                    placeholder="/path/to/dataset.jsonl"
+                    value={datasetId}
+                    onChange={(e) => setDatasetId(e.target.value)}
+                    placeholder="rag_quality_50"
+                    aria-label="Dataset ID"
+                    required
+                    pattern="[A-Za-z0-9_.-]+"
+                    title="Use a dataset filename or ID, not a filesystem path"
                     className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-cyan-500"
                   />
                 </div>
@@ -81,7 +85,7 @@ export default function EvalPage() {
                   <Button variant="ghost" onClick={() => setShowTrigger(false)}>Cancel</Button>
                   <Button
                     onClick={() => triggerMutation.mutate()}
-                    disabled={!datasetPath.trim() || triggerMutation.isPending}
+                    disabled={!datasetId.trim() || triggerMutation.isPending}
                   >
                     {triggerMutation.isPending ? "Running…" : "Run"}
                   </Button>
@@ -144,6 +148,9 @@ export default function EvalPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-xs font-mono">
+                      <span className={`rounded px-2 py-0.5 ${run.status === "failed" ? "bg-rose-950/50 text-rose-300" : run.status === "completed" ? "bg-emerald-950/50 text-emerald-300" : "bg-amber-950/50 text-amber-300"}`}>
+                        {run.status} {run.status !== "completed" && run.status !== "failed" ? `${run.progress}%` : ""}
+                      </span>
                       <span className="text-zinc-400">
                         Hit: <span className="text-emerald-300">{(run.retrieval_hit_rate * 100).toFixed(0)}%</span>
                       </span>
