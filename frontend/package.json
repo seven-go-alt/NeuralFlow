@@ -12,19 +12,19 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "highlight.js": "^11.12.0",
-    "lucide-react": "^1.73.0",
+    "lucide-react": "^1.77.0",
     "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
-    "recharts": "^3.10.1",
+    "recharts": "^3.11.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.7.0",
+    "tailwind-merge": "^3.7.1",
     "zustand": "^5.1.0"
   },
   "devDependencies": {
@@ -41,10 +41,10 @@
     "@next/eslint-plugin-next": "^16.4.6",
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "jsdom": "^31.0.1",
     "tailwindcss": "^4.1.17",
     "typescript": "^6.0.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   }
 }
